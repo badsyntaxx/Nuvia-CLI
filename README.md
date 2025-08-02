@@ -1,17 +1,15 @@
 ### A powershell scripts library
 
-# Chaste Scripts
+# Shell CLI
 
-This is my PowerShell script library for various Windows tasks. No need to download anything; just
-enter a command and gain access. Chaste Scripts is particularly useful for IT professionals who need
-to perform tasks on the backend without disrupting the user. It can handle tasks such as modifying
+This is my PowerShell script library for various Windows tasks. No need to download anything; just enter a command and gain access. Shell CLI is
+particularly useful for IT professionals who need to perform tasks on the backend without disrupting the user. It can handle tasks such as modifying
 user data (including groups and passwords), making changes to the network adapter, and more.
 
 ## Before we begin
 
-NOTE There are some anti-virus softwares that block Chaste Scripts. Some do and some don't. If you
-encounter an av software that does there are some
-[steps you can take](https://github.com/badsyntaxx/intech-scripts?tab=readme-ov-file#bypass-anti-virus).
+NOTE There are some anti-virus softwares that block Shell CLI. Some do and some don't. If you encounter an av software that does there are some
+[steps you can take](https://github.com/badsyntaxx/shellcli?tab=readme-ov-file#bypass-anti-virus).
 
 You may also need to enable running powershell scripts on your system.
 
@@ -20,21 +18,21 @@ You may also need to enable running powershell scripts on your system.
 Open powershell as an administrator, paste in the command below and hit Enter. Thats it!
 
 Getting started\
-`irm intechscripts.com | iex`
+`irm shellcli.com | iex`
 
 The above command is shorthand Powershell. It is the same as\
-`Invoke-RestMethod intechscripts.com | Invoke-Expression`
+`Invoke-RestMethod shellcli.com | Invoke-Expression`
 
 ## Using the menu
 
-If you don't know any commands, you can just enter the `menu` command. Once in the menu, you can use
-the _up_ and _down_ arrow keys to make selections and then the enter key to confirm your selection.
+If you don't know any commands, you can just enter the `menu` command. Once in the menu, you can use the _up_ and _down_ arrow keys to make selections
+and then the enter key to confirm your selection.\
+![Shell CLI menu](https://wkey.pro/images/shellcli/shellcli.png)
 
 ## Using commands
 
-You don't need to rely on the menu. You can accomplish more, faster, by accessing commands directly.
-For instance, creating a new user or editing the target PC's network adapter can be done with short
-intuitive commands.
+You don't need to rely on the menu. You can accomplish more, faster, by accessing commands directly. For instance, creating a new user or editing the
+target PC's network adapter can be done with short intuitive commands.
 
 Add a new local user to the system.\
 `add local user`
@@ -96,19 +94,17 @@ View WiFi ssid and passwords for the currently enabled NIC's.\
 
 ## Enable running powershell
 
-Its fairly common that running powershell scripts is disabled by default. You can enable running
-powershell scripts by opening powershell as an administrator and entering this command.
+Its fairly common that running powershell scripts is disabled by default. You can enable running powershell scripts by opening powershell as an
+administrator and entering this command.
 
 Set the execution policy to unrestricted. `Set-ExecutionPolicy Unrestricted`
 
 ## Bypass anti-virus
 
-Some anti-virus programs will block the use of Chaste Scripts. Most of the time the inital
-connection command is what triggers the anti-virus. Thats because of the irm (Invoke-RestMethod)
-portion of the command. The reason anti-virus softwares will sometimes block this command is because
-it can be used to send and retrieve information over the internet. In this case you retrieve the
-root powershell functions of Chaste Scripts.
+Some anti-virus programs will block the use of Shell CLI. Most of the time the inital connection command is what triggers the anti-virus. Thats
+because of the irm (Invoke-RestMethod) portion of the command. The reason anti-virus softwares will sometimes block this command is because it can be
+used to send and retrieve information over the internet. In this case you retrieve the root powershell functions of Shell CLI.
 
-To bypass this problem you can download and run or paste in the root functions of Chaste Scripts.
+To bypass this problem you can download and run or paste in the root functions of Shell CLI.
 
-[Chaste Scripts Root](https://raw.githubusercontent.com/badsyntaxx/intech-scripts/main/core/init.ps1)
+[Shell CLI Root](https://raw.githubusercontent.com/badsyntaxx/shellcli/main/core/init.ps1)

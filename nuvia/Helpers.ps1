@@ -1,10 +1,12 @@
 function nuvia {
     Write-Host
-    Write-Host "  Try" -NoNewline
+    Write-Host " $([char]0x250C)" -NoNewline -ForegroundColor "Gray"
+    Write-Host " Try" -NoNewline
     Write-Host " nuvia help" -ForegroundColor "Cyan" -NoNewline
     Write-Host " or" -NoNewline
-    Write-Host " nuvia menu" -NoNewline -ForegroundColor "Cyan"
-    Write-Host " if you don't know what to do."
+    Write-Host " menu" -NoNewline -ForegroundColor "Cyan"
+    Write-Host " if you get stuck."
+    Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
 }
 function readMenu {
     try {

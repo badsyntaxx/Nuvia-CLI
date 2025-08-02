@@ -1,4 +1,4 @@
-function initializeChasteScripts {
+function initializeShellCLI {
     try {
         # Check if user has administrator privileges
         if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]"Administrator")) {
@@ -12,7 +12,7 @@ function initializeChasteScripts {
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         
         # Create the main script file
-        New-Item -Path "$env:SystemRoot\Temp\CHASTE-Script.ps1" -ItemType File -Force | Out-Null
+        New-Item -Path "$env:SystemRoot\Temp\ShellCLI.ps1" -ItemType File -Force | Out-Null
 
         $url = "https://raw.githubusercontent.com/badsyntaxx/intech-scripts/main"
 
@@ -24,17 +24,17 @@ function initializeChasteScripts {
 
         # Append the script to the main script
         $rawScript = Get-Content -Path "$env:SystemRoot\Temp\Framework.ps1" -Raw -ErrorAction SilentlyContinue
-        Add-Content -Path "$env:SystemRoot\Temp\CHASTE-Script.ps1" -Value $rawScript
+        Add-Content -Path "$env:SystemRoot\Temp\ShellCLI.ps1" -Value $rawScript
 
         # Remove the script file
         Get-Item -ErrorAction SilentlyContinue "$env:SystemRoot\Temp\Framework.ps1" | Remove-Item -ErrorAction SilentlyContinue
 
         # Add a final line that will invoke the desired function
-        Add-Content -Path "$env:SystemRoot\Temp\CHASTE-Script.ps1" -Value 'invokeScript -script "readCommand" -initialize $true'
+        Add-Content -Path "$env:SystemRoot\Temp\ShellCLI.ps1" -Value 'invokeScript -script "readCommand" -initialize $true'
 
         # Execute the combined script
-        $chasteScript = Get-Content -Path "$env:SystemRoot\Temp\CHASTE-Script.ps1" -Raw
-        Invoke-Expression $chasteScript
+        $shellCLI = Get-Content -Path "$env:SystemRoot\Temp\ShellCLI.ps1" -Raw
+        Invoke-Expression $shellCLI
     } catch {
         # Error handling: display an error message and prompt for a new command
         Write-Host "  Connection Error: $($_.Exception.Message) | init-$($_.InvocationInfo.ScriptLineNumber)" -ForegroundColor "Red"
@@ -91,4 +91,4 @@ function getScripts {
 }
 
 # Invoke the root of CHASTE scripts
-initializeChasteScripts
+initializeShellCLI

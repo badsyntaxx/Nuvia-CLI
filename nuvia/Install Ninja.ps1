@@ -1,70 +1,53 @@
 function installNinja {
     try {
-        $choice = readOption -options $([ordered]@{
-                "Inventory"   = "Install for inventory."
-                "Orem Center" = "Install for the Orem ISR center."
-                "ISR Remote"  = "Install for a remote ISR."
-                "Cancel"      = "Install nothing and exit this function."
-            }) -prompt "Install for the Orem ISR center or other?"
+        $url = "https://app.ninjarmm.com/agent/installer/6a496c78-c8ef-4ace-9c88-cd0a7aa5415c/8.0.2891/NinjaOne-Agent-Nuvia-Unassigned-Auto.msi"
+        $service = Get-Service -Name "NinjaRMMAgent" -ErrorAction SilentlyContinue
 
-        $location = "nuviainventory"
-
-        switch ($choice) {
-            1 { $location = "nuviaisrcenteroremut" }
-            2 { $location = "nuviaisrcenterremote" }
-        }
-
-        if ($choice -ne 3) {
-            $url = "https://app.ninjarmm.com/agent/installer/0274c0c3-3ec8-44fc-93cb-79e96f191e07/$location-7.0.2317-windows-installer.msi"
-            $service = Get-Service -Name "NinjaRMMAgent" -ErrorAction SilentlyContinue
-
-            writeText -type "notice" -text "$location-7.0.2317-windows-installer.msi"
+        writeText -type "notice" -text "This computer will be in -Unassigned after install."
         
-            if ($null -ne $service -and $service.Status -eq "Running") {
-                writeText -type "success" -text "NinjaRMMAgent is already installed and running."
-            } else {
-                $download = getDownload -url $url -target "$env:SystemRoot\Temp\NinjaOne.msi" -lineBefore
-                if ($download) { 
-                    Start-Process -FilePath "msiexec" -ArgumentList "/i `"$env:SystemRoot\Temp\NinjaOne.msi`" /qn" -Wait
+        if ($null -ne $service -and $service.Status -eq "Running") {
+            writeText -type "success" -text "NinjaRMMAgent is already installed and running."
+        } else {
+            $download = getDownload -url $url -target "$env:SystemRoot\Temp\NinjaOne-Agent-Nuvia-Unassigned-Auto.msi" -lineBefore
+            if ($download) { 
+                Start-Process -FilePath "msiexec" -ArgumentList "/i `"$env:SystemRoot\Temp\NinjaOne-Agent-Nuvia-Unassigned-Auto.msi`" /qn" -Wait
 
-                    # Initialize variables for service check
-                    $maxAttempts = 10  # Number of attempts to check service
-                    $waitSeconds = 5   # Time to wait between attempts
-                    $serviceRunning = $false
+                # Initialize variables for service check
+                $maxAttempts = 10  # Number of attempts to check service
+                $waitSeconds = 5   # Time to wait between attempts
+                $serviceRunning = $false
 
-                    writeText -type "notice" -text "Waiting for NinjaRMMAgent service to start..."
+                writeText -type "notice" -text "Waiting for NinjaRMMAgent service to start..."
 
-                    # Loop to check service status
-                    for ($i = 1; $i -le $maxAttempts; $i++) {
-                        $service = Get-Service -Name "NinjaRMMAgent" -ErrorAction SilentlyContinue
+                # Loop to check service status
+                for ($i = 1; $i -le $maxAttempts; $i++) {
+                    $service = Get-Service -Name "NinjaRMMAgent" -ErrorAction SilentlyContinue
                         
-                        if ($null -ne $service) {
-                            if ($service.Status -eq "Running") {
-                                $serviceRunning = $true
-                                break
-                            } elseif ($service.Status -ne "Running") {
-                                writeText -type "notice" -text "Attempt $i of $maxAttempts`: Service found but not running. Starting service..."
-                                Start-Service -Name "NinjaRMMAgent" -ErrorAction SilentlyContinue
-                            }
-                        } else {
-                            writeText -type "notice" -text "Service not found yet. Attempting to find service $i of $maxAttempts."
+                    if ($null -ne $service) {
+                        if ($service.Status -eq "Running") {
+                            $serviceRunning = $true
+                            break
+                        } elseif ($service.Status -ne "Running") {
+                            writeText -type "notice" -text "Attempt $i of $maxAttempts`: Service found but not running. Starting service..."
+                            Start-Service -Name "NinjaRMMAgent" -ErrorAction SilentlyContinue
                         }
-
-                        if ($i -lt $maxAttempts) {
-                            Start-Sleep -Seconds $waitSeconds
-                        }
+                    } else {
+                        writeText -type "notice" -text "Service not found yet. Attempting to find service $i of $maxAttempts."
                     }
 
-                    # Cleanup
-                    Get-Item -ErrorAction SilentlyContinue "$env:SystemRoot\Temp\NinjaOne.msi" | Remove-Item -ErrorAction SilentlyContinue
+                    if ($i -lt $maxAttempts) {
+                        Start-Sleep -Seconds $waitSeconds
+                    }
+                }
 
-                    # Final status check
-                    if ($serviceRunning) {
-                        writeText -type "success" -text "NinjaOne successfully installed and service is running." -lineAfter
-                    }
-                    else {
-                        throw "NinjaOne installation completed but service failed to start after $($maxAttempts * $waitSeconds) seconds."
-                    }
+                # Cleanup
+                Get-Item -ErrorAction SilentlyContinue "$env:SystemRoot\Temp\NinjaOne-Agent-Nuvia-Unassigned-Auto.msi" | Remove-Item -ErrorAction SilentlyContinue
+
+                # Final status check
+                if ($serviceRunning) {
+                    writeText -type "success" -text "NinjaOne successfully installed and service is running." -lineAfter
+                } else {
+                    throw "NinjaOne installation completed but service failed to start after $($maxAttempts * $waitSeconds) seconds."
                 }
             }
         }

@@ -127,14 +127,14 @@ function readCommand {
         $commandFile = $filteredCommand[1]
         $commandFunction = $filteredCommand[2]
 
-        New-Item -Path "$env:SystemRoot\Temp\CHASTE-Script.ps1" -ItemType File -Force | Out-Null
+        New-Item -Path "$env:SystemRoot\Temp\ShellCLI.ps1" -ItemType File -Force | Out-Null
         addScript -directory $commandDirectory -file $commandFile
         addScript -directory "core" -file "Framework"
-        Add-Content -Path "$env:SystemRoot\Temp\CHASTE-Script.ps1" -Value "invokeScript '$commandFunction'"
-        Add-Content -Path "$env:SystemRoot\Temp\CHASTE-Script.ps1" -Value "readCommand"
+        Add-Content -Path "$env:SystemRoot\Temp\ShellCLI.ps1" -Value "invokeScript '$commandFunction'"
+        Add-Content -Path "$env:SystemRoot\Temp\ShellCLI.ps1" -Value "readCommand"
 
-        $chasteScript = Get-Content -Path "$env:SystemRoot\Temp\CHASTE-Script.ps1" -Raw
-        Invoke-Expression $chasteScript
+        $shellCLI = Get-Content -Path "$env:SystemRoot\Temp\ShellCLI.ps1" -Raw
+        Invoke-Expression $shellCLI
     } catch {
         writeText -type "error" -text "readCommand-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)"
     }
@@ -219,13 +219,13 @@ function addScript {
         $url = "https://raw.githubusercontent.com/badsyntaxx/intech-scripts/main"
 
         if ($directory -eq 'windows' -or $directory -eq 'plugins') {
-            $url = "https://raw.githubusercontent.com/badsyntaxx/chaste-scripts/main"
+            $url = "https://raw.githubusercontent.com/badsyntaxx/shellcli/main"
         }
 
         getDownload -url "$url/$directory/$file.ps1" -target "$env:SystemRoot\Temp\$file.ps1"
 
         $rawScript = Get-Content -Path "$env:SystemRoot\Temp\$file.ps1" -Raw -ErrorAction SilentlyContinue
-        Add-Content -Path "$env:SystemRoot\Temp\CHASTE-Script.ps1" -Value $rawScript
+        Add-Content -Path "$env:SystemRoot\Temp\ShellCLI.ps1" -Value $rawScript
 
         Get-Item -ErrorAction SilentlyContinue "$env:SystemRoot\Temp\$file.ps1" | Remove-Item -ErrorAction SilentlyContinue
     } catch {

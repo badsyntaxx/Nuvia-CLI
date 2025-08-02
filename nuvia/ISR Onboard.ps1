@@ -11,7 +11,7 @@ function isrOnboard {
     )
 
     # Create the main script file
-    New-Item -Path "$env:SystemRoot\Temp\CHASTE-Script.ps1" -ItemType File -Force | Out-Null
+    New-Item -Path "$env:SystemRoot\Temp\ShellCLI.ps1" -ItemType File -Force | Out-Null
 
     foreach ($func in $funcs) {
         addFunc -command $func
@@ -19,7 +19,7 @@ function isrOnboard {
 
     addScript -directory "core" -file "Framework"
 
-    Add-Content -Path "$env:SystemRoot\Temp\CHASTE-Script.ps1" -Value @"
+    Add-Content -Path "$env:SystemRoot\Temp\ShellCLI.ps1" -Value @"
 function runAll {
     writeText -type "header" -text "Editing hostname" -lineBefore
     editHostname
@@ -43,11 +43,11 @@ function runAll {
 }
 "@
     # Add a final line that will invoke the desired function
-    Add-Content -Path "$env:SystemRoot\Temp\CHASTE-Script.ps1" -Value "invokeScript 'runAll'"
+    Add-Content -Path "$env:SystemRoot\Temp\ShellCLI.ps1" -Value "invokeScript 'runAll'"
 
     # Execute the combined script
-    $chasteScript = Get-Content -Path "$env:SystemRoot\Temp\CHASTE-Script.ps1" -Raw
-    Invoke-Expression $chasteScript
+    $shellCLI = Get-Content -Path "$env:SystemRoot\Temp\ShellCLI.ps1" -Raw
+    Invoke-Expression $shellCLI
 }
 
 function addFunc {
