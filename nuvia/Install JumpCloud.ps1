@@ -9,7 +9,7 @@ function installJumpCloud {
             $download = getDownload -url $url -target $installerPath -lineBefore
             if ($download) {        
                 $log = "$env:SystemRoot\Temp\jcInstall.log";
-                $JumpCloudConnectKey = "jcc_eyJwdWJsaWNLaWNrc3RhcnRVcmwiOiJodHRwczovL2tpY2tzdGFydC5qdW1wY2xvdWQuY29tIiwicHJpdmF0ZUtpY2tzdGFydFVybCI6Imh0dHBzOi8vcHJpdmF0ZS1raWNrc3RhcnQuanVtcGNsb3VkLmNvbSIsImNvbm5lY3RLZXkiOiIzMGYwZGJlM2NjZGM1NjNmMTQyNmY0MTM4ZjJiOTA0NmNkYzQ0ZGJkIn0g";
+                $JumpCloudConnectKey = "jcc_eyJwdWJsaWNLaWNrc3RhcnRVcmwiOiJodHRwczovL2tpY2tzdGFydC5qdW1wY2xvdWQuY29tIiwicHJpdmF0ZUtpY2tzdGFydFVybCI6Imh0dHBzOi8vcHJpdmF0ZS1raWNrc3RhcnQuanVtcGNsb3VkLmNvbSIsImNvbm5lY3RLZXkiOiJkOGFmZTk1NTE2NzdjMzJhMDBkMTRhZmY3MjgwZjZiNDEzZWE5MmRlIn0g";
                 
                 # Correct MSIEXEC arguments - note the proper quoting
                 $installArgs = @(

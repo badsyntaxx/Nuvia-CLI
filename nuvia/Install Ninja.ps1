@@ -1,6 +1,6 @@
 function installNinja {
     try {
-        $url = "https://app.ninjarmm.com/agent/installer/6a496c78-c8ef-4ace-9c88-cd0a7aa5415c/8.0.2891/NinjaOne-Agent-Nuvia-Unassigned-Auto.msi"
+        $url = "https://us2.ninjarmm.com/agent/installer/988d7a4f-f8f5-49f3-9316-443b7801432d/13.0.7662/NinjaOne-Agent-Nuvia-Inventory-WINDOWSDESKTOP-x86-64.msi"
         $service = Get-Service -Name "NinjaRMMAgent" -ErrorAction SilentlyContinue
 
         writeText -type "notice" -text "This computer will be in -Unassigned after install."
@@ -8,9 +8,9 @@ function installNinja {
         if ($null -ne $service -and $service.Status -eq "Running") {
             writeText -type "success" -text "NinjaRMMAgent is already installed and running."
         } else {
-            $download = getDownload -url $url -target "$env:SystemRoot\Temp\NinjaOne-Agent-Nuvia-Unassigned-Auto.msi" -lineBefore
+            $download = getDownload -url $url -target "$env:SystemRoot\Temp\NinjaOne-Agent-Nuvia-Inventory-WINDOWSDESKTOP-x86-64.msi" -lineBefore
             if ($download) { 
-                Start-Process -FilePath "msiexec" -ArgumentList "/i `"$env:SystemRoot\Temp\NinjaOne-Agent-Nuvia-Unassigned-Auto.msi`" /qn" -Wait
+                Start-Process -FilePath "msiexec" -ArgumentList "/i `"$env:SystemRoot\Temp\NinjaOne-Agent-Nuvia-Inventory-WINDOWSDESKTOP-x86-64.msi`" /qn" -Wait
 
                 # Initialize variables for service check
                 $maxAttempts = 10  # Number of attempts to check service
@@ -41,7 +41,7 @@ function installNinja {
                 }
 
                 # Cleanup
-                Get-Item -ErrorAction SilentlyContinue "$env:SystemRoot\Temp\NinjaOne-Agent-Nuvia-Unassigned-Auto.msi" | Remove-Item -ErrorAction SilentlyContinue
+                Get-Item -ErrorAction SilentlyContinue "$env:SystemRoot\Temp\NinjaOne-Agent-Nuvia-Inventory-WINDOWSDESKTOP-x86-64.msi" | Remove-Item -ErrorAction SilentlyContinue
 
                 # Final status check
                 if ($serviceRunning) {
