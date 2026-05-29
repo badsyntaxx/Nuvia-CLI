@@ -116,12 +116,7 @@ function filterCommands {
             "copy host gpu drivers to vm" { $commandArray = ("windows", "Share GPU with VM", "copyHostGPUDriversToVM") }
             "install host gpu drivers on vm" { $commandArray = ("windows", "Share GPU with VM", "installHostGPUDriversOnVM") }
             "partition gpu" { $commandArray = ("windows", "Share GPU with VM", "partitionGPU") }
-            "intech" { $commandArray = $("intech", "Helpers", "intech"); break }
-            "intech help" { $commandArray = $("intech", "Helpers", "writeHelp"); break }
-            "intech menu" { $commandArray = $("intech", "Helpers", "readMenu"); break }
-            "intech add admin" { $commandArray = $("intech", "Add InTech Admin", "addInTechAdmin"); break }
-            "intech uninstall ninja" { $commandArray = $("intech", "Uninstall NinjaRMM", "uninstallNinjaRMM"); break }
-            "intech schedule reboot" { $commandArray = $("intech", "Schedule Reboot", "scheduleReboot"); break }
+            "nuvia uninstall ninja" { $commandArray = $("nuvia", "Uninstall NinjaRMM", "uninstallNinjaRMM"); break }
             "nuvia" { $commandArray = $("nuvia", "Helpers", "nuvia"); break }
             "nuvia help" { $commandArray = $("nuvia", "Helpers", "writeHelp"); break }
             "nuvia menu" { $commandArray = $("nuvia", "Helpers", "readMenu"); break }
