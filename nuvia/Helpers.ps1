@@ -14,6 +14,7 @@ function readMenu {
                 "ISR menu"          = "Go to the Nuvia ISR menu."
                 "Install TScan"     = "Install TScan software."
                 "Install Ninja"     = "Install Ninja for Nuvia computers."
+                "Uninstall Ninja"   = "Uninstall Ninja from Nuvia computers."
                 "Install JumpCloud" = "Install JumpCloud for Nuvia computers."
                 "Cancel"            = "Select nothing and exit this menu."
             }) -prompt "Select a Nuvia function:"
@@ -22,8 +23,9 @@ function readMenu {
             0 { $command = "nuvia isr menu" }
             1 { $command = "nuvia install-tscan" }
             2 { $command = "nuvia install ninja" }
-            3 { $command = "nuvia install jumpcloud" }
-            4 { readCommand }
+            3 { $command = "nuvia uninstall ninja" }
+            4 { $command = "nuvia install jumpcloud" }
+            5 { readCommand }
         }
 
         readCommand -command $command
