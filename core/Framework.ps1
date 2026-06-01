@@ -122,7 +122,7 @@ function filterCommands {
             "nuvia install bginfo" { $commandArray = $("nuvia", "Install BGInfo", "installBGInfo"); break }
             "nuvia install jumpcloud" { $commandArray = $("nuvia", "Install JumpCloud", "installJumpCloud"); break }
             "nuvia install ninja" { $commandArray = $("nuvia", "Install Ninja", "installNinja"); break }
-            "nuvia uninstall ninja" { $commandArray = $("nuvia", "Uninstall NinjaRMM", "uninstallNinjaRMM"); break }
+            "nuvia uninstall ninja" { $commandArray = $("nuvia", "Uninstall Ninja", "uninstallNinja"); break }
             "nuvia install tscan" { $commandArray = $("nuvia", "Install Tscan", "installTscan"); break }
             "nuvia isr install apps" { $commandArray = $("nuvia", "ISR Install Apps", "isrInstallApps"); break }
             "isr install apps" { $commandArray = $("nuvia", "ISR Install Apps", "isrInstallApps"); break }

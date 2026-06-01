@@ -64,9 +64,10 @@ function readISRMenu {
 }
 function writeHelp {
     writeText -type "plain" -text "NUVIA COMMANDS:" -lineBefore
-    writeText -type "plain" -text "nuvia install bginfo     - Add a local or domain user to the system." -Color "DarkGray"
-    writeText -type "plain" -text "nuvia install ninja      - Add a local or domain user to the system." -Color "DarkGray"
-    writeText -type "plain" -text "nuvia install jumpcloud  - Edit user account settings." -Color "DarkGray"
+    writeText -type "plain" -text "nuvia install bginfo     - Installs BGInfo." -Color "DarkGray"
+    writeText -type "plain" -text "nuvia install ninja      - Installs Ninja." -Color "DarkGray"
+    writeText -type "plain" -text "nuvia uninstall ninja  - Uninstalls Ninja." -Color "DarkGray"
+    writeText -type "plain" -text "nuvia install jumpcloud  - Installs JumpCloud." -Color "DarkGray"
     writeText -type "plain" -text "NUVIA ISR COMMANDS:" -lineBefore
     writeText -type "plain" -text "isr onboard          - Edit the computers hostname and description." -Color "DarkGray"
     writeText -type "plain" -text "isr install apps     - Install Windows updates. All or just severe." -Color "DarkGray"
