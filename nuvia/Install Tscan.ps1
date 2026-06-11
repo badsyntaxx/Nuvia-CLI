@@ -1,6 +1,6 @@
 function installTscan {
     try {
-        add-tscan-folder
+        addTscanFolder
 
         Set-Service -Name "SSDPSRV" -StartupType Automatic
         Start-Service -Name "SSDP Discovery"
@@ -22,7 +22,7 @@ function installTscan {
     }
 }
 
-function add-tscan-folder {
+function addTscanFolder {
     try {
         writeText "Creating TScan folder..."
         writeText "$env:SystemRoot\Temp\tscan"

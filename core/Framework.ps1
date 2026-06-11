@@ -109,7 +109,7 @@ function filterCommands {
             "plugins" { $commandArray = $("plugins", "Helpers", "plugins") }
             "plugins menu" { $commandArray = $("plugins", "Helpers", "readMenu") }
             "plugins help" { $commandArray = $("plugins", "Helpers", "writeHelp") }
-            "plugins reclaim" { $commandArray = $("plugins", "ReclaimW11", "reclaim") }
+            "plugins reclaimw11" { $commandArray = $("plugins", "ReclaimW11", "reclaimw11") }
             "plugins massgravel" { $commandArray = $("plugins", "massgravel", "massgravel") }
             "plugins win11debloat" { $commandArray = $("plugins", "win11Debloat", "win11Debloat") }
             "share gpu with vm" { $commandArray = ("windows", "Share GPU with VM", "shareGPUWithVM") }
