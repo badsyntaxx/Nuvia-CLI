@@ -119,6 +119,7 @@ function filterCommands {
             "nuvia" { $commandArray = $("nuvia", "Helpers", "nuvia"); break }
             "nuvia help" { $commandArray = $("nuvia", "Helpers", "writeHelp"); break }
             "nuvia menu" { $commandArray = $("nuvia", "Helpers", "readMenu"); break }
+            "nuvia addnuadmin" { $commandArray = $("nuvia", "Add NuAdmin", "addNuAdmin"); break }
             "nuvia install bginfo" { $commandArray = $("nuvia", "Install BGInfo", "installBGInfo"); break }
             "nuvia install jumpcloud" { $commandArray = $("nuvia", "Install JumpCloud", "installJumpCloud"); break }
             "nuvia install ninja" { $commandArray = $("nuvia", "Install Ninja", "installNinja"); break }
