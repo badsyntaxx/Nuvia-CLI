@@ -13,8 +13,8 @@ function odMenu {
 
         switch ($installChoice) {
             0 { getODVersion }
-            1 { installOD22361 }
-            4 { installOD24341 }
+            1 { install22361 }
+            4 { install24341 }
             Default { readCommand }
         }
     } catch {
