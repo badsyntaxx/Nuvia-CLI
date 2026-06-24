@@ -911,7 +911,8 @@ function odMenu {
 }
 
 function getODVersion {
-    (Get-Command "C:\Program Files (x86)\Open Dental\OpenDental.exe").FileVersionInfo.ProductVersion
+    $odVersion = (Get-Command "C:\Program Files (x86)\Open Dental\OpenDental.exe").FileVersionInfo.ProductVersion
+    writeText -type "plain" -text "$odVersion" -lineAfter
 }
 
 function getODConfig {
