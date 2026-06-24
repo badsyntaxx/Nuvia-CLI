@@ -1,67 +1,3 @@
-function addInTechAdmin {
-    try {
-        $accountName = "InTechAdmin"
-        $downloads = [ordered]@{
-            "$env:SystemRoot\Temp\KEY.txt"    = "https://drive.google.com/uc?export=download&id=1EGASU9cvnl5E055krXXcXUcgbr4ED4ry"
-            "$env:SystemRoot\Temp\PHRASE.txt" = "https://drive.google.com/uc?export=download&id=1jbppZfGusqAUM2aU7V4IeK0uHG2OYgoY"
-        }
-
-        foreach ($d in $downloads.Keys) { 
-            $download = getDownload -url $downloads[$d] -target $d  
-        } 
-
-        Write-Host $download
-
-        Read-Host "foo"
-        
-        if ($download) { 
-            $password = Get-Content -Path "$env:SystemRoot\Temp\PHRASE.txt" | ConvertTo-SecureString -Key (Get-Content -Path "$env:SystemRoot\Temp\KEY.txt")
-
-            writeText -type "plain" -text "Phrase converted."
-
-            # Check if the InTechAdmin user already exists
-            $account = Get-LocalUser -Name $accountName -ErrorAction SilentlyContinue
-
-            if ($null -eq $account) {
-                # Create the InTechAdmin user with specified password and attributes
-                New-LocalUser -Name $accountName -Password $password -FullName "" -Description "InTech Administrator" -AccountNeverExpires -PasswordNeverExpires -ErrorAction stop | Out-Null
-                writeText -type "success" -text "The InTechAdmin account has been created."
-            } else {
-                # Update the existing InTechAdmin user's password
-                writeText -type "notice" -text "InTechAdmin account already exists."
-                $account | Set-LocalUser -Password $password
-                writeText -type "success" -text "The InTechAdmin account password was updated."
-            }
-
-            # Add the InTechAdmin user to the Administrators, Remote Desktop Users, and Users groups
-            Add-LocalGroupMember -Group "Administrators" -Member $accountName -ErrorAction SilentlyContinue
-            writeText -type "success" -text "The InTechAdmin account has been added to the 'Administrators' group."
-            Add-LocalGroupMember -Group "Remote Desktop Users" -Member $accountName -ErrorAction SilentlyContinue
-            writeText -type "success" -text "The InTechAdmin account has been added to the 'Remote Desktop Users' group."
-            Add-LocalGroupMember -Group "Users" -Member $accountName -ErrorAction SilentlyContinue
-            writeText -type "success" -text "The InTechAdmin account has been added to the 'Users' group."
-
-            # Remove the downloaded files for security reasons
-            Remove-Item -Path "$env:SystemRoot\Temp\PHRASE.txt"
-            Remove-Item -Path "$env:SystemRoot\Temp\KEY.txt"
-
-            # Informational messages about deleting temporary files
-            if (-not (Test-Path -Path "$env:SystemRoot\Temp\KEY.txt")) {
-                writeText -text "Encryption key deleted."
-            } else {
-                writeText -text "Encryption key not deleted!"
-            }
-        
-            if (-not (Test-Path -Path "$env:SystemRoot\Temp\PHRASE.txt")) {
-                writeText -text "Encryption phrase deleted."
-            } else {
-                writeText -text "Encryption phrase not deleted!"
-            }
-        }
-    } catch {
-        writeText -type "error" -text "add-intechadmin-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)"
-    }
-}
 function invokeScript {
     param (
         [parameter(Mandatory = $true)]
@@ -79,61 +15,56 @@ function invokeScript {
         # Customize console appearance
         $console = $host.UI.RawUI
         $console.BackgroundColor = "Black"
-        $console.ForegroundColor = "Gray"
-        $console.WindowTitle = "InTech Scripts"
+        $console.ForegroundColor = "DarkGray"
+        $console.WindowTitle = "ShellCLI"
 
         if ($initialize) {
             Clear-Host
             Write-Host
-            Write-Host "  Try" -NoNewline
+            Write-Host " $([char]0x250C)" -NoNewline -ForegroundColor "Gray"
+            Write-Host " Try" -NoNewline
             Write-Host " help" -ForegroundColor "Cyan" -NoNewline
             Write-Host " or" -NoNewline
             Write-Host " menu" -NoNewline -ForegroundColor "Cyan"
-            Write-Host " if you don't know what to do."
+            Write-Host " if you get stuck."
+            Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
         }
 
         Invoke-Expression $script
     } catch {
-        writeText -type "error" -text "invokeScript-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)"
+        writeText -type "error" -text "invokeScript-$($_.InvocationInfo.ScriptLineNumber) | $script"
     }
 }
 function readCommand {
     param (
-        [parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false)]
         [string]$command = ""
     )
 
     try {
-        Write-Host
+        Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
         if ($command -eq "") { 
-            Write-Host "$([char]0x203A) " -NoNewline
+            Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
+            Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
+            Write-Host " $([char]0x203A) " -NoNewline  -ForegroundColor "Cyan"
             $command = Read-Host 
+            Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
         }
 
         $command = $command.ToLower()
         $command = $command.Trim()
-
-        if ($command -ne "help" -and $command -ne "" -and $command -match "^(?-i)(\w+(-\w+)*)") {
-            if (Get-command $matches[1] -ErrorAction SilentlyContinue) {
-                if ($matches[1] -ne "intech" -and $matches[1] -ne "nuvia" -and $matches[1] -ne "isr") {
-                    Invoke-Expression $command
-                    readCommand
-                }
-            }
-        }
-
         $filteredCommand = filterCommands -command $command
         $commandDirectory = $filteredCommand[0]
         $commandFile = $filteredCommand[1]
         $commandFunction = $filteredCommand[2]
 
-        New-Item -Path "$env:SystemRoot\Temp\ShellCLI.ps1" -ItemType File -Force | Out-Null
+        New-Item -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -ItemType File -Force | Out-Null
         addScript -directory $commandDirectory -file $commandFile
         addScript -directory "core" -file "Framework"
-        Add-Content -Path "$env:SystemRoot\Temp\ShellCLI.ps1" -Value "invokeScript '$commandFunction'"
-        Add-Content -Path "$env:SystemRoot\Temp\ShellCLI.ps1" -Value "readCommand"
+        Add-Content -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -Value "invokeScript '$commandFunction'"
+        Add-Content -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -Value "readCommand"
 
-        $shellCLI = Get-Content -Path "$env:SystemRoot\Temp\ShellCLI.ps1" -Raw
+        $shellCLI = Get-Content -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -Raw
         Invoke-Expression $shellCLI
     } catch {
         writeText -type "error" -text "readCommand-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)"
@@ -141,7 +72,7 @@ function readCommand {
 }
 function filterCommands {
     param (
-        [parameter(Mandatory)]
+        [Parameter(Mandatory)]
         [string]$command
     )
 
@@ -149,42 +80,60 @@ function filterCommands {
         $commandArray = $()
 
         switch ($command) {
-            "help" { $commandArray = $("windows", "Helpers", "writeHelp"); break }
-            "menu" { $commandArray = $("windows", "Helpers", "readMenu"); break }
-            "toggle context menu" { $commandArray = $("windows", "Toggle Context Menu", "toggleContextMenu"); break }
-            "toggle admin" { $commandArray = $("windows", "Toggle Admin", "toggleAdmin"); break }
-            "enable admin" { $commandArray = $("windows", "Toggle Admin", "enableAdmin"); break }
-            "disable admin" { $commandArray = $("windows", "Toggle Admin", "disableAdmin"); break }
-            "add user" { $commandArray = $("windows", "Add User", "addUser"); break }
-            "add local user" { $commandArray = $("windows", "Add User", "addLocalUser"); break }
-            "add ad user" { $commandArray = $("windows", "Add User", "addUser"); break }
-            "add drive letter" { $commandArray = $("windows", "Add Drive Letter", "addDriveLetter"); break }
-            "remove user" { $commandArray = $("windows", "Remove User", "removeUser"); break }
-            "edit hostname" { $commandArray = $("windows", "Edit Hostname", "editHostname"); break }
-            "edit user" { $commandArray = $("windows", "Edit User", "editUser"); break }
-            "edit user name" { $commandArray = $("windows", "Edit User", "editUserName"); break }
-            "edit user password" { $commandArray = $("windows", "Edit User", "editUserPassword"); break }
-            "edit user group" { $commandArray = $("windows", "Edit User", "editUserGroup"); break }
-            "edit net adapter" { $commandArray = $("windows", "Edit Net Adapter", "editNetAdapter"); break }
-            "get wifi creds" { $commandArray = $("windows", "Get Wifi Creds", "getWifiCreds"); break }
-            "schedule task" { $commandArray = $("windows", "Schedule Task", "scheduleTask"); break }
-            "install updates" { $commandArray = $("windows", "Install Updates", "installUpdates"); break }
-            "plugins" { $commandArray = $("plugins", "Helpers", "plugins"); break }
-            "plugins menu" { $commandArray = $("plugins", "Helpers", "readMenu"); break }
-            "plugins help" { $commandArray = $("plugins", "Helpers", "writeHelp"); break }
-            "plugins reclaim" { $commandArray = $("plugins", "ReclaimW11", "reclaim"); break }
-            "plugins massgravel" { $commandArray = $("plugins", "massgravel", "massgravel"); break }
-            "plugins win11debloat" { $commandArray = $("plugins", "win11Debloat", "win11debloat"); break }
-            "intech" { $commandArray = $("intech", "Helpers", "intech"); break }
-            "intech help" { $commandArray = $("intech", "Helpers", "writeHelp"); break }
-            "intech menu" { $commandArray = $("intech", "Helpers", "readMenu"); break }
-            "intech add admin" { $commandArray = $("intech", "Add InTech Admin", "addInTechAdmin"); break }
-            "intech schedule reboot" { $commandArray = $("intech", "Schedule Reboot", "scheduleReboot"); break }
+            "" { $commandArray = $("windows", "Helpers", "shellCLI") }
+            "help" { $commandArray = $("windows", "Helpers", "writeHelp") }
+            "menu" { $commandArray = $("windows", "Helpers", "readMenu") }
+            "toggle context menu" { $commandArray = $("windows", "Toggle Context Menu", "toggleContextMenu") }
+            "enable context menu" { $commandArray = $("windows", "Toggle Context Menu", "enableContextMenu") }
+            "disable context menu" { $commandArray = $("windows", "Toggle Context Menu", "disableContextMenu") }
+            "toggle admin" { $commandArray = $("windows", "Toggle Admin", "toggleAdmin") }
+            "enable admin" { $commandArray = $("windows", "Toggle Admin", "enableAdmin") }
+            "disable admin" { $commandArray = $("windows", "Toggle Admin", "disableAdmin") }
+            "list users" { $commandArray = $("windows", "User", "listUsers") }
+            "user menu" { $commandArray = $("windows", "User", "userMenu") }
+            "add user" { $commandArray = $("windows", "User", "addUser") }
+            "add local user" { $commandArray = $("windows", "User", "addLocalUser") }
+            "add ad user" { $commandArray = $("windows", "User", "addADUser") }
+            "add drive letter" { $commandArray = $("windows", "Add Drive Letter", "addDriveLetter") }
+            "remove user" { $commandArray = $("windows", "User", "removeUser") }
+            "edit hostname" { $commandArray = $("windows", "Edit Hostname", "editHostname") }
+            "edit description" { $commandArray = $("windows", "Edit Hostname", "editDescription") }
+            "edit user" { $commandArray = $("windows", "User", "editUser") }
+            "edit user name" { $commandArray = $("windows", "User", "editUserName") }
+            "edit user password" { $commandArray = $("windows", "User", "editUserPassword") }
+            "edit user group" { $commandArray = $("windows", "User", "editUserGroup") }
+            "edit net adapter" { $commandArray = $("windows", "Edit Net Adapter", "editNetAdapter") }
+            "get wifi creds" { $commandArray = $("windows", "Get Wifi Creds", "getWifiCreds") }
+            "get software" { $commandArray = $("windows", "Get Software", "getSoftware") }
+            "get windirstat" { $commandArray = $("windows", "Get Software", "getWinDirStat") }
+            "get revouninstaller" { $commandArray = $("windows", "Get Software", "getRevoUninstaller") }
+            "schedule task" { $commandArray = $("windows", "Schedule Task", "scheduleTask") }
+            "update windows" { $commandArray = $("windows", "Update Windows", "updateWindows") }
+            "clear temp files" { $commandArray = $("windows", "Repair Windows", "clearTempFiles") }
+            "repair windows" { $commandArray = $("windows", "Repair Windows", "repairWindows") }
+            "plugins" { $commandArray = $("plugins", "Helpers", "plugins") }
+            "plugins menu" { $commandArray = $("plugins", "Helpers", "readMenu") }
+            "plugins help" { $commandArray = $("plugins", "Helpers", "writeHelp") }
+            "plugins reclaimw11" { $commandArray = $("plugins", "ReclaimW11", "reclaimw11") }
+            "plugins massgravel" { $commandArray = $("plugins", "massgravel", "massgravel") }
+            "plugins win11debloat" { $commandArray = $("plugins", "win11Debloat", "win11Debloat") }
+            "share gpu with vm" { $commandArray = ("windows", "Share GPU with VM", "shareGPUWithVM") }
+            "copy host gpu drivers to vm" { $commandArray = ("windows", "Share GPU with VM", "copyHostGPUDriversToVM") }
+            "install host gpu drivers on vm" { $commandArray = ("windows", "Share GPU with VM", "installHostGPUDriversOnVM") }
+            "partition gpu" { $commandArray = ("windows", "Share GPU with VM", "partitionGPU") }
+            "generate encrypted password" { $commandArray = ("windows", "Generate Encrypted Password", "generateEncryptedPassword") }
+            "add premade account" { $commandArray = ("windows", "Add Premade Account", "addPremadeAccount") }
+            "nuvia" { $commandArray = $("nuvia", "Helpers", "nuvia"); break }
             "nuvia help" { $commandArray = $("nuvia", "Helpers", "writeHelp"); break }
             "nuvia menu" { $commandArray = $("nuvia", "Helpers", "readMenu"); break }
+            "od menu" { $commandArray = $("nuvia", "OpenDental", "odMenu"); break }
+            "od get version" { $commandArray = $("nuvia", "OpenDental", "getODVersion"); break }
+            "od install 24341" { $commandArray = $("nuvia", "OpenDental", "install24341"); break }
+            "nuvia addnuadmin" { $commandArray = $("nuvia", "Add NuAdmin", "addNuAdmin"); break }
             "nuvia install bginfo" { $commandArray = $("nuvia", "Install BGInfo", "installBGInfo"); break }
             "nuvia install jumpcloud" { $commandArray = $("nuvia", "Install JumpCloud", "installJumpCloud"); break }
             "nuvia install ninja" { $commandArray = $("nuvia", "Install Ninja", "installNinja"); break }
+            "nuvia uninstall ninja" { $commandArray = $("nuvia", "Uninstall Ninja", "uninstallNinja"); break }
             "nuvia install tscan" { $commandArray = $("nuvia", "Install Tscan", "installTscan"); break }
             "nuvia isr install apps" { $commandArray = $("nuvia", "ISR Install Apps", "isrInstallApps"); break }
             "isr install apps" { $commandArray = $("nuvia", "ISR Install Apps", "isrInstallApps"); break }
@@ -193,11 +142,19 @@ function filterCommands {
             "nuvia isr onboard" { $commandArray = $("nuvia", "ISR Onboard", "isrOnboard"); break }
             "isr onboard" { $commandArray = $("nuvia", "ISR Onboard", "isrOnboard"); break }
             default { 
-                Write-Host "  Unrecognized command. Try" -NoNewline
+                if ($command -ne "help" -and $command -ne "" -and $command -match "^(?-i)(\w+(-\w+)*)") {
+                    if (Get-command $matches[1] -ErrorAction SilentlyContinue) {
+                        $output = Invoke-Expression -Command $command 
+                        $output | Format-Table | Out-String | ForEach-Object { Write-Host $_ }
+                        readCommand
+                    }
+                }
+                Write-Host " $([char]0x251C)" -NoNewline -ForegroundColor "Gray"
+                Write-Host "  Unrecognized command `"$command`". Try" -NoNewline -ForegroundColor "White"
                 Write-Host " help" -ForegroundColor "Cyan" -NoNewline
-                Write-Host " or" -NoNewline
+                Write-Host " or" -NoNewline -ForegroundColor "White"
                 Write-Host " menu" -NoNewline -ForegroundColor "Cyan"
-                Write-Host " to learn more."
+                Write-Host " to learn more." -ForegroundColor "White"
                 readCommand 
             }
         }
@@ -209,25 +166,23 @@ function filterCommands {
 }
 function addScript {
     param (
-        [parameter(Mandatory)]
+        [Parameter(Mandatory)]
         [string]$directory,
-        [parameter(Mandatory)]
+        [Parameter(Mandatory)]
         [string]$file
     )
 
     try {
-        $url = "https://raw.githubusercontent.com/badsyntaxx/intech-scripts/main"
+        $url = "https://raw.githubusercontent.com/badsyntaxx/chaste-scripts/main"
 
-        if ($directory -eq 'windows' -or $directory -eq 'plugins') {
-            $url = "https://raw.githubusercontent.com/badsyntaxx/shellcli/main"
+        $download = getDownload -url "$url/$directory/$file.ps1" -target "$env:SystemRoot\Temp\$file.ps1" -hide
+
+        if ($download -eq $true) {
+            $rawScript = Get-Content -Path "$env:SystemRoot\Temp\$file.ps1" -Raw -ErrorAction SilentlyContinue
+            Add-Content -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -Value $rawScript
+
+            Get-Item -ErrorAction SilentlyContinue "$env:SystemRoot\Temp\$file.ps1" | Remove-Item -ErrorAction SilentlyContinue
         }
-
-        getDownload -url "$url/$directory/$file.ps1" -target "$env:SystemRoot\Temp\$file.ps1"
-
-        $rawScript = Get-Content -Path "$env:SystemRoot\Temp\$file.ps1" -Raw -ErrorAction SilentlyContinue
-        Add-Content -Path "$env:SystemRoot\Temp\ShellCLI.ps1" -Value $rawScript
-
-        Get-Item -ErrorAction SilentlyContinue "$env:SystemRoot\Temp\$file.ps1" | Remove-Item -ErrorAction SilentlyContinue
     } catch {
         writeText -type "error" -text "addScript-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)"
     }
@@ -241,7 +196,7 @@ function writeText {
         [parameter(Mandatory = $false)]
         [string]$type = "plain",
         [parameter(Mandatory = $false)]
-        [string]$Color = "Gray",
+        [string]$Color = "DarkGray",
         [parameter(Mandatory = $false)]
         [switch]$lineBefore = $false, # Add a new line before output if specified
         [parameter(Mandatory = $false)]
@@ -256,28 +211,40 @@ function writeText {
 
     try {
         # Add a new line before output if specified
-        if ($lineBefore) { Write-Host }
+        if ($lineBefore) { Write-Host " $([char]0x2502)" -ForegroundColor "Gray" }
 
         # Format output based on the specified Type
         if ($type -eq "header") {
-            Write-Host "# " -ForegroundColor "Cyan" -NoNewline
-            Write-Host "$text" -ForegroundColor "White" 
+            # $l = $([char]0x2500)
+            Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
+            Write-Host " $([char]0x251C)" -NoNewline -ForegroundColor "Gray"
+            Write-Host " $text " -ForegroundColor "White"
+        }
+
+        if ($type -eq "prompt") {
+            Write-Host " $([char]0x251C)" -NoNewline -ForegroundColor "Gray"
+            Write-Host " $text" -ForegroundColor "Gray"
         }
 
         if ($type -eq 'success') { 
-            Write-Host
-            Write-Host "    $([char]0x2713) $text"  -ForegroundColor "Green"
-            Write-Host
+            Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
+            Write-Host " $([char]0x251C)" -NoNewline -ForegroundColor "Gray"
+            Write-Host " $([char]0x2713) $text"  -ForegroundColor "Green"
+            Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
         }
 
         if ($type -eq 'error') { 
-            Write-Host
-            Write-Host "    X $text" -ForegroundColor "Red"
-            Write-Host 
+            Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
+            Write-Host " $([char]0x251C)" -NoNewline -ForegroundColor "Gray"
+            Write-Host " X $text" -ForegroundColor "Red"
+            Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
         }
 
         if ($type -eq 'notice') { 
-            Write-Host "! $text" -ForegroundColor "Yellow" 
+            Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
+            Write-Host " $([char]0x251C)" -NoNewline -ForegroundColor "Gray"
+            Write-Host " ! $text" -ForegroundColor "Yellow" 
+            Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
         }
 
         if ($type -eq 'plain') {
@@ -285,9 +252,11 @@ function writeText {
                 if ($Color -eq "Gray") {
                     $Color = 'DarkCyan'
                 }
-                Write-Host "  $label`: " -NoNewline -ForegroundColor "Gray"
+                Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
+                Write-Host " $label`: " -NoNewline -ForegroundColor "Gray"
                 Write-Host "$text" -ForegroundColor $Color 
             } else {
+                Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
                 Write-Host "  $text" -ForegroundColor $Color 
             }
         }
@@ -301,19 +270,21 @@ function writeText {
 
             # Display single option if only one exists
             if ($orderedKeys.Count -eq 1) {
+                Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
                 Write-Host " $($orderedKeys) $(" " * ($longestKeyLength - $orderedKeys.Length)) - $($List[$orderedKeys])"
             } else {
                 # Loop through each option and display with padding and color
                 for ($i = 0; $i -lt $orderedKeys.Count; $i++) {
                     $key = $orderedKeys[$i]
                     $padding = " " * ($longestKeyLength - $key.Length)
-                    Write-Host "    $($key): $padding $($List[$key])" -ForegroundColor $Color
+                    Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
+                    Write-Host "   $($key): $padding $($List[$key])" -ForegroundColor $Color
                 }
             }
         }
 
         # Add a new line after output if specified
-        if ($lineAfter) { Write-Host }
+        if ($lineAfter) { Write-Host " $([char]0x2502)" -ForegroundColor "Gray" }
     } catch {
         writeText -type "error" -text "writeText-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)"
     }
@@ -335,21 +306,27 @@ function readInput {
         [parameter(Mandatory = $false)]
         [switch]$lineBefore = $false, # Add a new line before prompt if specified
         [parameter(Mandatory = $false)]
-        [switch]$lineAfter = $false # Add a new line after prompt if specified
+        [switch]$lineAfter = $false, # Add a new line after prompt if specified
+        [parameter(Mandatory = $false)]
+        [switch]$allowBlank = $false # Allow blank input
     )
 
     try {
         # Add a new line before prompt if specified
-        if ($lineBefore) { Write-Host }
+        if ($lineBefore) { Write-Host " $([char]0x2502)" -ForegroundColor "Gray" }
 
         # Get current cursor position
         $currPos = $host.UI.RawUI.CursorPosition
 
-        Write-Host "? " -NoNewline -ForegroundColor "Cyan"
-        Write-Host "$prompt " -NoNewline
+        Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
+        # Write-Host " ? " -NoNewline -ForegroundColor "Cyan"
+        Write-Host "   $prompt " -NoNewline
 
-        if ($IsSecure) { $userInput = Read-Host -AsSecureString } 
-        else { $userInput = Read-Host }
+        if ($IsSecure) { 
+            $userInput = Read-Host -AsSecureString 
+        } else { 
+            $userInput = Read-Host 
+        }
 
         # Check for existing user if requested
         if ($CheckExistingUser) {
@@ -357,8 +334,17 @@ function readInput {
             if ($null -ne $account) { $ErrorMessage = "An account with that name already exists." }
         }
 
+        if ($allowBlank -eq $false) {
+            if ($userInput -eq "" -or $userInput.Length -eq 0) { 
+                writeText -type "notice" -text "Input was blank returning to command line." 
+                readCommand
+            } 
+        }
+
         # Validate user input against provided regular expression
-        if ($userInput -notmatch $Validate) { $ErrorMessage = "Invalid input. Please try again." } 
+        if ($userInput -notmatch $Validate) { 
+            $ErrorMessage = "Invalid input. Please try again." 
+        } 
 
         # Display error message if encountered
         if ($ErrorMessage -ne "") {
@@ -376,16 +362,17 @@ function readInput {
         # Reset cursor position
         [Console]::SetCursorPosition($currPos.X, $currPos.Y)
         
-        Write-Host "? " -ForegroundColor "Cyan" -NoNewline
+        Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
+        # Write-Host " ? " -ForegroundColor "Cyan" -NoNewline
         if ($IsSecure -and ($userInput.Length -eq 0)) { 
-            Write-Host "$prompt                                                "
+            Write-Host "   $prompt                                                "
         } else { 
-            Write-Host "$prompt " -NoNewline
+            Write-Host "   $prompt " -NoNewline
             Write-Host "$userInput                                             " -ForegroundColor "DarkCyan"
         }
 
         # Add a new line after prompt if specified
-        if ($lineAfter) { Write-Host }
+        if ($lineAfter) { Write-Host " $([char]0x2502)" -ForegroundColor "Gray" }
     
         # Return the validated user input
         return $userInput
@@ -398,7 +385,7 @@ function readOption {
         [parameter(Mandatory = $true)]
         [System.Collections.Specialized.OrderedDictionary]$options,
         [parameter(Mandatory = $false)]
-        [string]$prompt, # Provide a specific prompt in necessary
+        [string]$prompt, # Provide a specific prompt if necessary
         [parameter(Mandatory = $false)]
         [switch]$returnKey = $false,
         [parameter(Mandatory = $false)]
@@ -411,13 +398,14 @@ function readOption {
 
     try {
         # Add a line break before the menu if lineBefore is specified
-        if ($lineBefore) { Write-Host }
+        if ($lineBefore) { Write-Host " $([char]0x2502)" -ForegroundColor "Gray" }
 
         # Get current cursor position
-        $promptPos = $host.UI.RawUI.CursorPosition
+        # $promptPos = $host.UI.RawUI.CursorPosition
 
-        Write-Host "? " -NoNewline -ForegroundColor "Cyan"
-        Write-Host "$prompt "
+        Write-Host " $([char]0x251C)" -NoNewline -ForegroundColor "Gray"
+        # Write-Host " ? " -NoNewline -ForegroundColor "Cyan"
+        Write-Host " $prompt " -ForegroundColor "Gray"
 
         # Initialize variables for user input handling
         $vkeycode = 0
@@ -428,28 +416,31 @@ function readOption {
         $orderedKeys = $options.Keys | ForEach-Object { $_ }
 
         # Get an array of all values
-        $values = $options.Values
+        # $values = $options.Values
 
         # Find the length of the longest key for padding
-        $longestKeyLength = ($orderedKeys | Measure-Object -Property Length -Maximum).Maximum
+        $longestKeyLength = ($orderedKeys | ForEach-Object { "$_".Length } | Measure-Object -Maximum).Maximum
 
         # Find the length of the longest value
-        $longestValueLength = ($values | Measure-Object -Property Length -Maximum).Maximum
+        # $longestValueLength = ($values | ForEach-Object { "$_".Length } | Measure-Object -Maximum).Maximum
 
         # Display single option if only one exists
         if ($orderedKeys.Count -eq 1) {
-            Write-Host "$([char]0x2192)" -ForegroundColor "DarkCyan" -NoNewline
-            Write-Host "  $($orderedKeys) $(" " * ($longestKeyLength - $orderedKeys.Length)) - $($options[$orderedKeys])" -ForegroundColor "DarkCyan"
+            Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
+            Write-Host " $([char]0x2192)" -ForegroundColor "DarkCyan" -NoNewline
+            Write-Host "   $($orderedKeys) $(" " * ($longestKeyLength - $orderedKeys.Length)) - $($options[$orderedKeys])" -ForegroundColor "DarkCyan"
         } else {
             # Loop through each option and display with padding and color
             for ($i = 0; $i -lt $orderedKeys.Count; $i++) {
                 $key = $orderedKeys[$i]
                 $padding = " " * ($longestKeyLength - $key.Length)
                 if ($i -eq $pos) { 
-                    Write-Host "$([char]0x2192)" -ForegroundColor "DarkCyan" -NoNewline  
+                    Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
+                    Write-Host " $([char]0x2192)" -ForegroundColor "DarkCyan" -NoNewline  
                     Write-Host " $key $padding - $($options[$key])" -ForegroundColor "DarkCyan"
                 } else { 
-                    Write-Host "  $key $padding - $($options[$key])" -ForegroundColor "Gray" 
+                    Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
+                    Write-Host "   $key $padding - $($options[$key])"
                 }
             }
         }
@@ -461,7 +452,6 @@ function readOption {
         While ($vkeycode -ne 13) {
             $press = $host.ui.rawui.readkey("NoEcho, IncludeKeyDown")
             $vkeycode = $press.virtualkeycode
-            Write-host "$($press.character)" -NoNewLine
             if ($orderedKeys.Count -ne 1) { 
                 $oldPos = $pos;
                 if ($vkeycode -eq 38) { $pos-- }
@@ -471,42 +461,47 @@ function readOption {
 
                 # Calculate positions for redrawing menu items
                 $menuLen = $orderedKeys.Count
-                $menuOldPos = New-Object System.Management.Automation.Host.Coordinates(0, ($currPos.Y - ($menuLen - $oldPos)))
-                $menuNewPos = New-Object System.Management.Automation.Host.Coordinates(0, ($currPos.Y - ($menuLen - $pos)))
+                $menuOldPos = New-Object System.Management.Automation.Host.Coordinates($currPos.X, ($currPos.Y - ($menuLen - $oldPos)))
+                $menuNewPos = New-Object System.Management.Automation.Host.Coordinates($currPos.X, ($currPos.Y - ($menuLen - $pos)))
                 $oldKey = $orderedKeys[$oldPos]
                 $newKey = $orderedKeys[$pos]
             
                 # Re-draw the previously selected and newly selected options
                 $host.UI.RawUI.CursorPosition = $menuOldPos
-                Write-Host "  $($orderedKeys[$oldPos]) $(" " * ($longestKeyLength - $oldKey.Length)) - $($options[$orderedKeys[$oldPos]])" -ForegroundColor "Gray"
+                Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
+                Write-Host "   $($orderedKeys[$oldPos]) $(" " * ($longestKeyLength - $oldKey.Length)) - $($options[$orderedKeys[$oldPos]])"
                 $host.UI.RawUI.CursorPosition = $menuNewPos
-                Write-Host "$([char]0x2192)" -ForegroundColor "DarkCyan" -NoNewline
+                Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
+                Write-Host " $([char]0x2192)" -ForegroundColor "DarkCyan" -NoNewline
                 Write-Host " $($orderedKeys[$pos]) $(" " * ($longestKeyLength - $newKey.Length)) - $($options[$orderedKeys[$pos]])" -ForegroundColor "DarkCyan"
                 $host.UI.RawUI.CursorPosition = $currPos
             }
         }
 
-        [Console]::SetCursorPosition($promptPos.X, $promptPos.Y)
-
-        if ($orderedKeys.Count -ne 1) {
-            Write-Host "? " -ForegroundColor "Cyan" -NoNewline
-            Write-Host $prompt -NoNewline
-            Write-Host " $($orderedKeys[$pos])" -ForegroundColor "DarkCyan"
-        } else {
-            Write-Host "? " -ForegroundColor "Cyan" -NoNewline
-            Write-Host $prompt -NoNewline
-            Write-Host " $($orderedKeys) $(" " * ($longestKeyLength - $orderedKeys.Length))" -ForegroundColor "DarkCyan"
+        <# # Clear the menu by overwriting it with spaces
+        $menuLines = $options.Count
+        $newY = $promptPos.Y + 1 # Calculate the new Y position
+        for ($i = 0; $i -lt $menuLines; $i++) {
+            # Ensure the Y position is within the terminal bounds
+            if ($newY -ge 0 -and $newY -lt $host.UI.RawUI.WindowSize.Height) {
+                $host.UI.RawUI.CursorPosition = New-Object System.Management.Automation.Host.Coordinates($promptPos.X, $newY)
+                Write-Host (" " * ($host.UI.RawUI.WindowSize.Width - 1)) # Clear each line with spaces
+            }
+            $newY++ # Move to the next line
         }
 
-        for ($i = 0; $i -lt $options.Count; $i++) {
-            Write-Host "       $(" " * ($longestKeyLength + $longestValueLength))"
+        # Move the cursor back to the prompt position
+        if ($promptPos.Y -ge 0 -and $promptPos.Y -lt $host.UI.RawUI.WindowSize.Height) {
+            $host.UI.RawUI.CursorPosition = $promptPos
         }
-        
-        [Console]::SetCursorPosition($promptPos.X, $promptPos.Y)
-        Write-Host
+
+        # Display the selected option on the same line as the prompt
+        Write-Host "? " -NoNewline -ForegroundColor "Green"
+        Write-Host "$prompt " -NoNewline
+        Write-Host "$($orderedKeys[$pos])" -ForegroundColor "DarkCyan" #>
 
         # Add a line break after the menu if lineAfter is specified
-        if ($lineAfter) { Write-Host }
+        if ($lineAfter) { Write-Host " $([char]0x2502)" -ForegroundColor "Gray" }
 
         # Handle function return values (key, value, menu position) based on parameters
         if ($returnKey) { 
@@ -536,57 +531,53 @@ function getDownload {
         [parameter(Mandatory)]
         [string]$target,
         [parameter(Mandatory = $false)]
-        [string]$label = 'Loading',
+        [string]$label = "",
         [parameter(Mandatory = $false)]
         [string]$failText = 'Download failed...',
         [parameter(Mandatory = $false)]
-        [int]$MaxRetries = 2,
+        [switch]$lineBefore = $false,
         [parameter(Mandatory = $false)]
-        [int]$Interval = 1,
+        [switch]$lineAfter = $false,
         [parameter(Mandatory = $false)]
-        [switch]$visible = $false
+        [switch]$hide = $false
     )
     Begin {
+        <# Write-Host "  From: " -NoNewline
+        Write-Host "$url" -ForegroundColor Magenta
+        Write-Host "  To: " -NoNewline
+        Write-Host "$target" -ForegroundColor Magenta #>
+        
         function Show-Progress {
             param (
                 [parameter(Mandatory)]
                 [Single]$totalValue,
                 [parameter(Mandatory)]
                 [Single]$currentValue,
-                [parameter(Mandatory)]
-                [string]$label,
-                [parameter()]
-                [string]$ValueSuffix,
-                [parameter()]
-                [int]$BarSize = 40,
-                [parameter()]
-                [switch]$Complete
+                [parameter(Mandatory = $false)]
+                [switch]$complete = $false
             )
             
             # calc %
+            $barSize = 30
             $percent = $currentValue / $totalValue
             $percentComplete = $percent * 100
-            if ($ValueSuffix) {
-                $ValueSuffix = " $ValueSuffix" # add space in front
-            }
   
             # build progressbar with string function
-            $curBarSize = $BarSize * $percent
+            $curBarSize = $barSize * $percent
             $progbar = ""
             $progbar = $progbar.PadRight($curBarSize, [char]9608)
-            $progbar = $progbar.PadRight($BarSize, [char]9617)
+            $progbar = $progbar.PadRight($barSize, [char]9617)
 
-            if (!$Complete.IsPresent) {
-                Write-Host -NoNewLine "`r    $label $progbar $($percentComplete.ToString("##0.00").PadLeft(6))%"
+            if ($complete) {
+                Write-Host -NoNewLine "`r  $progbar Complete"
             } else {
-                Write-Host -NoNewLine "`r    $label $progbar $($percentComplete.ToString("##0.00").PadLeft(6))%"                    
-            }              
-             
+                Write-Host -NoNewLine "`r  $progbar $($percentComplete.ToString("##0.00").PadLeft(6))%"
+            }          
         }
     }
     Process {
         $downloadComplete = $true 
-        for ($retryCount = 1; $retryCount -le $MaxRetries; $retryCount++) {
+        for ($retryCount = 1; $retryCount -le 2; $retryCount++) {
             try {
                 $storeEAP = $ErrorActionPreference
                 $ErrorActionPreference = 'Stop'
@@ -624,9 +615,14 @@ function getDownload {
                 # create reader / writer
                 $reader = $response.GetResponseStream()
                 $writer = new-object System.IO.FileStream $target, "Create"
-  
+                
+                if ($lineBefore) { Write-Host }
+
+                if (-not $hide -and $label -ne "") {
+                    Write-Host  "  $label" -ForegroundColor "Yellow"
+                }
                 # start download
-                $finalBarCount = 0 #show final bar only one time
+                $finalBarCount = 0 #Show final bar only one time
                 do {
                     $count = $reader.Read($buffer, 0, $buffer.Length)
           
@@ -634,22 +630,25 @@ function getDownload {
               
                     $total += $count
                     $totalMB = $total / 1024 / 1024
-          
-                    if ($visible) {
+                    if (-not $hide) {
                         if ($fullSize -gt 0) {
-                            Show-Progress -totalValue $fullSizeMB -currentValue $totalMB -label $label -ValueSuffix "MB"
+                            Show-Progress -totalValue $fullSizeMB -currentValue $totalMB
                         }
 
                         if ($total -eq $fullSize -and $count -eq 0 -and $finalBarCount -eq 0) {
-                            Show-Progress -totalValue $fullSizeMB -currentValue $totalMB -label $label -ValueSuffix "MB" -Complete
+                            Show-Progress -totalValue $fullSizeMB -currentValue $totalMB -complete
                             $finalBarCount++
                         }
                     }
                 } while ($count -gt 0)
 
+                if (-not $hide) {
+                    Write-Host
+                }
+
                 # Prevent the following output from appearing on the same line as the progress bar
-                if ($visible) {
-                    Write-Host 
+                if ($lineAfter) { 
+                    Write-Host
                 }
                 
                 if ($downloadComplete) { 
@@ -658,26 +657,18 @@ function getDownload {
                     return $false 
                 }
             } catch {
-                # writeText -type "fail" -text "$($_.Exception.Message)"
-                writeText -type "fail" -text $failText
-                
                 $downloadComplete = $false
             
-                if ($retryCount -lt $MaxRetries) {
-                    writeText "Retrying..."
-                    Start-Sleep -Seconds $Interval
+                if ($retryCount -lt 2) {
+                    writeText -type "plain" -text "Retrying..."
+                    Start-Sleep -Seconds 1
                 } else {
-                    writeText -type "error" -text "Maximum retries reached." 
+                    writeText -type "error" -text "getDownload-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)"
                 }
             } finally {
                 # cleanup
-                if ($reader) { 
-                    $reader.Close() 
-                }
-                if ($writer) { 
-                    $writer.Flush() 
-                    $writer.Close() 
-                }
+                if ($reader) { $reader.Close() }
+                if ($writer) { $writer.Flush(); $writer.Close() }
         
                 $ErrorActionPreference = $storeEAP
                 [GC]::Collect()
@@ -715,7 +706,7 @@ function getUserData {
 function selectUser {
     param (
         [parameter(Mandatory = $false)]
-        [string]$prompt = "Select a user account:",
+        [string]$prompt = "Select a user account.",
         [parameter(Mandatory = $false)]
         [switch]$lineBefore = $false,
         [parameter(Mandatory = $false)]
@@ -726,7 +717,7 @@ function selectUser {
 
     try {
         # Add a line break before the menu if lineBefore is specified
-        if ($lineBefore) { Write-Host }
+        if ($lineBefore) { Write-Host " $([char]0x2502)" -ForegroundColor "Gray" }
          
         # Initialize empty array to store user names
         $userNames = @()
@@ -783,7 +774,7 @@ function selectUser {
         }
 
         # Add a line break after the menu if lineAfter is specified
-        if ($lineAfter) { Write-Host }
+        if ($lineAfter) { Write-Host " $([char]0x2502)" -ForegroundColor "Gray" }
 
         # Return the user data dictionary
         return $data
@@ -792,4 +783,256 @@ function selectUser {
     }
 }
 
-invokeScript -script "addInTechAdmin" -initialize $true
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function odMenu {
+    try {
+        $installChoice = readOption -options $([ordered]@{
+                "get version"     = "Get the version of Open Dental."
+                "get config"      = "Get the Open Dental config."
+                "install 22_3_61" = "Install Open Dental version 22.3.61."
+                "install 23_2_30" = "Install Open Dental version 23.2.30."
+                "install 23_3_66" = "Install Open Dental version 23.3.66."
+                "install 24_2_46" = "Install Open Dental version 24.2.46."
+                "install 24_3_41" = "Install Open Dental version 24.3.41."
+                "install 25_3_59" = "Install Open Dental version 25.3.59"
+                "Exit"            = "Exit this script and go back to main command line."
+            }) -prompt "Select which apps to install." -lineAfter
+
+        switch ($installChoice) {
+            0 { getODVersion }
+            1 { getODConfig }
+            2 { install22361 }
+            5 { install24341 }
+            Default { readCommand }
+        }
+    } catch {
+        # Display error message and end the script
+        writeText -type "error" -text "odMenu-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)" -lineAfter
+    }
+}
+
+function getODVersion {
+    (Get-Command "C:\Program Files (x86)\Open Dental\OpenDental.exe").FileVersionInfo.ProductVersion
+}
+
+function getODConfig {
+    Get-Content "C:\Program Files (x86)\Open Dental\FreeDentalConfig.xml"
+}
+
+function install22361 {
+
+}
+
+function install24341 {
+    try {
+        $url = "https://drive.google.com/uc?export=download&id=1P65zB-9kwZ3_LnZMMt90rwgRuKp7dJoG"
+
+        # Define paths
+        $tempDir = "C:\Temp"
+        $zipPath = Join-Path -Path $tempDir -ChildPath "Setup_24_3_41.zip"  # FULL path with filename
+        $exePath = Join-Path -Path $tempDir -ChildPath "Setup_24_3_41.exe"
+
+        # Create directory if it doesn't exist
+        if (!(Test-Path $tempDir)) {
+            New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+            writeText -type "notice" -text "Created directory: $tempDir"
+        }          
+
+        # Check if OpenDental.exe already exists
+        if (!(Test-Path $exePath)) {
+            # Download the zip file - pass the FULL file path
+            if (getDownload -url $url -target $zipPath) {
+                # Verify the zip file was downloaded
+                if (Test-Path $zipPath) {
+                    # Extract the zip file
+                    Expand-Archive -Path $zipPath -DestinationPath $tempDir -Force
+                        
+                    $appName = "OpenDental"
+                    $paths = @(
+                        "C:\Program Files (x86)\OpenDental\OpenDental.exe"
+                    )
+                    $installed = findExisting -Paths $paths -App $appName
+                    if (!$installed) { 
+                        installProgram -url $url -AppName $appName -Args "/silent"
+                    }
+                        
+                    writeText -type "success" -text "OpenDental.exe has been placed in: $tempDir"
+                } else {
+                    writeText -type "error" -text "Download failed or zip file not found at: $zipPath"
+                }
+            } else {
+                writeText -type "error" -text "Failed to download OpenDental.zip"
+            }
+        } else {
+            writeText -type "notice" -text "OpenDental.exe already exists in: $tempDir. Skipping download and extraction."
+        }
+    } catch {
+        writeText -type "error" -text "install24341-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)" -lineAfter
+    }
+    
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+invokeScript -script "install24341" -initialize $true
+readCommand

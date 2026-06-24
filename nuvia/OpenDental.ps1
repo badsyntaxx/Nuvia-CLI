@@ -32,13 +32,46 @@ function install22361 {
 }
 
 function install24341 {
-    $url = "https://drive.google.com/uc?export=download&id=1O11Up7b84Q-2mokeDGsDIRvt4x_n-q_1"
-    $appName = "OpenDental"
-    $paths = @(
-        "C:\Program Files (x86)\OpenDental\OpenDental.exe"
-    )
-    $installed = findExisting -Paths $paths -App $appName
-    if (!$installed) { 
-        installProgram -url $url -AppName $appName -Args "/silent"
+
+    $url = "https://drive.google.com/uc?export=download&id=1P65zB-9kwZ3_LnZMMt90rwgRuKp7dJoG"
+
+    # Define paths
+    $tempDir = "C:\Temp"
+    $zipPath = Join-Path -Path $tempDir -ChildPath "Setup_24_3_41.zip"  # FULL path with filename
+    $exePath = Join-Path -Path $tempDir -ChildPath "Setup_24_3_41.exe"
+
+    # Create directory if it doesn't exist
+    if (!(Test-Path $tempDir)) {
+        New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+        writeText -type "notice" -text "Created directory: $tempDir"
+    }          
+
+    # Check if OpenDental.exe already exists
+    if (!(Test-Path $exePath)) {
+        # Download the zip file - pass the FULL file path
+        if (getDownload -url $url -target $zipPath) {
+            # Verify the zip file was downloaded
+            if (Test-Path $zipPath) {
+                # Extract the zip file
+                Expand-Archive -Path $zipPath -DestinationPath $tempDir -Force
+                        
+                $appName = "OpenDental"
+                $paths = @(
+                    "C:\Program Files (x86)\OpenDental\OpenDental.exe"
+                )
+                $installed = findExisting -Paths $paths -App $appName
+                if (!$installed) { 
+                    installProgram -url $url -AppName $appName -Args "/silent"
+                }
+                        
+                writeText -type "success" -text "OpenDental.exe has been placed in: $tempDir"
+            } else {
+                writeText -type "error" -text "Download failed or zip file not found at: $zipPath"
+            }
+        } else {
+            writeText -type "error" -text "Failed to download OpenDental.zip"
+        }
+    } else {
+        writeText -type "notice" -text "OpenDental.exe already exists in: $tempDir. Skipping download and extraction."
     }
 }
