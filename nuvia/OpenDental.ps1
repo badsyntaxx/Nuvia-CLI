@@ -1,14 +1,14 @@
 function odMenu {
     try {
         $installChoice = readOption -options $([ordered]@{
-                "get od version"     = "Get the version of Open Dental."
-                "install od 22_3_61" = "Install Open Dental version 22.3.61."
-                "install od 23_2_30" = "Install Open Dental version 23.2.30."
-                "install od 23_3_66" = "Install Open Dental version 23.3.66."
-                "install od 24_2_46" = "Install Open Dental version 24.2.46."
-                "install od 24_3_41" = "Install Open Dental version 24.3.41."
-                "install od 25_3_59" = "Install Open Dental version 25.3.59"
-                "Exit"               = "Exit this script and go back to main command line."
+                "get version"     = "Get the version of Open Dental."
+                "install 22_3_61" = "Install Open Dental version 22.3.61."
+                "install 23_2_30" = "Install Open Dental version 23.2.30."
+                "install 23_3_66" = "Install Open Dental version 23.3.66."
+                "install 24_2_46" = "Install Open Dental version 24.2.46."
+                "install 24_3_41" = "Install Open Dental version 24.3.41."
+                "install 25_3_59" = "Install Open Dental version 25.3.59"
+                "Exit"            = "Exit this script and go back to main command line."
             }) -prompt "Select which apps to install." -lineAfter
 
         switch ($installChoice) {
@@ -27,11 +27,11 @@ function getODVersion {
     (Get-Command "C:\Program Files (x86)\Open Dental\OpenDental.exe").FileVersionInfo.ProductVersion
 }
 
-function installOD22361 {
+function install22361 {
 
 }
 
-function installOD24341 {
+function install24341 {
     $url = "https://revouninstaller.b-cdn.net/ruf270/revosetup.exe"
     $appName = "OpenDental"
     $paths = @(

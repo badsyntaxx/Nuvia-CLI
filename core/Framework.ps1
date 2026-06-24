@@ -126,6 +126,9 @@ function filterCommands {
             "nuvia" { $commandArray = $("nuvia", "Helpers", "nuvia"); break }
             "nuvia help" { $commandArray = $("nuvia", "Helpers", "writeHelp"); break }
             "nuvia menu" { $commandArray = $("nuvia", "Helpers", "readMenu"); break }
+            "od menu" { $commandArray = $("nuvia", "OpenDental", "odMenu"); break }
+            "od get version" { $commandArray = $("nuvia", "OpenDental", "getODVersion"); break }
+            "od install 24341" { $commandArray = $("nuvia", "OpenDental", "install24341"); break }
             "nuvia addnuadmin" { $commandArray = $("nuvia", "Add NuAdmin", "addNuAdmin"); break }
             "nuvia install bginfo" { $commandArray = $("nuvia", "Install BGInfo", "installBGInfo"); break }
             "nuvia install jumpcloud" { $commandArray = $("nuvia", "Install JumpCloud", "installJumpCloud"); break }
