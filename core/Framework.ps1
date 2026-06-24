@@ -90,12 +90,14 @@ function filterCommands {
             "enable admin" { $commandArray = $("windows", "Toggle Admin", "enableAdmin") }
             "disable admin" { $commandArray = $("windows", "Toggle Admin", "disableAdmin") }
             "list users" { $commandArray = $("windows", "User", "listUsers") }
+            "user menu" { $commandArray = $("windows", "User", "userMenu") }
             "add user" { $commandArray = $("windows", "User", "addUser") }
             "add local user" { $commandArray = $("windows", "User", "addLocalUser") }
             "add ad user" { $commandArray = $("windows", "User", "addADUser") }
             "add drive letter" { $commandArray = $("windows", "Add Drive Letter", "addDriveLetter") }
             "remove user" { $commandArray = $("windows", "User", "removeUser") }
             "edit hostname" { $commandArray = $("windows", "Edit Hostname", "editHostname") }
+            "edit description" { $commandArray = $("windows", "Edit Hostname", "editDescription") }
             "edit user" { $commandArray = $("windows", "User", "editUser") }
             "edit user name" { $commandArray = $("windows", "User", "editUserName") }
             "edit user password" { $commandArray = $("windows", "User", "editUserPassword") }
@@ -103,8 +105,11 @@ function filterCommands {
             "edit net adapter" { $commandArray = $("windows", "Edit Net Adapter", "editNetAdapter") }
             "get wifi creds" { $commandArray = $("windows", "Get Wifi Creds", "getWifiCreds") }
             "get software" { $commandArray = $("windows", "Get Software", "getSoftware") }
+            "get windirstat" { $commandArray = $("windows", "Get Software", "getWinDirStat") }
+            "get revouninstaller" { $commandArray = $("windows", "Get Software", "getRevoUninstaller") }
             "schedule task" { $commandArray = $("windows", "Schedule Task", "scheduleTask") }
             "update windows" { $commandArray = $("windows", "Update Windows", "updateWindows") }
+            "clear temp files" { $commandArray = $("windows", "Repair Windows", "clearTempFiles") }
             "repair windows" { $commandArray = $("windows", "Repair Windows", "repairWindows") }
             "plugins" { $commandArray = $("plugins", "Helpers", "plugins") }
             "plugins menu" { $commandArray = $("plugins", "Helpers", "readMenu") }
@@ -116,6 +121,8 @@ function filterCommands {
             "copy host gpu drivers to vm" { $commandArray = ("windows", "Share GPU with VM", "copyHostGPUDriversToVM") }
             "install host gpu drivers on vm" { $commandArray = ("windows", "Share GPU with VM", "installHostGPUDriversOnVM") }
             "partition gpu" { $commandArray = ("windows", "Share GPU with VM", "partitionGPU") }
+            "generate encrypted password" { $commandArray = ("windows", "Generate Encrypted Password", "generateEncryptedPassword") }
+            "add premade account" { $commandArray = ("windows", "Add Premade Account", "addPremadeAccount") }
             "nuvia" { $commandArray = $("nuvia", "Helpers", "nuvia"); break }
             "nuvia help" { $commandArray = $("nuvia", "Helpers", "writeHelp"); break }
             "nuvia menu" { $commandArray = $("nuvia", "Helpers", "readMenu"); break }
