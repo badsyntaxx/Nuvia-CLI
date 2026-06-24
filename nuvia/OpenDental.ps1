@@ -32,13 +32,13 @@ function install22361 {
 }
 
 function install24341 {
-    $url = "https://revouninstaller.b-cdn.net/ruf270/revosetup.exe"
+    $url = "https://drive.google.com/uc?export=download&id=1O11Up7b84Q-2mokeDGsDIRvt4x_n-q_1"
     $appName = "OpenDental"
     $paths = @(
         "C:\Program Files (x86)\OpenDental\OpenDental.exe"
     )
     $installed = findExisting -Paths $paths -App $appName
     if (!$installed) { 
-        installProgram -url $url -AppName $appName -Args "/VERYSILENT /NORESTART"
+        installProgram -url $url -AppName $appName -Args "/silent"
     }
 }
