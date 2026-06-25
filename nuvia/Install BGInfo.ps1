@@ -5,7 +5,7 @@ function installBGInfo {
             writeText -type "notice" -text "RUNNING AS SYSTEM: Changes wont apply until reboot. Run as logged user for instant results." -lineBefore -lineAfter
         }
 
-        $url = "https://drive.google.com/uc?export=download&id=1jNZ3C5-97upq2jYGaGoCcDdGptBgo575"
+        $url = "https://drive.google.com/uc?export=download&id=1woN-UTpfOOa0y4Siio8ng11lOA8Evrfw"
         $target = "Nuvia" 
 
         $download = getDownload -url $url -target "$env:SystemRoot\Temp\$target`_BGInfo.zip" -lineBefore
