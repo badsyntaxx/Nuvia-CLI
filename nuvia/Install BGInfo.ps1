@@ -1,9 +1,8 @@
 function installBGInfo {
     try {
-        $url = "https://drive.google.com/uc?export=download&id=1woN-UTpfOOa0y4Siio8ng11lOA8Evrfw"
-        $target = "Nuvia" 
+        $url = "https://drive.google.com/uc?export=download&id=1o5NcW5rmhPujNH0AboGwpdvKP5Tcir7o"
 
-        $download = getDownload -url $url -target "$env:SystemRoot\Temp\$target`_BGInfo.zip" -lineBefore
+        $download = getDownload -url $url -target "$env:SystemRoot\Temp\BGInfo.zip" -lineBefore
 
         if ($download -eq $true) { 
             # Set the wallpaper property
@@ -15,7 +14,7 @@ function installBGInfo {
             # I don't know of a good way to check that this value has actually changed
             # writeText -type "plain" -text "Wallpaper cleared." -lineBefore
 
-            Expand-Archive -LiteralPath "$env:SystemRoot\Temp\$target`_BGInfo.zip" -DestinationPath "$env:SystemRoot\Temp\"
+            Expand-Archive -LiteralPath "$env:SystemRoot\Temp\BGInfo.zip" -DestinationPath "$env:SystemRoot\Temp\"
 
             # Test if the extracted folder exists
             if (Test-Path "$env:SystemRoot\Temp\BGInfo") {
@@ -33,11 +32,11 @@ function installBGInfo {
                 writeText -type "error" -text "Failed to install BGInfo."
             }
 
-            Remove-Item -Path "$env:SystemRoot\Temp\$target`_BGInfo.zip" -Recurse
+            Remove-Item -Path "$env:SystemRoot\Temp\BGInfo.zip" -Recurse
             Remove-Item -Path "$env:SystemRoot\Temp\BGInfo" -Recurse 
 
             $filesDeleted = $true
-            if (Test-Path "$env:SystemRoot\Temp\$target`_BGInfo.zip") { 
+            if (Test-Path "$env:SystemRoot\Temp\BGInfo.zip") { 
                 $filesDeleted = $false 
             }
             if (Test-Path "$env:SystemRoot\Temp\BGInfo") { 
