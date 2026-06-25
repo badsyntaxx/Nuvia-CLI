@@ -1,10 +1,5 @@
 function installBGInfo {
     try {
-        # Check if the current PowerShell session is running as the system account
-        if ([System.Security.Principal.WindowsIdentity]::GetCurrent().Name -eq 'NT AUTHORITY\SYSTEM') {
-            writeText -type "notice" -text "RUNNING AS SYSTEM: Changes wont apply until reboot. Run as logged user for instant results." -lineBefore -lineAfter
-        }
-
         $url = "https://drive.google.com/uc?export=download&id=1woN-UTpfOOa0y4Siio8ng11lOA8Evrfw"
         $target = "Nuvia" 
 
@@ -12,13 +7,13 @@ function installBGInfo {
 
         if ($download -eq $true) { 
             # Set the wallpaper property
-            Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name WallPaper -Value "" 
+            # Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name WallPaper -Value "" 
 
             # Set the background color property
-            Set-ItemProperty -Path "HKCU:\Control Panel\Colors" -Name Background -Value "0 0 0" 
+            # Set-ItemProperty -Path "HKCU:\Control Panel\Colors" -Name Background -Value "0 0 0" 
 
             # I don't know of a good way to check that this value has actually changed
-            writeText -type "plain" -text "Wallpaper cleared." -lineBefore
+            # writeText -type "plain" -text "Wallpaper cleared." -lineBefore
 
             Expand-Archive -LiteralPath "$env:SystemRoot\Temp\$target`_BGInfo.zip" -DestinationPath "$env:SystemRoot\Temp\"
 
