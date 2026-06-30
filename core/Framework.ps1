@@ -1,3 +1,67 @@
+$global:commandMap = @{
+    ""                               = @("windows", "Helpers", "shellCLI")
+    "help"                           = @("windows", "Helpers", "writeHelp")
+    "menu"                           = @("windows", "Helpers", "readMenu")
+    "toggle context menu"            = @("windows", "Toggle Context Menu", "toggleContextMenu")
+    "enable context menu"            = @("windows", "Toggle Context Menu", "enableContextMenu")
+    "disable context menu"           = @("windows", "Toggle Context Menu", "disableContextMenu")
+    "toggle admin"                   = @("windows", "Toggle Admin", "toggleAdmin")
+    "enable admin"                   = @("windows", "Toggle Admin", "enableAdmin")
+    "disable admin"                  = @("windows", "Toggle Admin", "disableAdmin")
+    "list users"                     = @("windows", "User", "listUsers")
+    "user menu"                      = @("windows", "User", "userMenu")
+    "add user"                       = @("windows", "User", "addUser")
+    "add local user"                 = @("windows", "User", "addLocalUser")
+    "add ad user"                    = @("windows", "User", "addADUser")
+    "add drive letter"               = @("windows", "Add Drive Letter", "addDriveLetter")
+    "remove user"                    = @("windows", "User", "removeUser")
+    "edit hostname"                  = @("windows", "Edit Hostname", "editHostname")
+    "edit description"               = @("windows", "Edit Hostname", "editDescription")
+    "edit user"                      = @("windows", "User", "editUser")
+    "edit user name"                 = @("windows", "User", "editUserName")
+    "edit user password"             = @("windows", "User", "editUserPassword")
+    "edit user group"                = @("windows", "User", "editUserGroup")
+    "edit net adapter"               = @("windows", "Edit Net Adapter", "editNetAdapter")
+    "get wifi creds"                 = @("windows", "Get Wifi Creds", "getWifiCreds")
+    "get software"                   = @("windows", "Get Software", "getSoftware")
+    "get windirstat"                 = @("windows", "Get Software", "getWinDirStat")
+    "get revouninstaller"            = @("windows", "Get Software", "getRevoUninstaller")
+    "schedule task"                  = @("windows", "Schedule Task", "scheduleTask")
+    "update windows"                 = @("windows", "Update Windows", "updateWindows")
+    "clear temp files"               = @("windows", "Repair Windows", "clearTempFiles")
+    "repair windows"                 = @("windows", "Repair Windows", "repairWindows")
+    "plugins"                        = @("plugins", "Helpers", "plugins")
+    "plugins menu"                   = @("plugins", "Helpers", "readMenu")
+    "plugins help"                   = @("plugins", "Helpers", "writeHelp")
+    "plugins reclaimw11"             = @("plugins", "ReclaimW11", "reclaimw11")
+    "plugins massgravel"             = @("plugins", "massgravel", "massgravel")
+    "plugins win11debloat"           = @("plugins", "win11Debloat", "win11Debloat")
+    "share gpu with vm"              = @("windows", "Share GPU with VM", "shareGPUWithVM")
+    "copy host gpu drivers to vm"    = @("windows", "Share GPU with VM", "copyHostGPUDriversToVM")
+    "install host gpu drivers on vm" = @("windows", "Share GPU with VM", "installHostGPUDriversOnVM")
+    "partition gpu"                  = @("windows", "Share GPU with VM", "partitionGPU")
+    "generate encrypted password"    = @("windows", "Generate Encrypted Password", "generateEncryptedPassword")
+    "add premade account"            = @("windows", "Add Premade Account", "addPremadeAccount")
+    "nuvia"                          = @("nuvia", "Helpers", "nuvia")
+    "n help"                         = @("nuvia", "Helpers", "writeHelp")
+    "n menu"                         = @("nuvia", "Helpers", "readMenu")
+    "od menu"                        = @("nuvia/clinic/", "OpenDental", "odMenu")
+    "od get version"                 = @("nuvia", "OpenDental", "getODVersion")
+    "od install 24341"               = @("nuvia", "OpenDental", "install24341")
+    "n addnuadmin"                   = @("nuvia", "Add NuAdmin", "addNuAdmin")
+    "n install bginfo"               = @("nuvia", "Install BGInfo", "installBGInfo")
+    "n install jumpcloud"            = @("nuvia", "Install JumpCloud", "installJumpCloud")
+    "n install ninja"                = @("nuvia", "Install Ninja", "installNinja")
+    "n uninstall ninja"              = @("nuvia", "Uninstall Ninja", "uninstallNinja")
+    "n install tscan"                = @("nuvia", "Install Tscan", "installTscan")
+    "n isr install apps"             = @("nuvia", "ISR Install Apps", "isrInstallApps")
+    "isr install apps"               = @("nuvia", "ISR Install Apps", "isrInstallApps")
+    "n isr add bookmarks"            = @("nuvia", "ISR Add Bookmarks", "isrAddBookmarks")
+    "isr add bookmarks"              = @("nuvia", "ISR Add Bookmarks", "isrAddBookmarks")
+    "n isr onboard"                  = @("nuvia", "ISR Onboard", "isrOnboard")
+    "isr onboard"                    = @("nuvia", "ISR Onboard", "isrOnboard")
+}
+
 function invokeScript {
     param (
         [parameter(Mandatory = $true)]
@@ -16,7 +80,7 @@ function invokeScript {
         $console = $host.UI.RawUI
         $console.BackgroundColor = "Black"
         $console.ForegroundColor = "DarkGray"
-        $console.WindowTitle = "InTech Scripts"
+        $console.WindowTitle = "ShellCLI"
 
         if ($initialize) {
             Clear-Host
@@ -32,7 +96,7 @@ function invokeScript {
 
         Invoke-Expression $script
     } catch {
-        writeText -type "error" -text "invokeScript-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)"
+        writeText -type "error" -text "invokeScript-$($_.InvocationInfo.ScriptLineNumber) | $script"
     }
 }
 function readCommand {
@@ -42,150 +106,110 @@ function readCommand {
     )
 
     try {
-        Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
-        if ($command -eq "") { 
+        # Use a loop to keep the session alive
+        while ($true) {
             Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
-            Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
-            Write-Host " $([char]0x203A) " -NoNewline  -ForegroundColor "Cyan"
-            $command = Read-Host 
-            Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
+            
+            if ($command -eq "") { 
+                Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
+                Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
+                Write-Host " $([char]0x203A) " -NoNewline  -ForegroundColor "Cyan"
+                $command = Read-Host 
+                Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
+            }
+
+            $command = $command.ToLower()
+            $command = $command.Trim()
+            $filteredCommand = filterCommands -command $command
+            
+            # Check if filterCommands returned a valid array (3 elements)
+            if ($filteredCommand -and $filteredCommand.Count -eq 3) {
+                $commandDirectory = $filteredCommand[0]
+                $commandFile = $filteredCommand[1]
+                $commandFunction = $filteredCommand[2]
+
+                New-Item -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -ItemType File -Force | Out-Null
+                addScript -directory $commandDirectory -file $commandFile
+                addScript -directory "core" -file "Framework"
+                Add-Content -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -Value "invokeScript '$commandFunction'"
+                Add-Content -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -Value "readCommand"
+
+                $shellCLI = Get-Content -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -Raw
+                Invoke-Expression $shellCLI
+            }
+            # If filteredCommand is $null, it was either a PowerShell command or unrecognized
+            # Reset command for the next loop iteration
+            $command = ""
         }
-
-        $command = $command.ToLower()
-        $command = $command.Trim()
-        $filteredCommand = filterCommands -command $command
-        $commandDirectory = $filteredCommand[0]
-        $commandFile = $filteredCommand[1]
-        $commandFunction = $filteredCommand[2]
-
-        New-Item -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -ItemType File -Force | Out-Null
-        addScript -directory $commandDirectory -file $commandFile
-        addScript -directory "core" -file "Framework"
-        Add-Content -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -Value "invokeScript '$commandFunction'"
-        Add-Content -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -Value "readCommand"
-
-        $shellCLI = Get-Content -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -Raw
-        Invoke-Expression $shellCLI
     } catch {
         writeText -type "error" -text "readCommand-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)"
+        # Reset command and continue
+        $command = ""
     }
 }
 function filterCommands {
     param (
-        [parameter(Mandatory)]
+        [Parameter(Mandatory)]
         [string]$command
     )
 
     try {
-        $commandArray = $()
-
-        switch ($command) {
-            "" { $commandArray = $("windows", "Helpers", "shellCLI") }
-            "help" { $commandArray = $("windows", "Helpers", "writeHelp") }
-            "menu" { $commandArray = $("windows", "Helpers", "readMenu") }
-            "toggle context menu" { $commandArray = $("windows", "Toggle Context Menu", "toggleContextMenu") }
-            "enable context menu" { $commandArray = $("windows", "Toggle Context Menu", "enableContextMenu") }
-            "disable context menu" { $commandArray = $("windows", "Toggle Context Menu", "disableContextMenu") }
-            "toggle admin" { $commandArray = $("windows", "Toggle Admin", "toggleAdmin") }
-            "enable admin" { $commandArray = $("windows", "Toggle Admin", "enableAdmin") }
-            "disable admin" { $commandArray = $("windows", "Toggle Admin", "disableAdmin") }
-            "list users" { $commandArray = $("windows", "User", "listUsers") }
-            "user menu" { $commandArray = $("windows", "User", "userMenu") }
-            "add user" { $commandArray = $("windows", "User", "addUser") }
-            "add local user" { $commandArray = $("windows", "User", "addLocalUser") }
-            "add ad user" { $commandArray = $("windows", "User", "addADUser") }
-            "add drive letter" { $commandArray = $("windows", "Add Drive Letter", "addDriveLetter") }
-            "remove user" { $commandArray = $("windows", "User", "removeUser") }
-            "edit hostname" { $commandArray = $("windows", "Edit Hostname", "editHostname") }
-            "edit description" { $commandArray = $("windows", "Edit Hostname", "editDescription") }
-            "edit user" { $commandArray = $("windows", "User", "editUser") }
-            "edit user name" { $commandArray = $("windows", "User", "editUserName") }
-            "edit user password" { $commandArray = $("windows", "User", "editUserPassword") }
-            "edit user group" { $commandArray = $("windows", "User", "editUserGroup") }
-            "edit net adapter" { $commandArray = $("windows", "Edit Net Adapter", "editNetAdapter") }
-            "get wifi creds" { $commandArray = $("windows", "Get Wifi Creds", "getWifiCreds") }
-            "get software" { $commandArray = $("windows", "Get Software", "getSoftware") }
-            "get windirstat" { $commandArray = $("windows", "Get Software", "getWinDirStat") }
-            "get revouninstaller" { $commandArray = $("windows", "Get Software", "getRevoUninstaller") }
-            "schedule task" { $commandArray = $("windows", "Schedule Task", "scheduleTask") }
-            "update windows" { $commandArray = $("windows", "Update Windows", "updateWindows") }
-            "clear temp files" { $commandArray = $("windows", "Repair Windows", "clearTempFiles") }
-            "repair windows" { $commandArray = $("windows", "Repair Windows", "repairWindows") }
-            "plugins" { $commandArray = $("plugins", "Helpers", "plugins") }
-            "plugins menu" { $commandArray = $("plugins", "Helpers", "readMenu") }
-            "plugins help" { $commandArray = $("plugins", "Helpers", "writeHelp") }
-            "plugins reclaimw11" { $commandArray = $("plugins", "ReclaimW11", "reclaimw11") }
-            "plugins massgravel" { $commandArray = $("plugins", "massgravel", "massgravel") }
-            "plugins win11debloat" { $commandArray = $("plugins", "win11Debloat", "win11Debloat") }
-            "share gpu with vm" { $commandArray = ("windows", "Share GPU with VM", "shareGPUWithVM") }
-            "copy host gpu drivers to vm" { $commandArray = ("windows", "Share GPU with VM", "copyHostGPUDriversToVM") }
-            "install host gpu drivers on vm" { $commandArray = ("windows", "Share GPU with VM", "installHostGPUDriversOnVM") }
-            "partition gpu" { $commandArray = ("windows", "Share GPU with VM", "partitionGPU") }
-            "generate encrypted password" { $commandArray = ("windows", "Generate Encrypted Password", "generateEncryptedPassword") }
-            "add premade account" { $commandArray = ("windows", "Add Premade Account", "addPremadeAccount") }
-            "nuvia" { $commandArray = $("nuvia", "Helpers", "nuvia"); break }
-            "nuvia help" { $commandArray = $("nuvia", "Helpers", "writeHelp"); break }
-            "nuvia menu" { $commandArray = $("nuvia", "Helpers", "readMenu"); break }
-            "od menu" { $commandArray = $("nuvia", "OpenDental", "odMenu"); break }
-            "od get version" { $commandArray = $("nuvia", "OpenDental", "getODVersion"); break }
-            "od install 24341" { $commandArray = $("nuvia", "OpenDental", "install24341"); break }
-            "nuvia addnuadmin" { $commandArray = $("nuvia", "Add NuAdmin", "addNuAdmin"); break }
-            "nuvia install bginfo" { $commandArray = $("nuvia", "Install BGInfo", "installBGInfo"); break }
-            "nuvia install jumpcloud" { $commandArray = $("nuvia", "Install JumpCloud", "installJumpCloud"); break }
-            "nuvia install ninja" { $commandArray = $("nuvia", "Install Ninja", "installNinja"); break }
-            "nuvia uninstall ninja" { $commandArray = $("nuvia", "Uninstall Ninja", "uninstallNinja"); break }
-            "nuvia install tscan" { $commandArray = $("nuvia", "Install Tscan", "installTscan"); break }
-            "nuvia isr install apps" { $commandArray = $("nuvia", "ISR Install Apps", "isrInstallApps"); break }
-            "isr install apps" { $commandArray = $("nuvia", "ISR Install Apps", "isrInstallApps"); break }
-            "nuvia isr add bookmarks" { $commandArray = $("nuvia", "ISR Add Bookmarks", "isrAddBookmarks"); break }
-            "isr add bookmarks" { $commandArray = $("nuvia", "ISR Add Bookmarks", "isrAddBookmarks"); break }
-            "nuvia isr onboard" { $commandArray = $("nuvia", "ISR Onboard", "isrOnboard"); break }
-            "isr onboard" { $commandArray = $("nuvia", "ISR Onboard", "isrOnboard"); break }
-            default { 
-                if ($command -ne "help" -and $command -ne "" -and $command -match "^(?-i)(\w+(-\w+)*)") {
-                    if (Get-command $matches[1] -ErrorAction SilentlyContinue) {
-                        if ($matches[1] -ne "intech" -and $matches[1] -ne "nuvia") {
-                            $output = Invoke-Expression -Command $command 
+        # Normalize the command
+        $normalizedCommand = $command.ToLower().Trim()
+        
+        # Find matching key (case-insensitive)
+        $matchingKey = $global:commandMap.Keys | Where-Object { $_ -eq $normalizedCommand }
+        
+        if ($matchingKey) {
+            return $global:commandMap[$matchingKey]
+        } else {
+            # Check if it's a PowerShell/Windows command
+            if ($normalizedCommand -ne "help" -and $normalizedCommand -ne "" -and $normalizedCommand -match "^(?-i)(\w+(-\w+)*)") {
+                $cmdName = $matches[1]
+                if (Get-Command $cmdName -ErrorAction SilentlyContinue) {
+                    # It's a valid PowerShell command, execute it
+                    try {
+                        $output = Invoke-Expression -Command $command
+                        if ($output) {
                             $output | Format-Table | Out-String | ForEach-Object { Write-Host $_ }
-                            readCommand
                         }
+                    } catch {
+                        Write-Host "Error executing command: $($_.Exception.Message)" -ForegroundColor Red
                     }
+                    return $null
                 }
-                Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
-                Write-Host "  Unrecognized command `"$command`". Try" -NoNewline
-                Write-Host " help" -ForegroundColor "Cyan" -NoNewline
-                Write-Host " or" -NoNewline
-                Write-Host " menu" -NoNewline -ForegroundColor "Cyan"
-                Write-Host " to learn more."
-                readCommand 
-            } 
+            }
+            
+            # Command not found in map and not a PowerShell command
+            Write-Host " $([char]0x251C)" -NoNewline -ForegroundColor "Gray"
+            Write-Host "  Unrecognized command `"$command`". Try" -NoNewline -ForegroundColor "White"
+            Write-Host " help" -ForegroundColor "Cyan" -NoNewline
+            Write-Host " or" -NoNewline -ForegroundColor "White"
+            Write-Host " menu" -NoNewline -ForegroundColor "Cyan"
+            Write-Host " to learn more." -ForegroundColor "White"
+            return $null
         }
-
-        return $commandArray
     } catch {
         writeText -type "error" -text "filterCommands-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)"
+        return $null
     }
 }
 function addScript {
     param (
-        [parameter(Mandatory)]
+        [Parameter(Mandatory)]
         [string]$directory,
-        [parameter(Mandatory)]
+        [Parameter(Mandatory)]
         [string]$file
     )
 
     try {
-        $url = "https://raw.githubusercontent.com/badsyntaxx/intech-scripts/main"
-
-        if ($directory -eq 'windows' -or $directory -eq 'plugins') {
-            $url = "https://raw.githubusercontent.com/badsyntaxx/shellcli/main"
-        }
+        $url = "https://raw.githubusercontent.com/badsyntaxx/shellcli/main"
 
         $download = getDownload -url "$url/$directory/$file.ps1" -target "$env:SystemRoot\Temp\$file.ps1" -hide
 
         if ($download -eq $true) {
             $rawScript = Get-Content -Path "$env:SystemRoot\Temp\$file.ps1" -Raw -ErrorAction SilentlyContinue
-            Add-Content -Path "$env:SystemRoot\Temp\ShellCLI.ps1" -Value $rawScript
+            Add-Content -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -Value $rawScript
 
             Get-Item -ErrorAction SilentlyContinue "$env:SystemRoot\Temp\$file.ps1" | Remove-Item -ErrorAction SilentlyContinue
         }
@@ -221,10 +245,10 @@ function writeText {
 
         # Format output based on the specified Type
         if ($type -eq "header") {
-            $l = $([char]0x2500)
-            Write-Host "# " -ForegroundColor "Cyan" -NoNewline
-            Write-Host "$text" -ForegroundColor "White" 
-            Write-host "$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l" -ForegroundColor "Cyan"
+            # $l = $([char]0x2500)
+            Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
+            Write-Host " $([char]0x251C)" -NoNewline -ForegroundColor "Gray"
+            Write-Host " $text " -ForegroundColor "White"
         }
 
         if ($type -eq "prompt") {
@@ -234,21 +258,21 @@ function writeText {
 
         if ($type -eq 'success') { 
             Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
-            Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
+            Write-Host " $([char]0x251C)" -NoNewline -ForegroundColor "Gray"
             Write-Host " $([char]0x2713) $text"  -ForegroundColor "Green"
             Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
         }
 
         if ($type -eq 'error') { 
             Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
-            Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
+            Write-Host " $([char]0x251C)" -NoNewline -ForegroundColor "Gray"
             Write-Host " X $text" -ForegroundColor "Red"
             Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
         }
 
         if ($type -eq 'notice') { 
             Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
-            Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
+            Write-Host " $([char]0x251C)" -NoNewline -ForegroundColor "Gray"
             Write-Host " ! $text" -ForegroundColor "Yellow" 
             Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
         }
@@ -312,7 +336,9 @@ function readInput {
         [parameter(Mandatory = $false)]
         [switch]$lineBefore = $false, # Add a new line before prompt if specified
         [parameter(Mandatory = $false)]
-        [switch]$lineAfter = $false # Add a new line after prompt if specified
+        [switch]$lineAfter = $false, # Add a new line after prompt if specified
+        [parameter(Mandatory = $false)]
+        [switch]$allowBlank = $false # Allow blank input
     )
 
     try {
@@ -326,8 +352,11 @@ function readInput {
         # Write-Host " ? " -NoNewline -ForegroundColor "Cyan"
         Write-Host "   $prompt " -NoNewline
 
-        if ($IsSecure) { $userInput = Read-Host -AsSecureString } 
-        else { $userInput = Read-Host }
+        if ($IsSecure) { 
+            $userInput = Read-Host -AsSecureString 
+        } else { 
+            $userInput = Read-Host 
+        }
 
         # Check for existing user if requested
         if ($CheckExistingUser) {
@@ -335,8 +364,17 @@ function readInput {
             if ($null -ne $account) { $ErrorMessage = "An account with that name already exists." }
         }
 
+        if ($allowBlank -eq $false) {
+            if ($userInput -eq "" -or $userInput.Length -eq 0) { 
+                writeText -type "notice" -text "Input was blank returning to command line." 
+                readCommand
+            } 
+        }
+
         # Validate user input against provided regular expression
-        if ($userInput -notmatch $Validate) { $ErrorMessage = "Invalid input. Please try again." } 
+        if ($userInput -notmatch $Validate) { 
+            $ErrorMessage = "Invalid input. Please try again." 
+        } 
 
         # Display error message if encountered
         if ($ErrorMessage -ne "") {
@@ -566,7 +604,7 @@ function getDownload {
             } else {
                 # Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
                 Write-Host -NoNewLine "`r $([char]0x2502) $progbar $($percentComplete.ToString("##0.00").PadLeft(6))%" -ForegroundColor "Gray"
-            }        
+            }         
         }
     }
     Process {

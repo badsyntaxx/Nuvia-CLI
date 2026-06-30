@@ -6,46 +6,38 @@ function initializeShellCLI {
             Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" $PSCommandArgs" -WorkingDirectory $pwd -Verb RunAs
             Exit
         }
-
-        $ErrorActionPreference = "Stop"
-        # Enable TLSv1.2 for compatibility with older clients for current session
-        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         
         # Create the main script file
-        New-Item -Path "$env:SystemRoot\Temp\ShellCLI.ps1" -ItemType File -Force | Out-Null
+        New-Item -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -ItemType File -Force | Out-Null
 
-        $url = "https://raw.githubusercontent.com/badsyntaxx/Nuvia-CLI/main"
+        $url = "https://raw.githubusercontent.com/badsyntaxx/shellcli/main"
 
         # Download the script
-        $download = getScripts -url "$url/core/Framework.ps1" -target "$env:SystemRoot\Temp\Framework.ps1"
-        if (!$download) { 
-            throw "Could not acquire dependency." 
+        $download = getScript -Url "$url/core/Framework.ps1" -Target "$env:SystemRoot\Temp\Framework.ps1"
+        if ($download) { 
+            # Append the script to the main script
+            $rawScript = Get-Content -Path "$env:SystemRoot\Temp\Framework.ps1" -Raw -ErrorAction SilentlyContinue
+            Add-Content -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -Value $rawScript
+
+            # Remove the script file
+            Get-Item -ErrorAction SilentlyContinue "$env:SystemRoot\Temp\Framework.ps1" | Remove-Item -ErrorAction SilentlyContinue
+
+            # Add a final line that will invoke the desired function
+            Add-Content -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -Value 'invokeScript -script "readCommand -command `"help`"" -initialize $true'
+
+            # Execute the combined script
+            . "$env:SystemRoot\Temp\SHELLCLI.ps1"
         }
-
-        # Append the script to the main script
-        $rawScript = Get-Content -Path "$env:SystemRoot\Temp\Framework.ps1" -Raw -ErrorAction SilentlyContinue
-        Add-Content -Path "$env:SystemRoot\Temp\ShellCLI.ps1" -Value $rawScript
-
-        # Remove the script file
-        Get-Item -ErrorAction SilentlyContinue "$env:SystemRoot\Temp\Framework.ps1" | Remove-Item -ErrorAction SilentlyContinue
-
-        # Add a final line that will invoke the desired function
-        Add-Content -Path "$env:SystemRoot\Temp\ShellCLI.ps1" -Value 'invokeScript -script "readCommand" -initialize $true'
-
-        # Execute the combined script
-        $shellCLI = Get-Content -Path "$env:SystemRoot\Temp\ShellCLI.ps1" -Raw
-        Invoke-Expression $shellCLI
     } catch {
-        # Error handling: display an error message and prompt for a new command
-        Write-Host "  Connection Error: $($_.Exception.Message) | init-$($_.InvocationInfo.ScriptLineNumber)" -ForegroundColor "Red"
+        Write-Host "  initializeShellCLI-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)" -ForegroundColor "Red"
     }
 }
 
-function getScripts {
+function getScript {
     param (
-        [parameter(Mandatory)]
+        [Parameter(Mandatory)]
         [string]$url,
-        [parameter(Mandatory)]
+        [Parameter(Mandatory)]
         [string]$target
     )
   
@@ -78,7 +70,11 @@ function getScripts {
             } while ($count -gt 0)
   
             # Close streams silently (assuming success)
-            if ($downloadComplete) { return $true } else { return $false }
+            if ($downloadComplete) { 
+                return $true 
+            } else { 
+                return $false 
+            }
         } catch {
             write-host $($_.Exception.Message)
             read-host
@@ -90,5 +86,5 @@ function getScripts {
     }
 }
 
-# Invoke the root of CHASTE scripts
+# Invoke the root of Shell CLI
 initializeShellCLI
