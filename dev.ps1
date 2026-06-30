@@ -42,24 +42,44 @@ $global:commandMap = @{
     "partition gpu"                  = @("windows", "Share GPU with VM", "partitionGPU")
     "generate encrypted password"    = @("windows", "Generate Encrypted Password", "generateEncryptedPassword")
     "add premade account"            = @("windows", "Add Premade Account", "addPremadeAccount")
-    "nuvia"                          = @("nuvia", "Helpers", "nuvia")
-    "n help"                         = @("nuvia", "Helpers", "writeHelp")
-    "n menu"                         = @("nuvia", "Helpers", "readMenu")
-    "od menu"                        = @("nuvia/clinic/", "OpenDental", "odMenu")
-    "od get version"                 = @("nuvia", "OpenDental", "getODVersion")
-    "od install 24341"               = @("nuvia", "OpenDental", "install24341")
-    "n addnuadmin"                   = @("nuvia", "Add NuAdmin", "addNuAdmin")
-    "n install bginfo"               = @("nuvia", "Install BGInfo", "installBGInfo")
-    "n install jumpcloud"            = @("nuvia", "Install JumpCloud", "installJumpCloud")
-    "n install ninja"                = @("nuvia", "Install Ninja", "installNinja")
-    "n uninstall ninja"              = @("nuvia", "Uninstall Ninja", "uninstallNinja")
-    "n install tscan"                = @("nuvia", "Install Tscan", "installTscan")
-    "n isr install apps"             = @("nuvia", "ISR Install Apps", "isrInstallApps")
-    "isr install apps"               = @("nuvia", "ISR Install Apps", "isrInstallApps")
-    "n isr add bookmarks"            = @("nuvia", "ISR Add Bookmarks", "isrAddBookmarks")
-    "isr add bookmarks"              = @("nuvia", "ISR Add Bookmarks", "isrAddBookmarks")
-    "n isr onboard"                  = @("nuvia", "ISR Onboard", "isrOnboard")
-    "isr onboard"                    = @("nuvia", "ISR Onboard", "isrOnboard")
+}
+
+function initializeShellCLI {
+    try {
+        # Check if user has administrator privileges
+        if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]"Administrator")) {
+            # If not, elevate privileges and restart function with current arguments
+            Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" $PSCommandArgs" -WorkingDirectory $pwd -Verb RunAs
+            Exit
+        }
+
+        # Create the main script file
+        New-Item -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -ItemType File -Force | Out-Null
+
+        # Build the local path to Framework.ps1
+        $frameworkPath = Join-Path -Path $PSScriptRoot -ChildPath "Framework.ps1"
+        
+        # Check if Framework.ps1 exists locally
+        if (!(Test-Path -Path $frameworkPath)) {
+            Write-Host "  ERROR: Framework.ps1 not found at: $frameworkPath" -ForegroundColor "Red"
+            Write-Host "  Please set `$global:PSRoot to the root directory of your shellcli project." -ForegroundColor "Yellow"
+            return
+        }
+
+        # Read the local Framework.ps1 file
+        $rawScript = Get-Content -Path $frameworkPath -Raw -ErrorAction Stop
+
+        # Append the script to the main script
+        Add-Content -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -Value $rawScript
+
+        # Add a final line that will invoke the desired function
+        Add-Content -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -Value 'invokeScript -script "readCommand -command `"help`"" -initialize $true'
+
+        # Execute the combined script
+        . "$env:SystemRoot\Temp\SHELLCLI.ps1"
+    } catch {
+        Write-Host "  initializeShellCLI-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)" -ForegroundColor "Red"
+    }
 }
 
 function invokeScript {
@@ -106,45 +126,65 @@ function readCommand {
     )
 
     try {
-        # Use a loop to keep the session alive
-        while ($true) {
+
+        Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
+        if ($command -eq "") { 
+            Read-Host "foo"
             Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
-            
-            if ($command -eq "") { 
-                Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
-                Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
-                Write-Host " $([char]0x203A) " -NoNewline  -ForegroundColor "Cyan"
-                $command = Read-Host 
-                Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
-            }
-
-            $command = $command.ToLower()
-            $command = $command.Trim()
-            $filteredCommand = filterCommands -command $command
-            
-            # Check if filterCommands returned a valid array (3 elements)
-            if ($filteredCommand -and $filteredCommand.Count -eq 3) {
-                $commandDirectory = $filteredCommand[0]
-                $commandFile = $filteredCommand[1]
-                $commandFunction = $filteredCommand[2]
-
-                New-Item -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -ItemType File -Force | Out-Null
-                addScript -directory $commandDirectory -file $commandFile
-                addScript -directory "core" -file "Framework"
-                Add-Content -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -Value "invokeScript '$commandFunction'"
-                Add-Content -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -Value "readCommand"
-
-                $shellCLI = Get-Content -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -Raw
-                Invoke-Expression $shellCLI
-            }
-            # If filteredCommand is $null, it was either a PowerShell command or unrecognized
-            # Reset command for the next loop iteration
-            $command = ""
+            Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
+            Write-Host " $([char]0x203A) " -NoNewline  -ForegroundColor "Cyan"
+            $command = Read-Host 
+            Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
         }
+
+        $command = $command.ToLower()
+        $command = $command.Trim()
+        $filteredCommand = filterCommands -command $command
+            
+        # Check if filterCommands returned a valid array (3 elements)
+        if ($filteredCommand -and $filteredCommand.Count -eq 3) {
+            $commandDirectory = $filteredCommand[0]
+            $commandFile = $filteredCommand[1]
+            $commandFunction = $filteredCommand[2]
+                
+            $scriptPath = Join-Path -Path $PSScriptRoot -ChildPath "..\$commandDirectory\$commandFile.ps1"
+            Read-Host $scriptPath
+            $frameworkPath = Join-Path -Path $PSScriptRoot -ChildPath "Framework.ps1"
+            Read-Host $frameworkPath
+            # Check if files exist
+            if (!(Test-Path -Path $frameworkPath)) {
+                Write-Host "  ERROR: Framework.ps1 not found at: $frameworkPath" -ForegroundColor "Red"
+                return
+            }
+                
+            if (!(Test-Path -Path $scriptPath)) {
+                Write-Host "  ERROR: $commandFile.ps1 not found at: $scriptPath" -ForegroundColor "Red"
+                return
+            }
+
+            # Create a temporary script that dot-sources the files
+            $tempScript = @"
+# Load Framework
+. '$frameworkPath'
+
+# Load the command script
+. '$scriptPath'
+
+# Execute the function
+invokeScript '$commandFunction'
+readCommand
+"@
+                
+            # Write the temporary script
+            Set-Content -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -Value $tempScript
+
+            # Execute the combined script
+            . "$env:SystemRoot\Temp\SHELLCLI.ps1"
+        }
+
+    
     } catch {
         writeText -type "error" -text "readCommand-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)"
-        # Reset command and continue
-        $command = ""
     }
 }
 function filterCommands {
@@ -194,29 +234,7 @@ function filterCommands {
         return $null
     }
 }
-function addScript {
-    param (
-        [Parameter(Mandatory)]
-        [string]$directory,
-        [Parameter(Mandatory)]
-        [string]$file
-    )
 
-    try {
-        $url = "https://raw.githubusercontent.com/badsyntaxx/shellcli/main"
-
-        $download = getDownload -url "$url/$directory/$file.ps1" -target "$env:SystemRoot\Temp\$file.ps1" -hide
-
-        if ($download -eq $true) {
-            $rawScript = Get-Content -Path "$env:SystemRoot\Temp\$file.ps1" -Raw -ErrorAction SilentlyContinue
-            Add-Content -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -Value $rawScript
-
-            Get-Item -ErrorAction SilentlyContinue "$env:SystemRoot\Temp\$file.ps1" | Remove-Item -ErrorAction SilentlyContinue
-        }
-    } catch {
-        writeText -type "error" -text "addScript-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)"
-    }
-}
 function writeText {
     param (
         [parameter(Mandatory = $false)]
@@ -933,3 +951,49 @@ function installProgram {
         writeText "Skipping $AppName installation."
     }
 }
+
+############################################################################################################################
+############################################################################################################################
+############################################################################################################################
+
+function userMenu {
+    $choice = readOption -options $([ordered]@{
+            "toggle admin" = "Toggle the Windows built in administrator account."
+            "add user"     = "Add a user to the system."
+            "remove user"  = "Remove a user from the system."
+            "edit user"    = "Edit a users."
+            "Cancel"       = "Select nothing and exit this menu."
+        }) -prompt "Select a function."
+
+    switch ($choice) {
+        0 { toggleAdmin }
+        1 { addUser }
+        2 { removeUser }
+        3 { editUser }
+        4 { readCommand }
+    }
+}
+
+function addUser {
+    try {
+        $choice = readOption -options $([ordered]@{
+                "Add local user"  = "Add a local user to the system."
+                "Add domain user" = "Add a domain user to the system."
+                "Cancel"          = "Do nothing and exit this function."
+            }) -prompt "Select a user account type." -lineAfter
+
+        switch ($choice) {
+            0 { addLocalUser }
+            1 { addADUser }
+            2 { userMenu }
+        }
+    } catch {
+        writeText -type "error" -text "addUser-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)"
+    }
+}
+
+############################################################################################################################
+############################################################################################################################
+############################################################################################################################
+
+initializeShellCLI
