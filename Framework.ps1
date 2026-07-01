@@ -2,7 +2,7 @@ $global:commandMap = [ordered]@{
     "?"                              = @("windows", "Helpers", "writeHelp", "List some help info.")
     "help"                           = @("windows", "Helpers", "writeHelp", "List some help info.")
     "menu"                           = @("windows", "Helpers", "readMenu", "Display the main menu.")
-    "list commands"                  = @("windows", "Helpers", "listAllCommands", "List all available commands.")
+    "commands"                       = @("windows", "Helpers", "listAllCommands", "List all available commands.")
     #-- CUSTOMIZATION COMMANDS --#
     "toggle context menu"            = @("windows", "Toggle Context Menu", "toggleContextMenu", "Toggle the context menu.")
     "enable context menu"            = @("windows", "Toggle Context Menu", "enableContextMenu", "Enable the context menu.")
@@ -13,7 +13,7 @@ $global:commandMap = [ordered]@{
     "toggle admin"                   = @("windows", "Toggle Admin", "toggleAdmin", "Toggle admin privileges.")
     "enable admin"                   = @("windows", "Toggle Admin", "enableAdmin", "Enable admin privileges.")
     "disable admin"                  = @("windows", "Toggle Admin", "disableAdmin", "Disable admin privileges.")
-    "list users"                     = @("windows", "User", "listUsers", "List all users.")
+    "users"                          = @("windows", "User", "listUsers", "List all users.")
     "user menu"                      = @("windows", "User", "userMenu", "Display the user menu.")
     "add user"                       = @("windows", "User", "addUser", "Add a new user.")
     "add local user"                 = @("windows", "User", "addLocalUser", "Add a new local user.")
@@ -26,8 +26,12 @@ $global:commandMap = [ordered]@{
     #-- NETWORK COMMANDS --#
     "edit net adapter"               = @("windows", "Edit Net Adapter", "editNetAdapter", "Edit the network adapter.")
     "get wifi creds"                 = @("windows", "Get Wifi Creds", "getWifiCreds", "Get WiFi credentials.")
+    #-- SOFTWARE COMMANDS --#
+    "get software"                   = @("windows", "Get Software", "getSoftware", "Display a menu of available software.")
+    "get windirstat"                 = @("windows", "Get Software", "getWinDirStat", "Get WinDirStat.")
     "get revouninstaller"            = @("windows", "Get Software", "getRevoUninstaller", "Get Revo Uninstaller.")
-    "get hwinfo"                     = @("windows", "Get Software", "getHWInfo", "Get hardware information.")
+    "get hwinfo"                     = @("windows", "Get Software", "getHWInfo", "Get HWInfo.")
+    "get bginfo"                     = @("windows", "Get Software", "getBGInfo", "Get BGInfo.")
     #-- SYSTEM COMMANDS --#
     "schedule task"                  = @("windows", "Schedule Task", "scheduleTask", "Schedule a task.")
     "update windows"                 = @("windows", "Update Windows", "updateWindows", "Update Windows.")
@@ -64,6 +68,14 @@ $global:commandMap = [ordered]@{
     "isr onboard"                    = @("nuvia", "ISR Onboard", "isrOnboard")
 }
 
+function listAllCommands {
+    try {
+        writeText -type "List" -List $global:commandMap -ListValue 3
+        
+    } catch {
+        writeText -type "error" -text "listAllCommands-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)"
+    }
+}
 function invokeScript {
     param (
         [parameter(Mandatory = $true)]
@@ -82,7 +94,7 @@ function invokeScript {
         $console = $host.UI.RawUI
         $console.BackgroundColor = "Black"
         $console.ForegroundColor = "DarkGray"
-        $console.WindowTitle = "ShellCLI"
+        $console.WindowTitle = "Shell CLI"
 
         if ($initialize) {
             Clear-Host
@@ -108,12 +120,47 @@ function readCommand {
     )
 
     try {
-        Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
         if ($command -eq "") { 
+            # Draw the prompt lines once
             Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
+            Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
+            
+            # Keep the cursor on this line for the prompt
             Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
-            Write-Host " $([char]0x203A) " -NoNewline  -ForegroundColor "Cyan"
-            $command = Read-Host 
+            Write-Host " $([char]0x203A) " -NoNewline -ForegroundColor "Cyan"
+            
+            # Read the input - this will stay on the same line
+            $command = Read-Host
+            
+            # Check if empty
+            if ([string]::IsNullOrWhiteSpace($command)) {
+                # Move cursor back to the start of the prompt line
+                $cursorPos = [System.Console]::CursorTop - 1
+                [System.Console]::SetCursorPosition(0, $cursorPos)
+                
+                # Clear the line
+                Write-Host (" " * [System.Console]::WindowWidth) -NoNewline
+                [System.Console]::SetCursorPosition(0, $cursorPos)
+                
+                # Redraw the prompt on the same line
+                Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
+                Write-Host " $([char]0x203A) " -NoNewline -ForegroundColor "Cyan"
+                
+                # Read again
+                $command = Read-Host
+                # Keep redrawing until user types something
+                while ([string]::IsNullOrWhiteSpace($command)) {
+                    $cursorPos = [System.Console]::CursorTop - 1
+                    [System.Console]::SetCursorPosition(0, $cursorPos)
+                    Write-Host (" " * [System.Console]::WindowWidth) -NoNewline
+                    [System.Console]::SetCursorPosition(0, $cursorPos)
+                    Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
+                    Write-Host " $([char]0x203A) " -NoNewline -ForegroundColor "Cyan"
+                    $command = Read-Host
+                }
+            }
+            
+            # After getting valid input, draw the closing line
             Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
         }
 
@@ -121,8 +168,8 @@ function readCommand {
         $command = $command.Trim()
         $filteredCommand = filterCommands -command $command
             
-        # Check if filterCommands returned a valid array (3 elements)
-        if ($filteredCommand -and $filteredCommand.Count -eq 3) {
+        # Check if filterCommands returned a valid array (4 elements)
+        if ($filteredCommand -and $filteredCommand.Count -eq 4) {
             $commandDirectory = $filteredCommand[0]
             $commandFile = $filteredCommand[1]
             $commandFunction = $filteredCommand[2]
@@ -174,12 +221,7 @@ function filterCommands {
             }
             
             # Command not found in map and not a PowerShell command
-            Write-Host " $([char]0x251C)" -NoNewline -ForegroundColor "Gray"
-            Write-Host "  Unrecognized command `"$command`". Try" -NoNewline -ForegroundColor "White"
-            Write-Host " help" -ForegroundColor "Cyan" -NoNewline
-            Write-Host " or" -NoNewline -ForegroundColor "White"
-            Write-Host " menu" -NoNewline -ForegroundColor "Cyan"
-            Write-Host " to learn more." -ForegroundColor "White"
+            writeText -type "plain" -text "Unknown command '$command' | Try 'help' or 'menu'."
             readCommand
         }
     } catch {
@@ -229,7 +271,11 @@ function writeText {
         [parameter(Mandatory = $false)]
         [switch]$lineAfter = $false, # Add a new line after output if specified
         [parameter(Mandatory = $false)]
+        [System.Collections.Specialized.OrderedDictionary]$Table,
+        [parameter(Mandatory = $false)]
         [System.Collections.Specialized.OrderedDictionary]$List,
+        [parameter(Mandatory = $false)]
+        [string]$ListValue,
         [parameter(Mandatory = $false)]
         [System.Collections.Specialized.OrderedDictionary]$oldData,
         [parameter(Mandatory = $false)]
@@ -288,9 +334,9 @@ function writeText {
             }
         }
 
-        if ($type -eq 'list') { 
+        if ($type -eq 'table') { 
             # Get a list of keys from the options dictionary
-            $orderedKeys = $List.Keys | ForEach-Object { $_ }
+            $orderedKeys = $Table.Keys | ForEach-Object { $_ }
 
             # Find the length of the longest key for padding
             $longestKeyLength = ($orderedKeys | Measure-Object -Property Length -Maximum).Maximum
@@ -298,14 +344,35 @@ function writeText {
             # Display single option if only one exists
             if ($orderedKeys.Count -eq 1) {
                 Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
-                Write-Host " $($orderedKeys) $(" " * ($longestKeyLength - $orderedKeys.Length)) - $($List[$orderedKeys])"
+                Write-Host " $($orderedKeys) $(" " * ($longestKeyLength - $orderedKeys.Length)) - $($Table[$orderedKeys])"
             } else {
                 # Loop through each option and display with padding and color
                 for ($i = 0; $i -lt $orderedKeys.Count; $i++) {
                     $key = $orderedKeys[$i]
                     $padding = " " * ($longestKeyLength - $key.Length)
                     Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
-                    Write-Host "   $($key): $padding $($List[$key])" -ForegroundColor $Color
+                    Write-Host "   $($key): $padding $($Table[$key])" -ForegroundColor $Color
+                }
+            }
+        }
+
+        if ($type -eq 'list') { 
+            # Get a list of keys from the options dictionary
+            $orderedKeys = $List.Keys | ForEach-Object { $_ }
+            # Find the length of the longest key for padding
+            $longestKeyLength = ($orderedKeys | Measure-Object -Property Length -Maximum).Maximum
+
+            # Display single option if only one exists
+            if ($orderedKeys.Count -eq 1) {
+                Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
+                Write-Host " $($orderedKeys) $(" " * ($longestKeyLength - $orderedKeys.Length)) - $($List[$key][$ListValue])"
+            } else {
+                # Loop through each option and display with padding and color
+                for ($i = 0; $i -lt $orderedKeys.Count; $i++) {
+                    $key = $orderedKeys[$i]
+                    $padding = " " * ($longestKeyLength - $key.Length)
+                    Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
+                    Write-Host "   $($key): $padding $($List[$key][$ListValue])" -ForegroundColor $Color
                 }
             }
         }
@@ -427,11 +494,9 @@ function readOption {
         # Add a line break before the menu if lineBefore is specified
         if ($lineBefore) { Write-Host " $([char]0x2502)" -ForegroundColor "Gray" }
 
-        # Get current cursor position
-        # $promptPos = $host.UI.RawUI.CursorPosition
-
         Write-Host " $([char]0x251C)" -NoNewline -ForegroundColor "Gray"
-        # Write-Host " ? " -NoNewline -ForegroundColor "Cyan"
+        Write-Host "$([char]0x2500)" -NoNewline -ForegroundColor "Gray"
+        Write-Host "$([char]0x2500)" -NoNewline -ForegroundColor "Gray"
         Write-Host " $prompt " -ForegroundColor "Gray"
 
         # Initialize variables for user input handling
@@ -442,14 +507,8 @@ function readOption {
         # Get a list of keys from the options dictionary
         $orderedKeys = $options.Keys | ForEach-Object { $_ }
 
-        # Get an array of all values
-        # $values = $options.Values
-
         # Find the length of the longest key for padding
         $longestKeyLength = ($orderedKeys | ForEach-Object { "$_".Length } | Measure-Object -Maximum).Maximum
-
-        # Find the length of the longest value
-        # $longestValueLength = ($values | ForEach-Object { "$_".Length } | Measure-Object -Maximum).Maximum
 
         # Display single option if only one exists
         if ($orderedKeys.Count -eq 1) {
@@ -504,28 +563,6 @@ function readOption {
                 $host.UI.RawUI.CursorPosition = $currPos
             }
         }
-
-        <# # Clear the menu by overwriting it with spaces
-        $menuLines = $options.Count
-        $newY = $promptPos.Y + 1 # Calculate the new Y position
-        for ($i = 0; $i -lt $menuLines; $i++) {
-            # Ensure the Y position is within the terminal bounds
-            if ($newY -ge 0 -and $newY -lt $host.UI.RawUI.WindowSize.Height) {
-                $host.UI.RawUI.CursorPosition = New-Object System.Management.Automation.Host.Coordinates($promptPos.X, $newY)
-                Write-Host (" " * ($host.UI.RawUI.WindowSize.Width - 1)) # Clear each line with spaces
-            }
-            $newY++ # Move to the next line
-        }
-
-        # Move the cursor back to the prompt position
-        if ($promptPos.Y -ge 0 -and $promptPos.Y -lt $host.UI.RawUI.WindowSize.Height) {
-            $host.UI.RawUI.CursorPosition = $promptPos
-        }
-
-        # Display the selected option on the same line as the prompt
-        Write-Host "? " -NoNewline -ForegroundColor "Green"
-        Write-Host "$prompt " -NoNewline
-        Write-Host "$($orderedKeys[$pos])" -ForegroundColor "DarkCyan" #>
 
         # Add a line break after the menu if lineAfter is specified
         if ($lineAfter) { Write-Host " $([char]0x2502)" -ForegroundColor "Gray" }
@@ -799,7 +836,7 @@ function selectUser {
         if ($writeResult) {
             Write-Host
             # Display user data as a list
-            writeText -type "list" -List $data -Color "Green"
+            writeText -type "table" -Table $data -Color "Green"
         }
 
         # Add a line break after the menu if lineAfter is specified
