@@ -600,11 +600,6 @@ function getDownload {
         [switch]$hide = $false
     )
     Begin {
-        <# Write-Host "  From: " -NoNewline
-        Write-Host "$url" -ForegroundColor Magenta
-        Write-Host "  To: " -NoNewline
-        Write-Host "$target" -ForegroundColor Magenta #>
-        
         function Show-Progress {
             param (
                 [parameter(Mandatory)]
@@ -615,22 +610,18 @@ function getDownload {
                 [switch]$complete = $false
             )
             
-            # calc %
             $barSize = 30
             $percent = $currentValue / $totalValue
             $percentComplete = $percent * 100
   
-            # build progressbar with string function
             $curBarSize = $barSize * $percent
             $progbar = ""
             $progbar = $progbar.PadRight($curBarSize, [char]9608)
             $progbar = $progbar.PadRight($barSize, [char]9617)
 
             if ($complete) {
-                # Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
                 Write-Host -NoNewLine "`r $([char]0x2502) $progbar Complete" -ForegroundColor "Gray"
             } else {
-                # Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
                 Write-Host -NoNewLine "`r $([char]0x2502) $progbar $($percentComplete.ToString("##0.00").PadLeft(6))%" -ForegroundColor "Gray"
             }         
         }
@@ -644,6 +635,15 @@ function getDownload {
         
                 # invoke request
                 $request = [System.Net.HttpWebRequest]::Create($url)
+                $request.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                $request.Accept = "*/*"
+                $request.Headers.Add("Accept-Encoding", "gzip, deflate, br")
+                $request.Headers.Add("Accept-Language", "en-US,en;q=0.9")
+                $request.Headers.Add("Cache-Control", "no-cache")
+                $request.Headers.Add("Pragma", "no-cache")
+                $request.Headers.Add("Connection", "keep-alive")
+                $request.CookieContainer = New-Object System.Net.CookieContainer
+                $request.KeepAlive = $true
                 $response = $request.GetResponse()
   
                 if ($response.StatusCode -eq 401 -or $response.StatusCode -eq 403 -or $response.StatusCode -eq 404) {
@@ -668,11 +668,9 @@ function getDownload {
                 [long]$fullSize = $response.ContentLength
                 $fullSizeMB = $fullSize / 1024 / 1024
   
-                # define buffer
                 [byte[]]$buffer = new-object byte[] 1048576
                 [long]$total = [long]$count = 0
   
-                # create reader / writer
                 $reader = $response.GetResponseStream()
                 $writer = new-object System.IO.FileStream $target, "Create"
                 
@@ -681,13 +679,11 @@ function getDownload {
                 if (-not $hide -and $label -ne "") {
                     Write-Host  "  $label" -ForegroundColor "Yellow"
                 }
-                # start download
-                $finalBarCount = 0 #Show final bar only one time
+
+                $finalBarCount = 0
                 do {
                     $count = $reader.Read($buffer, 0, $buffer.Length)
-          
                     $writer.Write($buffer, 0, $count)
-              
                     $total += $count
                     $totalMB = $total / 1024 / 1024
                     if (-not $hide) {
@@ -706,7 +702,6 @@ function getDownload {
                     Write-Host
                 }
 
-                # Prevent the following output from appearing on the same line as the progress bar
                 if ($lineAfter) { 
                     Write-Host
                 }
@@ -726,7 +721,6 @@ function getDownload {
                     writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
                 }
             } finally {
-                # cleanup
                 if ($reader) { $reader.Close() }
                 if ($writer) { $writer.Flush(); $writer.Close() }
         
