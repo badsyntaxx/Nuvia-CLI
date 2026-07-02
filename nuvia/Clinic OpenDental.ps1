@@ -27,7 +27,7 @@ function odMenu {
 
 function getODVersion {
     $odVersion = (Get-Command "C:\Program Files (x86)\Open Dental\OpenDental.exe").FileVersionInfo.ProductVersion
-    writeText -type "plain" -text "OpenDental Version:$odVersion" -lineAfter
+    writeText -type "plain" -text "OpenDental Version: $odVersion" -lineAfter
 
     # Define the paths to check
     $dtxPaths = @(
