@@ -61,7 +61,6 @@ $global:commandMap = [ordered]@{
     "get od conf"                    = @("nuvia", "Clinic OpenDental", "getODConfig", "Get the OpenDental configuration.")
     "od install 24341"               = @("nuvia", "Clinic OpenDental", "install24341", "Install OpenDental version 24341.")
     "n i tscan"                      = @("nuvia", "Clinic Install Tscan", "installTscan", "Install Tscan.")
-    "n addnuadmin"                   = @("nuvia", "Add NuAdmin", "addNuAdmin", "Add a new NuAdmin user.")
     "n isr i apps"                   = @("nuvia", "Sales Install Apps", "isrInstallApps", "Install sales applications.")
     "n isr add bookmarks"            = @("nuvia", "Sales Add Bookmarks", "isrAddBookmarks", "Add sales bookmarks.")
     "n isr onboard"                  = @("nuvia", "Sales Onboard", "isrOnboard", "Onboard new sales team members.")
@@ -602,7 +601,7 @@ function getDownload {
         [parameter(Mandatory = $false)]
         [switch]$hide = $false
     )
-    Begin {
+    Begin {       
         function Show-Progress {
             param (
                 [parameter(Mandatory)]
@@ -613,19 +612,23 @@ function getDownload {
                 [switch]$complete = $false
             )
             
+            # calc %
             $barSize = 30
             $percent = $currentValue / $totalValue
             $percentComplete = $percent * 100
   
+            # build progressbar with string function
             $curBarSize = $barSize * $percent
             $progbar = ""
             $progbar = $progbar.PadRight($curBarSize, [char]9608)
             $progbar = $progbar.PadRight($barSize, [char]9617)
 
             if ($complete) {
-                Write-Host -NoNewLine "`r $([char]0x2502) $progbar Complete" -ForegroundColor "Gray"
+                Write-Host "`r $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
+                Write-Host -NoNewLine "   $progbar Complete" -ForegroundColor "DarkGray"
             } else {
-                Write-Host -NoNewLine "`r $([char]0x2502) $progbar $($percentComplete.ToString("##0.00").PadLeft(6))%" -ForegroundColor "Gray"
+                Write-Host "`r $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
+                Write-Host -NoNewLine "   $progbar $($percentComplete.ToString("##0.00").PadLeft(6))%" -ForegroundColor "DarkGray"
             }         
         }
     }
@@ -662,9 +665,11 @@ function getDownload {
                 [long]$fullSize = $response.ContentLength
                 $fullSizeMB = $fullSize / 1024 / 1024
   
+                # define buffer
                 [byte[]]$buffer = new-object byte[] 1048576
                 [long]$total = [long]$count = 0
   
+                # create reader / writer
                 $reader = $response.GetResponseStream()
                 $writer = new-object System.IO.FileStream $target, "Create"
                 
@@ -673,11 +678,13 @@ function getDownload {
                 if (-not $hide -and $label -ne "") {
                     Write-Host  "  $label" -ForegroundColor "Yellow"
                 }
-
-                $finalBarCount = 0
+                # start download
+                $finalBarCount = 0 #Show final bar only one time
                 do {
                     $count = $reader.Read($buffer, 0, $buffer.Length)
+          
                     $writer.Write($buffer, 0, $count)
+              
                     $total += $count
                     $totalMB = $total / 1024 / 1024
                     if (-not $hide) {
@@ -696,6 +703,7 @@ function getDownload {
                     Write-Host
                 }
 
+                # Prevent the following output from appearing on the same line as the progress bar
                 if ($lineAfter) { 
                     Write-Host
                 }
@@ -712,9 +720,10 @@ function getDownload {
                     writeText -type "plain" -text "Retrying..."
                     Start-Sleep -Seconds 1
                 } else {
-                    writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
+                    writeText -type "error" -text "getDownload-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)"
                 }
             } finally {
+                # cleanup
                 if ($reader) { $reader.Close() }
                 if ($writer) { $writer.Flush(); $writer.Close() }
         
