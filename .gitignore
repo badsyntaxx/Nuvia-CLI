@@ -1,5 +1,3 @@
 # Ignore a specific file
 devInit.ps1
 devFramework.ps1
-
-windows
