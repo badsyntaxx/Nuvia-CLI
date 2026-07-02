@@ -28,9 +28,9 @@ function odMenu {
 function getODVersion {
     $odVersion = (Get-Command "C:\Program Files (x86)\Open Dental\OpenDental.exe").FileVersionInfo.ProductVersion
     writeText -type "plain" -text "OpenDental Version:$odVersion" -lineAfter
-    writeText -type "plain" -text "Also attempting to get DTX Studio version..." -lineAfter
+
     # Define the paths to check
-    $pathsToCheck = @(
+    $dtxPaths = @(
         "C:\Program Files\DTX Studio Clinic\DTXsync.exe",
         "C:\Program Files\DTX Studio\DTXStudio.exe", # Common name
         "C:\Program Files\DTX Studio Implant\DTXStudioImplant.exe", # Alternative
@@ -38,13 +38,12 @@ function getODVersion {
     )
 
     $found = $false
-    foreach ($path in $pathsToCheck) {
+    foreach ($path in $dtxPaths) {
         if (Test-Path $path) {
             try {
                 $versionInfo = Get-ItemProperty -Path $path -ErrorAction Stop
                 $version = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($path).FileVersion
                 writeText -type "plain" -text "DTX Studio Version: $version" -lineAfter
-                writeText -type "plain" -text "File path: $path" -lineAfter
                 $found = $true
                 break
             } catch {
