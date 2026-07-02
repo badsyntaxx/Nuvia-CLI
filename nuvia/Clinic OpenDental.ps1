@@ -56,10 +56,19 @@ function getODVersion {
     if (-not $found) {
         writeText -type "warning" -text "Could not find the DTX Studio executable in the default paths." -lineAfter
     }
+
+    getODConfig
 }
 
 function getODConfig {
-    Get-Content "C:\Program Files (x86)\Open Dental\FreeDentalConfig.xml"
+    $filePath = "C:\Program Files (x86)\Open Dental\FreeDentalConfig.xml"
+    
+    if (Test-Path $filePath) {
+        writeText -type "plain" -text "FreeDentalConfig.xml found:" -lineAfter
+        Get-Content $filePath
+    } else {
+        writeText -type "plain" -text "FreeDentalConfig.xml not found at: $filePath" -lineAfter
+    }
 }
 
 function install22361 {
