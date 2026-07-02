@@ -27,7 +27,7 @@ function odMenu {
 
 function getODVersion {
     $odVersion = (Get-Command "C:\Program Files (x86)\Open Dental\OpenDental.exe").FileVersionInfo.ProductVersion
-    writeText -type "plain" -text "$odVersion" -lineAfter
+    writeText -type "plain" -text "OpenDental Version:$odVersion" -lineAfter
     writeText -type "plain" -text "Also attempting to get DTX Studio version..." -lineAfter
     # Define the paths to check
     $pathsToCheck = @(
@@ -43,7 +43,7 @@ function getODVersion {
             try {
                 $versionInfo = Get-ItemProperty -Path $path -ErrorAction Stop
                 $version = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($path).FileVersion
-                writeText -type "plain" -text "DTX Studio version found: $version" -lineAfter
+                writeText -type "plain" -text "DTX Studio Version: $version" -lineAfter
                 writeText -type "plain" -text "File path: $path" -lineAfter
                 $found = $true
                 break
@@ -55,7 +55,6 @@ function getODVersion {
 
     if (-not $found) {
         writeText -type "warning" -text "Could not find the DTX Studio executable in the default paths." -lineAfter
-        writeText -type "plain" -text "Try opening the software, going to Menu -> About, and checking the version there." -lineAfter
     }
 }
 
