@@ -16,7 +16,7 @@ function odMenu {
             0 { getODVersion }
             1 { getODConfig }
             2 { install22361 }
-            5 { install24341 }
+            7 { install24341 }
             Default { readCommand }
         }
     } catch {
