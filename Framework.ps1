@@ -635,15 +635,6 @@ function getDownload {
         
                 # invoke request
                 $request = [System.Net.HttpWebRequest]::Create($url)
-                $request.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-                $request.Accept = "*/*"
-                $request.Headers.Add("Accept-Encoding", "gzip, deflate, br")
-                $request.Headers.Add("Accept-Language", "en-US,en;q=0.9")
-                $request.Headers.Add("Cache-Control", "no-cache")
-                $request.Headers.Add("Pragma", "no-cache")
-                $request.Headers.Add("Connection", "keep-alive")
-                $request.CookieContainer = New-Object System.Net.CookieContainer
-                $request.KeepAlive = $true
                 $response = $request.GetResponse()
   
                 if ($response.StatusCode -eq 401 -or $response.StatusCode -eq 403 -or $response.StatusCode -eq 404) {
