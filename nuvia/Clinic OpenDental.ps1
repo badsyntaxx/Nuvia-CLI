@@ -31,8 +31,7 @@ function getODVersion {
 }
 
 function getODConfig {
-    $content = Get-Content "C:\Program Files (x86)\Open Dental\FreeDentalConfig.xml" -Raw | Set-Clipboard
-    return $content  # This also outputs to the console
+    Get-Content "C:\Program Files (x86)\Open Dental\FreeDentalConfig.xml"
 }
 
 function install22361 {
