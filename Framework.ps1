@@ -63,7 +63,6 @@ $global:commandMap = [ordered]@{
     "n isr add bookmarks"            = @("nuvia", "Sales Add Bookmarks", "isrAddBookmarks")
     "n isr onboard"                  = @("nuvia", "Sales Onboard", "isrOnboard")
     "n install printers"             = @("nuvia", "Get Printer Drivers", "getPrinterDrivers")
-    
 }
 
 function listAllCommands {
@@ -231,10 +230,9 @@ function addScript {
     )
 
     try {
-
-        $url = "https://raw.githubusercontent.com/badsyntaxx/shellcli/main"
-        if ($directory -eq 'nuvia') {
-            $url = "https://raw.githubusercontent.com/badsyntaxx/Nuvia-CLI/main"
+        $url = "https://raw.githubusercontent.com/badsyntaxx/Nuvia-CLI/main"
+        if ($directory -eq 'windows' -or $directory -eq 'plugins') {
+            $url = "https://raw.githubusercontent.com/badsyntaxx/shellcli/main"
         }
 
         if ($file -eq "Framework") {
