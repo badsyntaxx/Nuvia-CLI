@@ -32,7 +32,7 @@ function readMenu {
 
         readCommand -command $command
     } catch {
-        writeText -type "error" -text "nuvia-menu: $($_.Exception.Message) $url/nuvia/$dependency.ps1" 
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" 
     }
 }
 function readISRMenu {
@@ -60,7 +60,7 @@ function readISRMenu {
 
         readCommand -command $command
     } catch {
-        writeText -type "error" -text "nuvia-menu: $($_.Exception.Message) $url/nuvia/$dependency.ps1" 
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" 
         readCommand
     }
 }

@@ -21,7 +21,7 @@ function odMenu {
         }
     } catch {
         # Display error message and end the script
-        writeText -type "error" -text "odMenu-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)" -lineAfter
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
     }
 }
 
@@ -82,7 +82,7 @@ function install24341 {
             writeText -type "notice" -text "OpenDental.exe already exists in: $tempDir. Skipping download and extraction."
         }
     } catch {
-        writeText -type "error" -text "install24341-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)" -lineAfter
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
     }
     
 }

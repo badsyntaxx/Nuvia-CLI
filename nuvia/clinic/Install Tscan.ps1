@@ -18,7 +18,7 @@ function installTscan {
         Get-Item -ErrorAction SilentlyContinue "$env:SystemRoot\Temp\tscan" | Remove-Item -ErrorAction SilentlyContinue -Confirm $false
         readCommand
     } catch {
-        writeText -type "error" -text "installTscan-$($_.InvocationInfo.ScriptLineNumber) - $($_.Exception.Message)"
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
     }
 }
 

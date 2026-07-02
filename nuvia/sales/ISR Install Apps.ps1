@@ -9,7 +9,7 @@ function isrInstallApps {
                 "Revo Uninstaller" = "Install RevoUninstaller."
                 "Acrobat"          = "Install Adobe Acrobat reader."
                 "Balto"            = "Install Balto AI"
-                "JustCall" = "Install JustCall"
+                "JustCall"         = "Install JustCall"
                 "Exit"             = "Exit this script and go back to main command line."
             }) -prompt "Select which apps to install:"
 
@@ -47,7 +47,7 @@ function isrInstallApps {
         Initialize-Cleanup
     } catch {
         # Display error message and end the script
-        writeText -type "error" -text "isrInstallApps-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)" -lineAfter
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
     }
 }
 function install-chrome {

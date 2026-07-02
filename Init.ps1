@@ -29,7 +29,7 @@ function initializeShellCLI {
             . "$env:SystemRoot\Temp\SHELLCLI.ps1"
         }
     } catch {
-        Write-Host "  initializeShellCLI-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)" -ForegroundColor "Red"
+        Write-Host "  $($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -ForegroundColor "Red"
     }
 }
 

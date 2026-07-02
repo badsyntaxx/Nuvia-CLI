@@ -52,6 +52,6 @@ function installNinja {
             }
         }
     } catch {
-        writeText -type "error" -text "installNinja-$($_.InvocationInfo.ScriptLineNumber) - $($_.Exception.Message)"
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
     }
 }

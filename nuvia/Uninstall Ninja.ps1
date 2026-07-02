@@ -36,7 +36,7 @@ function removeRegistryKey {
             writeText -type "success" -text "Successfully removed registry key" -lineAfter
             return $true
         } catch {
-            writeText -type "error" -text "removeRegistryKey-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)" -lineAfter
+            writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
             return $false
         }
     }
@@ -107,7 +107,7 @@ function stopNinjaProcess {
                 Stop-Process $Process -Force -ErrorAction Stop
                 writeText -type "success" -text "Successfully stopped process: $ProcessName" -lineAfter
             } catch {
-                writeText -type "error" -text "stopNinjaProcess-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)" -lineAfter
+                writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
             }
         }
     }
@@ -131,7 +131,7 @@ function removeNinjaServices {
                 writeText -type "plain" -text "Stopping service: $ServiceName"
                 Stop-Service $ServiceName -Force -ErrorAction Stop
             } catch {
-                writeText -type "error" -text "removeNinjaServices-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)" -lineAfter
+                writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
             }
             
             & sc.exe DELETE $ServiceName
@@ -164,7 +164,7 @@ function removeNinjaDirectories {
                 Remove-Item $Dir.Path -Recurse -Force -ErrorAction Stop
                 writeText -type "success" -text "Successfully removed"
             } catch {
-                writeText -type "error" -text "removeNinjaDirectories-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)" -lineAfter
+                writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
             }
         }
     }
@@ -213,7 +213,7 @@ function removeNinjaRemoteService {
         try {
             Stop-Process $Process -Force -ErrorAction Stop
         } catch {
-            writeText -type "error" -text "removeNinjaRemoteService-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)" -lineAfter
+            writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
         }
     }
     
@@ -223,7 +223,7 @@ function removeNinjaRemoteService {
         try {
             Stop-Service $ServiceName -Force -ErrorAction Stop
         } catch {
-            writeText -type "warning" -text "removeNinjaRemoteService-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)" -lineAfter
+            writeText -type "warning" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
         }
         
         & sc.exe DELETE $ServiceName
@@ -279,7 +279,7 @@ function removeNinjaRemoteDirectories {
             try {
                 Remove-Item $Directory -Recurse -Force -ErrorAction Stop
             } catch {
-                writeText -type "error" -text "removeNinjaRemoteDirectories-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)" -lineAfter
+                writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
             }
         }
     }
@@ -374,7 +374,7 @@ function removeNinjaRMM {
     if ($UninstallString) {
         invokeNinjaMSIUninstall -UninstallString $UninstallString
     } else {
-        writeText -type "warning" -text "Unable to determine uninstall string. Continuing with cleanup..." -lineAfter
+        writeText -type "warning" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
     }
     
     # Cleanup operations

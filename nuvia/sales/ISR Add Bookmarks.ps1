@@ -20,7 +20,7 @@ function isrAddBookmarks {
             }
         }
     } catch {
-        writeText -type "error" -text "isrAddBookmarks-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)"
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
     }
 }
 function getOrCreateUserPath {
