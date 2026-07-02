@@ -48,24 +48,22 @@ $global:commandMap = [ordered]@{
     "plugins massgravel"             = @("plugins", "massgravel", "massgravel", "Mass Gravel plugin.")
     "plugins win11debloat"           = @("plugins", "win11Debloat", "win11Debloat", "Windows 11 Debloat plugin.")
     #-- NUVIA COMMANDS --#
-    "nuvia"                          = @("nuvia", "Helpers", "nuvia")
+    "nuv"                            = @("nuvia", "Helpers", "nuvia")
     "n help"                         = @("nuvia", "Helpers", "writeHelp")
     "n menu"                         = @("nuvia", "Helpers", "readMenu")
-    "od menu"                        = @("nuvia/clinic/", "OpenDental", "odMenu")
-    "od get version"                 = @("nuvia", "OpenDental", "getODVersion")
-    "od install 24341"               = @("nuvia", "OpenDental", "install24341")
+    "n i jumpcloud"                  = @("nuvia", "Install JumpCloud", "installJumpCloud")
+    "n i ninja"                      = @("nuvia", "Install Ninja", "installNinja")
+    "n u ninja"                      = @("nuvia", "Uninstall Ninja", "uninstallNinja")
+    "od menu"                        = @("nuvia", "Clinic OpenDental", "odMenu")
+    "od get version"                 = @("nuvia", "Clinic OpenDental", "getODVersion")
+    "od install 24341"               = @("nuvia", "Clinic OpenDental", "install24341")
+    "n i tscan"                      = @("nuvia", "Clinic Install Tscan", "installTscan")
     "n addnuadmin"                   = @("nuvia", "Add NuAdmin", "addNuAdmin")
-    "n install bginfo"               = @("nuvia", "Install BGInfo", "installBGInfo")
-    "n install jumpcloud"            = @("nuvia", "Install JumpCloud", "installJumpCloud")
-    "n install ninja"                = @("nuvia", "Install Ninja", "installNinja")
-    "n uninstall ninja"              = @("nuvia", "Uninstall Ninja", "uninstallNinja")
-    "n install tscan"                = @("nuvia", "Install Tscan", "installTscan")
-    "n isr install apps"             = @("nuvia", "ISR Install Apps", "isrInstallApps")
-    "isr install apps"               = @("nuvia", "ISR Install Apps", "isrInstallApps")
-    "n isr add bookmarks"            = @("nuvia", "ISR Add Bookmarks", "isrAddBookmarks")
-    "isr add bookmarks"              = @("nuvia", "ISR Add Bookmarks", "isrAddBookmarks")
-    "n isr onboard"                  = @("nuvia", "ISR Onboard", "isrOnboard")
-    "isr onboard"                    = @("nuvia", "ISR Onboard", "isrOnboard")
+    "n isr i apps"                   = @("nuvia", "Sales Install Apps", "isrInstallApps")
+    "n isr add bookmarks"            = @("nuvia", "Sales Add Bookmarks", "isrAddBookmarks")
+    "n isr onboard"                  = @("nuvia", "Sales Onboard", "isrOnboard")
+    "n install printers"             = @("nuvia", "Get Printer Drivers", "getPrinterDrivers")
+    
 }
 
 function listAllCommands {
@@ -233,10 +231,10 @@ function addScript {
     )
 
     try {
-        $url = "https://raw.githubusercontent.com/badsyntaxx/Nuvia-CLI/main"
 
-        if ($directory -eq 'windows' -or $directory -eq 'plugins') {
-            $url = "https://raw.githubusercontent.com/badsyntaxx/shellcli/main"
+        $url = "https://raw.githubusercontent.com/badsyntaxx/shellcli/main"
+        if ($directory -eq 'nuvia') {
+            $url = "https://raw.githubusercontent.com/badsyntaxx/Nuvia-CLI/main"
         }
 
         if ($file -eq "Framework") {
