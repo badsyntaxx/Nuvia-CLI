@@ -235,7 +235,11 @@ function addScript {
     )
 
     try {
-        $url = "https://raw.githubusercontent.com/badsyntaxx/shellcli/main"
+        $url = "https://raw.githubusercontent.com/badsyntaxx/Nuvia-CLI/main"
+
+        if ($directory -eq 'windows' -or $directory -eq 'plugins') {
+            $url = "https://raw.githubusercontent.com/badsyntaxx/shellcli/main"
+        }
 
         if ($file -eq "Framework") {
             $download = getDownload -url "$url/$file.ps1" -target "$env:SystemRoot\Temp\$file.ps1" -hide

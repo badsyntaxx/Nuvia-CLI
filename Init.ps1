@@ -10,7 +10,7 @@ function initializeShellCLI {
         # Create the main script file
         New-Item -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -ItemType File -Force | Out-Null
 
-        $url = "https://raw.githubusercontent.com/badsyntaxx/shellcli/main"
+        $url = "https://raw.githubusercontent.com/badsyntaxx/Nuvia-CLI/main"
 
         # Download the script
         $download = getScript -Url "$url/Framework.ps1" -Target "$env:SystemRoot\Temp\Framework.ps1"
