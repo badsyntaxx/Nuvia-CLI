@@ -56,6 +56,7 @@ $global:commandMap = [ordered]@{
     "n u ninja"                      = @("nuvia", "Uninstall Ninja", "uninstallNinja", "Uninstall Ninja.")
     "od menu"                        = @("nuvia", "Clinic OpenDental", "odMenu", "Display the OpenDental menu.")
     "od get version"                 = @("nuvia", "Clinic OpenDental", "getODVersion", "Get the OpenDental version.")
+    "od get config"                  = @("nuvia", "Clinic OpenDental", "getODConfig", "Get the OpenDental configuration.")
     "od install 24341"               = @("nuvia", "Clinic OpenDental", "install24341", "Install OpenDental version 24341.")
     "n i tscan"                      = @("nuvia", "Clinic Install Tscan", "installTscan", "Install Tscan.")
     "n addnuadmin"                   = @("nuvia", "Add NuAdmin", "addNuAdmin", "Add a new NuAdmin user.")
