@@ -468,10 +468,27 @@ function findMissingProductKeyNames {
 }
 function restartNinjaService {
     try {
-        writeText -type "plain" -text "Attempting to restart the service: ncstreamer"
-        Restart-Service -Name "ncstreamer" -Force
-        writeText -type "plain" -text "Service ncstreamer restarted successfully."
+        $serviceName = "NinjaRMMAgent"
+        $service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
+        if ($null -ne $service) {
+            Restart-Service -Name $serviceName -Force
+            Start-Sleep 3  # Wait for a moment to allow the service to start
+            writeText -type "plain" -text "Service '$serviceName' is: $($service.Status)"
+        } else {
+            writeText -type "notice" -text "Service '$serviceName' not found."
+        }
+
+        $serviceName = "ncstreamer"
+        $service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
+        if ($null -ne $service) {
+            Restart-Service -Name $serviceName -Force
+            Start-Sleep 3  # Wait for a moment to allow the service to start
+            writeText -type "plain" -text "Service '$serviceName' is: $($service.Status)"
+        } else {
+            writeText -type "notice" -text "Service '$serviceName' not found."
+        }
     } catch {
-        writeText -type "Error" -text "Failed to restart the service: $_"
+        # writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)"
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
     }
 }
