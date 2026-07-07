@@ -468,16 +468,6 @@ function findMissingProductKeyNames {
 }
 function restartNinjaService {
     try {
-        $serviceName = "NinjaRMMAgent"
-        $service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
-        if ($null -ne $service) {
-            Restart-Service -Name $serviceName -Force
-            Start-Sleep 3  # Wait for a moment to allow the service to start
-            writeText -type "plain" -text "Service '$serviceName' is: $($service.Status)"
-        } else {
-            writeText -type "notice" -text "Service '$serviceName' not found."
-        }
-
         $serviceName = "ncstreamer"
         $service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
         if ($null -ne $service) {
