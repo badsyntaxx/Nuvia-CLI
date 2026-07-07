@@ -41,17 +41,18 @@ $global:commandMap = [ordered]@{
     "partition gpu"                  = @("windows", "Share GPU with VM", "partitionGPU", "Partition the GPU.")
     "generate encrypted password"    = @("windows", "Generate Encrypted Password", "generateEncryptedPassword", "Generate an encrypted password.")
     #-- PLUGIN COMMANDS --#
-    "plugins"                        = @("plugins", "Helpers", "plugins", "List available plugins.")
-    "plugins menu"                   = @("plugins", "Helpers", "readMenu", "Display the plugin menu.")
-    "plugins help"                   = @("plugins", "Helpers", "writeHelp", "Display help information for plugins.")
-    "plugins ?"                      = @("plugins", "Helpers", "writeHelp", "Display help information for plugins.")
+    "plugins"                        = @("plugins", "Core", "plugins", "List available plugins.")
+    "plugins menu"                   = @("plugins", "Core", "readMenu", "Display the plugin menu.")
+    "plugins help"                   = @("plugins", "Core", "writeHelp", "Display help information for plugins.")
+    "plugins ?"                      = @("plugins", "Core", "writeHelp", "Display help information for plugins.")
     #-- NUVIA COMMANDS --#
-    "nuv"                            = @("nuvia", "Helpers", "nuvia", "Nuvia CLI plugin.")
-    "n help"                         = @("nuvia", "Helpers", "writeHelp", "Display help information.")
-    "n menu"                         = @("nuvia", "Helpers", "readMenu", "Display the Nuvia CLI menu.")
+    "nuv"                            = @("nuvia", "Core", "nuvia", "Nuvia CLI plugin.")
+    "n help"                         = @("nuvia", "Core", "writeHelp", "Display help information.")
+    "n menu"                         = @("nuvia", "Core", "readMenu", "Display the Nuvia CLI menu.")
     "n i jumpcloud"                  = @("nuvia", "Install JumpCloud", "installJumpCloud", "Install JumpCloud.")
-    "n i ninja"                      = @("nuvia", "Install Ninja", "installNinja", "Install Ninja.")
-    "n u ninja"                      = @("nuvia", "Uninstall Ninja", "uninstallNinja", "Uninstall Ninja.")
+    "n i ninja"                      = @("nuvia", "Ninja", "installNinja", "Install Ninja.")
+    "n u ninja"                      = @("nuvia", "Ninja", "uninstallNinja", "Uninstall Ninja.")
+    "n r ninja"                      = @("nuvia", "Ninja", "restartNinjaService", "Restart Ninja service (NRStreamer).")
     "od menu"                        = @("nuvia", "Clinic OpenDental", "odMenu", "Display the OpenDental menu.")
     "od get ver"                     = @("nuvia", "Clinic OpenDental", "getODVersion", "Get the OpenDental version.")
     "get od ver"                     = @("nuvia", "Clinic OpenDental", "getODVersion", "Get the OpenDental version.")
@@ -871,7 +872,7 @@ function installEXE {
         }
     } catch {
         writeText -type "plain" -text "Failed to start the installation process. Error: $_"
-        return -1  # Return -1 to indicate a failure to start the process
+        return - 1  # Return -1 to indicate a failure to start the process
     }
 }
 function installMSI {
@@ -892,7 +893,7 @@ function installMSI {
         return $process.ExitCode  # Return the exit code
     } catch {
         writeText -type "plain" -text "Failed to start the installation process. Error: $_"
-        return -1  # Return -1 to indicate a failure to start the process
+        return - 1  # Return -1 to indicate a failure to start the process
     }
 }
 function installProgram {
