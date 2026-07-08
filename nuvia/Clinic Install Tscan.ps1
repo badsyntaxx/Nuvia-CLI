@@ -1,8 +1,27 @@
 function installTscan {
     try {
-        addTscanFolder
+        writeText "Creating TScan folder..."
+        writeText "$env:SystemRoot\Temp\tscan"
+
+        if (-not (Test-Path -PathType Container "$env:SystemRoot\Temp\tscan")) {
+            New-Item -Path "$env:SystemRoot\Temp" -Name "tscan" -ItemType Directory | Out-Null
+        }
+
+        if (-not (Test-Path -PathType Container "$env:SystemRoot\Temp\tscan")) {
+            writeText -type "error" -text "Failed to create TScan folder." -lineAfter
+            readCommand
+        } else {
+            writeText -type "plain" -text "Folder created." -lineAfter
+        }
         
-        $networkPath = "\\NUVTAMSVR\InTech\58550_T-Scan_v10_KALLIE_KEE_NUVIA_DENTAL_IMPLANT_CENTER"
+        writeText -type "plain" -text "T-Scan Installation Guide:"
+        writeText -type "plain" -text "Example path for T-Scan installation files. You'll be prompted for the actual path:"
+        writeText -type "plain" -text "\\SERVER\InTech\58550_T-Scan_v10_KALLIE_KEE_NUVIA_DENTAL_IMPLANT_CENTER" -lineAfter
+        writeText -type "plain" -text "Example of the expected pathing for T-Scan network share:"
+        writeText -type "plain" -text "T-Scan SQL Server:	SERVER\TSCAN10"
+        writeText -type "plain" -text "Scans shared path:   \\SERVER\Scans" -lineAfter
+
+        $networkPath = readInput -prompt "Enter network path for T-Scan"
         
         # Authenticate to network share using net use (no drive letter)
         writeText "Authenticating to network share..."
@@ -29,9 +48,9 @@ function installTscan {
                 robocopy $networkPath "$env:SystemRoot\Temp\tscan" /E /IS /COPYALL
                 
                 if ($LASTEXITCODE -le 7) {
-                    writeText "Installing T-Scan..."
+                    writeText -type "plain" -text "Installing T-Scan..."
                     Start-Process -FilePath "$env:SystemRoot\Temp\tscan\tekscan\setup.exe" -ArgumentList "/quiet" -Wait
-                    writeText "T-Scan installed."
+                    writeText -type "plain" -text "T-Scan installed."
                 } else {
                     throw "Robocopy failed with exit code: $LASTEXITCODE"
                 }
@@ -46,28 +65,12 @@ function installTscan {
         Get-Item -ErrorAction SilentlyContinue "$env:SystemRoot\Temp\tscan" | Remove-Item -ErrorAction SilentlyContinue -Confirm $false
         
         # Remove the network connection (optional)
-        net use $networkPath /delete
         readCommand
         
     } catch {
-        writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
         # Cleanup on error
         net use $networkPath /delete 2>$null
+        # writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)"
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
     }
 }
-
-function addTscanFolder {
-    try {
-        writeText "Creating TScan folder..."
-        writeText "$env:SystemRoot\Temp\tscan"
-
-        if (-not (Test-Path -PathType Container "$env:SystemRoot\Temp\tscan")) {
-            New-Item -Path "$env:SystemRoot\Temp" -Name "tscan" -ItemType Directory | Out-Null
-        }
-        
-        writeText -type "plain" -text "Folder created." -lineAfter
-    } catch {
-        writeText "Error creating temp folder: $($_.Exception.Message)" -type "error"
-    }
-}
-
