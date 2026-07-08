@@ -9,7 +9,7 @@ function installTscan {
         Set-NetFirewallRule -DisplayGroup "Network Discovery" -Enabled True
         Set-NetFirewallRule -DisplayGroup "File and Printer Sharing" -Enabled True
 
-        robocopy "\\NUVFULSVR\InTech\59179_T-Scan_v10_KALLIE_NUVIA_DENTAL_IMPLANT_CENTER" "$env:SystemRoot\Temp\tscan" /E /IS /COPYALL
+        robocopy "\\NUVTAMSVR\InTech\58550_T-Scan_v10_KALLIE_KEE_NUVIA_DENTAL_IMPLANT_CENTER" "$env:SystemRoot\Temp\tscan" /E /IS /COPYALL
           
         writeText "Installing T-Scan..."
         Start-Process -FilePath "$env:SystemRoot\Temp\tscan\tekscan\setup.exe" -ArgumentList "/quiet" -Wait
