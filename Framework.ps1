@@ -33,6 +33,7 @@ $global:commandMap = [ordered]@{
     "get hwinfo"                     = @("windows", "Get Software", "getHWInfo", "Get HWInfo.")
     "get bginfo"                     = @("windows", "Get Software", "getBGInfo", "Get BGInfo.")
     #-- SYSTEM COMMANDS --#
+    "disable hybernate file"         = @("windows", "Core", "disableHybernateFile", "Disable the hybernate file.")
     "services"                       = @("windows", "Service Controller", "listServices", "Display the services.")
     "stop service"                   = @("windows", "Service Controller", "stopService", "Stop a service.")
     "start service"                  = @("windows", "Service Controller", "startService", "Start a service.")
@@ -51,6 +52,9 @@ $global:commandMap = [ordered]@{
     "plugins menu"                   = @("plugins", "Core", "readMenu", "Display the plugin menu.")
     "plugins help"                   = @("plugins", "Core", "writeHelp", "Display help information for plugins.")
     "plugins ?"                      = @("plugins", "Core", "writeHelp", "Display help information for plugins.")
+    "plugins massgravel"             = @("plugins", "massgravel", "massgravel", "Windows activation scripts.")
+    "plugins reclaim"                = @("plugins", "Reclaim", "reclaim", "Disable telemetry and bloatware in Windows 11.")
+    "plugins win11debloat"           = @("plugins", "Win11Debloat", "win11debloat", "Remove bloatware from Windows 11.")
     #-- NUVIA COMMANDS --#
     "nuv"                            = @("nuvia", "Core", "nuvia", "Nuvia CLI plugin.")
     "n help"                         = @("nuvia", "Core", "writeHelp", "Display help information.")
