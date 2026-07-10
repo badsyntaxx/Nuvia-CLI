@@ -24,6 +24,7 @@ $global:commandMap = [ordered]@{
     "edit user password"             = @("windows", "User", "editUserPassword", "Edit a user's password.")
     "edit user group"                = @("windows", "User", "editUserGroup", "Edit a user's group.")
     #-- NETWORK COMMANDS --#
+    "network"                        = @("windows", "Edit Net Adapter", "network", "Get net adapter info.")
     "edit net adapter"               = @("windows", "Edit Net Adapter", "editNetAdapter", "Edit the network adapter.")
     "get wifi creds"                 = @("windows", "Core", "getWifiCreds", "Get WiFi credentials.")
     #-- SOFTWARE COMMANDS --#
@@ -33,6 +34,9 @@ $global:commandMap = [ordered]@{
     "get hwinfo"                     = @("windows", "Get Software", "getHWInfo", "Get HWInfo.")
     "get bginfo"                     = @("windows", "Get Software", "getBGInfo", "Get BGInfo.")
     #-- SYSTEM COMMANDS --#
+    "techmode 1"                     = @("windows", "Core", "techMode", "Enable tech mode.")
+    "techmode 0"                     = @("windows", "Core", "userMode", "Enable user mode.")
+    "fix icons"                      = @("windows", "Core", "fixIcons", "Fix desktop icons.")
     "disable hybernate file"         = @("windows", "Core", "disableHybernateFile", "Disable the hybernate file.")
     "services"                       = @("windows", "Service Controller", "listServices", "Display the services.")
     "stop service"                   = @("windows", "Service Controller", "stopService", "Stop a service.")
@@ -54,7 +58,6 @@ $global:commandMap = [ordered]@{
     "plugins ?"                      = @("plugins", "Core", "writeHelp", "Display help information for plugins.")
     "plugins massgravel"             = @("plugins", "massgravel", "massgravel", "Windows activation scripts.")
     "plugins reclaim"                = @("plugins", "Reclaim", "reclaim", "Disable telemetry and bloatware in Windows 11.")
-    "plugins win11debloat"           = @("plugins", "Win11Debloat", "win11debloat", "Remove bloatware from Windows 11.")
     #-- NUVIA COMMANDS --#
     "nuv"                            = @("nuvia", "Core", "nuvia", "Nuvia CLI plugin.")
     "n help"                         = @("nuvia", "Core", "writeHelp", "Display help information.")
