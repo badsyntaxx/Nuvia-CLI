@@ -1,4 +1,5 @@
 function declutterDrive {
+    readCommand -command "disable hybernate file"
     declutterVatech
 }
 
