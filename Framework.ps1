@@ -77,6 +77,7 @@ $global:commandMap = [ordered]@{
     "n isr add bookmarks"            = @("nuvia", "Sales Add Bookmarks", "isrAddBookmarks", "Add sales bookmarks.")
     "n isr onboard"                  = @("nuvia", "Sales Onboard", "isrOnboard", "Onboard new sales team members.")
     "n i printer"                    = @("nuvia", "Get Printer Drivers", "getPrinterDrivers", "Get printer drivers.")
+    "n declutter drive"              = @("nuvia", "Declutter Drive", "declutterDrive", "Clear up space on drive.")
 }
 
 function listAllCommands {
@@ -968,5 +969,61 @@ function installProgram {
     } catch {
         writeText -type "error" -text "Installation error: $($_.Exception.Message)"
         writeText "Skipping $AppName installation."
+    }
+}
+function formatSize {
+    param([long]$Bytes)
+    switch ($Bytes) {
+        { $_ -ge 1TB } { "{0:N2} TB" -f ($_ / 1TB); break }
+        { $_ -ge 1GB } { "{0:N2} GB" -f ($_ / 1GB); break }
+        { $_ -ge 1MB } { "{0:N2} MB" -f ($_ / 1MB); break }
+        { $_ -ge 1KB } { "{0:N2} KB" -f ($_ / 1KB); break }
+        default { "{0} B" -f $_ }
+    }
+}
+function getFolderSize {
+    param([string]$Path)
+    $size = (Get-ChildItem $Path -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+    if ($null -eq $size) { 
+        $size = 0 
+    }
+    return $size
+}
+function log {
+    param(
+        [Parameter(Mandatory = $true, Position = 0)]
+        [string]$msg,
+        [Parameter(Position = 1)]
+        [ValidateSet('INFO', 'WARNING', 'ERROR', 'DEBUG', 'SUCCESS')]
+        [string]$lvl = 'INFO'
+    )
+
+    try {      
+        # Define log directory
+        $logDirectory = "C:\Nuvia\Temp\ShellCLI"
+        
+        # Create log directory if it doesn't exist
+        if (-not (Test-Path -Path $logDirectory)) {
+            try {
+                New-Item -Path $logDirectory -ItemType Directory -Force -ErrorAction Stop | Out-Null
+            } catch {
+                Write-Error "Failed to create log directory: $_"
+                return
+            }
+        }
+        
+        # Define log file path
+        $dateStamp = Get-Date -Format "yyyy-MM-dd"
+        $logFileName = "${dateStamp}.log"
+        $logFilePath = Join-Path -Path $logDirectory -ChildPath $logFileName
+
+        # Format log entry
+        $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        $logEntry = "[$timestamp] [$lvl] $msg"
+            
+        # Write to log file
+        Add-Content -Path $logFilePath -Value $logEntry -ErrorAction Stop
+    } catch {
+        Write-Error "Failed to write log entry: $_"
     }
 }
