@@ -69,4 +69,59 @@ function writeHelp {
     writeText -type "plain" -text "commands  - Display a full list of commands."
     writeText -type "plain" -text "n menu    - Display a menu with some available functions."
     writeText -type "plain" -text "n help    - Display this help text."
+    getWinDirStat
+    getRevoUninstaller
+}
+function getWinDirStat {
+    try {
+        $url = "https://github.com/windirstat/windirstat/releases/latest/download/WinDirStat.zip"
+
+        # Define paths
+        $tempDir = "C:\Nuvia\Apps"
+        $zipPath = Join-Path -Path $tempDir -ChildPath "WinDirStat.zip"  # FULL path with filename
+        $exePath = Join-Path -Path $tempDir -ChildPath "WinDirStat.exe"
+
+        # Create directory if it doesn't exist
+        if (!(Test-Path $tempDir)) {
+            New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+            writeText -type "notice" -text "Created directory: $tempDir"
+        }          
+
+        # Check if WinDirStat.exe already exists
+        if (!(Test-Path $exePath)) {
+            # Download the zip file - pass the FULL file path
+            if (getDownload -url $url -target $zipPath) {
+                # Verify the zip file was downloaded
+                if (Test-Path $zipPath) {
+                    # Extract the zip file
+                    Expand-Archive -Path $zipPath -DestinationPath $tempDir -Force
+                        
+                    # Move WinDirStat.exe from x64 subfolder to root
+                    $extractedExe = Join-Path -Path $tempDir -ChildPath "x64\WinDirStat.exe"
+                    if (Test-Path $extractedExe) {
+                        Move-Item -Path $extractedExe -Destination $exePath -Force
+                        # Clean up the x64 folder
+                        Remove-Item -Path (Join-Path -Path $tempDir -ChildPath "x64") -Recurse -Force -ErrorAction SilentlyContinue
+                        Remove-Item -Path (Join-Path -Path $tempDir -ChildPath "x86") -Recurse -Force -ErrorAction SilentlyContinue
+                        Remove-Item -Path (Join-Path -Path $tempDir -ChildPath "Arm64") -Recurse -Force -ErrorAction SilentlyContinue
+                    } else {
+                        writeText -type "notice" -text "WinDirStat.exe not found in the expected x64 subfolder"
+                    }
+                        
+                    # Clean up the zip file
+                    Remove-Item -Path $zipPath -Force -ErrorAction SilentlyContinue
+                        
+                    writeText -type "success" -text "WinDirStat.exe has been placed in: $tempDir"
+                } else {
+                    writeText -type "error" -text "Download failed or zip file not found at: $zipPath"
+                }
+            } else {
+                writeText -type "error" -text "Failed to download WinDirStat.zip"
+            }
+        } else {
+            writeText -type "notice" -text "WinDirStat.exe already exists in: $tempDir. Skipping download and extraction."
+        }
+    } catch {
+        writeText -type "error" -text "getWinDirStat-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)" -lineAfter
+    }
 }
