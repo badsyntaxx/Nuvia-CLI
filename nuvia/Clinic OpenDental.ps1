@@ -26,8 +26,14 @@ function odMenu {
 }
 
 function getODVersion {
-    $odVersion = (Get-Command "C:\Program Files (x86)\Open Dental\OpenDental.exe").FileVersionInfo.ProductVersion
-    writeText -type "plain" -text "OpenDental Version: $odVersion" -lineAfter
+    $odVersion = (Get-Command "C:\Program Files (x86)\Open Dental\OpenDental.exe" -ErrorAction SilentlyContinue).FileVersionInfo.ProductVersion
+
+    if ($odVersion) {
+        writeText -type "plain" -text "OpenDental Version: $odVersion" -lineAfter
+    } else {
+        writeText -type "plain" -text "Could not find an installation of OD" -lineAfter
+        readCommand
+    }
 
     # Define the paths to check
     $dtxPaths = @(
