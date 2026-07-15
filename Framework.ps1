@@ -266,6 +266,44 @@ function addScript {
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
     }
 }
+function log {
+    param(
+        [Parameter(Mandatory = $true, Position = 0)]
+        [string]$msg,
+        [Parameter(Position = 1)]
+        [ValidateSet('INFO', 'WARNING', 'ERROR', 'DEBUG', 'SUCCESS')]
+        [string]$lvl = 'INFO'
+    )
+
+    try {      
+        # Define log directory
+        $logDirectory = "C:\Nuvia\Temp\ShellCLI"
+        
+        # Create log directory if it doesn't exist
+        if (-not (Test-Path -Path $logDirectory)) {
+            try {
+                New-Item -Path $logDirectory -ItemType Directory -Force -ErrorAction Stop | Out-Null
+            } catch {
+                Write-Error "Failed to create log directory: $_"
+                return
+            }
+        }
+        
+        # Define log file path
+        $dateStamp = Get-Date -Format "yyyy-MM-dd"
+        $logFileName = "${dateStamp}.log"
+        $logFilePath = Join-Path -Path $logDirectory -ChildPath $logFileName
+
+        # Format log entry
+        $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        $logEntry = "[$timestamp] [$lvl] $msg"
+            
+        # Write to log file
+        Add-Content -Path $logFilePath -Value $logEntry -ErrorAction Stop
+    } catch {
+        Write-Error "Failed to write log entry: $_"
+    }
+}
 function writeText {
     param (
         [parameter(Mandatory = $false)]
@@ -308,27 +346,31 @@ function writeText {
             Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
             Write-Host "   ?" -NoNewline -ForegroundColor "Yellow"
             Write-Host " $text" -ForegroundColor "DarkGray"
+            log -msg "ShellCLI prompted: $text"
         }
 
         if ($type -eq 'success') { 
             Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
             Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
-            Write-Host "   $([char]0x2713) $text"  -ForegroundColor "Green"
+            Write-Host "  $([char]0x2713) $text"  -ForegroundColor "Green"
             Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
+            log -msg $text -lvl "SUCCESS"
         }
 
         if ($type -eq 'error') { 
             Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
             Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
-            Write-Host "   X $text" -ForegroundColor "Red"
+            Write-Host "  X $text" -ForegroundColor "Red"
             Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
+            log -msg $text -lvl "ERROR"
         }
 
         if ($type -eq 'notice') { 
             Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
             Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
-            Write-Host "   ! $text" -ForegroundColor "Yellow" 
+            Write-Host "  ! $text" -ForegroundColor "Yellow" 
             Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
+            log -msg $text -lvl "INFO"
         }
 
         if ($type -eq 'plain') {
@@ -339,9 +381,11 @@ function writeText {
                 Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
                 Write-Host "  $label`: " -NoNewline -ForegroundColor "Gray"
                 Write-Host "$text" -ForegroundColor $Color 
+                log -msg $text -lvl "INFO"
             } else {
                 Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
                 Write-Host "   $text" -ForegroundColor $Color 
+                log -msg $text -lvl "INFO"
             }
         }
 
@@ -391,7 +435,8 @@ function writeText {
         # Add a new line after output if specified
         if ($lineAfter) { Write-Host " $([char]0x2502)" -ForegroundColor "Gray" }
     } catch {
-        writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
 function readInput {
@@ -417,6 +462,8 @@ function readInput {
     )
 
     try {
+        log -msg "Prompting host to input. ($prompt)"
+
         # Add a new line before prompt if specified
         if ($lineBefore) { Write-Host " $([char]0x2502)" -ForegroundColor "Gray" }
 
@@ -478,11 +525,14 @@ function readInput {
 
         # Add a new line after prompt if specified
         if ($lineAfter) { Write-Host " $([char]0x2502)" -ForegroundColor "Gray" }
+
+        log -msg "Input accepted ($userInput)"
     
         # Return the validated user input
         return $userInput
     } catch {
-        writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
 function readOption {
@@ -498,10 +548,13 @@ function readOption {
         [parameter(Mandatory = $false)]
         [switch]$lineBefore = $false,
         [parameter(Mandatory = $false)]
-        [switch]$lineAfter = $false
+        [switch]$lineAfter = $false,
+        [parameter(Mandatory = $false)]
+        [int]$maxDescriptionLength = 100 # New parameter for max description length
     )
 
     try {
+        log -msg "Prompting host to choose. ($prompt)"
         # Add a line break before the menu if lineBefore is specified
         if ($lineBefore) { Write-Host " $([char]0x2502)" -ForegroundColor "Gray" }
 
@@ -519,23 +572,34 @@ function readOption {
         # Find the length of the longest key for padding
         $longestKeyLength = ($orderedKeys | ForEach-Object { "$_".Length } | Measure-Object -Maximum).Maximum
 
+        # Helper function to truncate description with ellipsis
+        function truncateDescription {
+            param([string]$description)
+            if ($description.Length -gt $maxDescriptionLength) {
+                return $description.Substring(0, $maxDescriptionLength - 3) + "..."
+            }
+            return $description
+        }
+
         # Display single option if only one exists
         if ($orderedKeys.Count -eq 1) {
+            $truncatedDesc = truncateDescription -description $options[$orderedKeys]
             Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
             Write-Host " $([char]0x2192)" -ForegroundColor "DarkCyan" -NoNewline
-            Write-Host "   $($orderedKeys) $(" " * ($longestKeyLength - $orderedKeys.Length)) - $($options[$orderedKeys])" -ForegroundColor "DarkCyan"
+            Write-Host "   $($orderedKeys) $(" " * ($longestKeyLength - $orderedKeys.Length)) - $truncatedDesc" -ForegroundColor "DarkCyan"
         } else {
             # Loop through each option and display with padding and color
             for ($i = 0; $i -lt $orderedKeys.Count; $i++) {
                 $key = $orderedKeys[$i]
                 $padding = " " * ($longestKeyLength - $key.Length)
+                $truncatedDesc = truncateDescription -description $options[$key]
                 if ($i -eq $pos) { 
                     Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
                     Write-Host " $([char]0x2192)" -ForegroundColor "DarkCyan" -NoNewline  
-                    Write-Host " $key $padding - $($options[$key])" -ForegroundColor "DarkCyan"
+                    Write-Host " $key $padding - $truncatedDesc" -ForegroundColor "DarkCyan"
                 } else { 
                     Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
-                    Write-Host "   $key $padding - $($options[$key])"
+                    Write-Host "   $key $padding - $truncatedDesc"
                 }
             }
         }
@@ -562,13 +626,16 @@ function readOption {
                 $newKey = $orderedKeys[$pos]
             
                 # Re-draw the previously selected and newly selected options
+                $oldTruncatedDesc = truncateDescription -description $options[$orderedKeys[$oldPos]]
+                $newTruncatedDesc = truncateDescription -description $options[$orderedKeys[$pos]]
+                
                 $host.UI.RawUI.CursorPosition = $menuOldPos
                 Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
-                Write-Host "   $($orderedKeys[$oldPos]) $(" " * ($longestKeyLength - $oldKey.Length)) - $($options[$orderedKeys[$oldPos]])"
+                Write-Host "   $($orderedKeys[$oldPos]) $(" " * ($longestKeyLength - $oldKey.Length)) - $oldTruncatedDesc"
                 $host.UI.RawUI.CursorPosition = $menuNewPos
                 Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Gray"
                 Write-Host " $([char]0x2192)" -ForegroundColor "DarkCyan" -NoNewline
-                Write-Host " $($orderedKeys[$pos]) $(" " * ($longestKeyLength - $newKey.Length)) - $($options[$orderedKeys[$pos]])" -ForegroundColor "DarkCyan"
+                Write-Host " $($orderedKeys[$pos]) $(" " * ($longestKeyLength - $newKey.Length)) - $newTruncatedDesc" -ForegroundColor "DarkCyan"
                 $host.UI.RawUI.CursorPosition = $currPos
             }
         }
@@ -579,22 +646,28 @@ function readOption {
         # Handle function return values (key, value, menu position) based on parameters
         if ($returnKey) { 
             if ($orderedKeys.Count -eq 1) { 
+                log -msg "Returning the key of ($pos $orderedKeys[$($options[$orderedKeys[$pos]])])"
                 return $orderedKeys 
             } else { 
+                log -msg "Returning the key of ($pos $($orderedKeys[$pos])[$($options[$orderedKeys[$pos]])])"
                 return $orderedKeys[$pos] 
             } 
         } 
         if ($returnValue) { 
             if ($orderedKeys.Count -eq 1) { 
+                log -msg "Returning the value of ($pos $orderedKeys[$($options[$orderedKeys[$pos]])])"
                 return $options[$pos] 
             } else { 
+                log -msg "Returning the value of ($pos $($orderedKeys[$pos])[$($options[$orderedKeys[$pos]])])"
                 return $options[$orderedKeys[$pos]] 
             } 
         } else { 
+            log -msg "Returning the index of ($pos $($orderedKeys[$pos])[$($options[$orderedKeys[$pos]])])"
             return $pos 
         }
     } catch {
-        writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
 function getDownload {
@@ -615,7 +688,7 @@ function getDownload {
         [switch]$hide = $false
     )
     Begin {       
-        function Show-Progress {
+        function showProgress {
             param (
                 [parameter(Mandatory)]
                 [Single]$totalValue,
@@ -646,6 +719,7 @@ function getDownload {
         }
     }
     Process {
+        log -msg "Downloading from ($url) to ($target)."
         $downloadComplete = $true 
         for ($retryCount = 1; $retryCount -le 2; $retryCount++) {
             try {
@@ -702,11 +776,11 @@ function getDownload {
                     $totalMB = $total / 1024 / 1024
                     if (-not $hide) {
                         if ($fullSize -gt 0) {
-                            Show-Progress -totalValue $fullSizeMB -currentValue $totalMB
+                            showProgress -totalValue $fullSizeMB -currentValue $totalMB
                         }
 
                         if ($total -eq $fullSize -and $count -eq 0 -and $finalBarCount -eq 0) {
-                            Show-Progress -totalValue $fullSizeMB -currentValue $totalMB -complete
+                            showProgress -totalValue $fullSizeMB -currentValue $totalMB -complete
                             $finalBarCount++
                         }
                     }
@@ -733,7 +807,8 @@ function getDownload {
                     writeText -type "plain" -text "Retrying..."
                     Start-Sleep -Seconds 1
                 } else {
-                    writeText -type "error" -text "getDownload-$($_.InvocationInfo.ScriptLineNumber) | $($_.Exception.Message)"
+                    writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+                    log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
                 }
             } finally {
                 # cleanup
@@ -770,7 +845,8 @@ function getUserData {
 
         return $data
     } catch {
-        writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
 function selectUser {
@@ -849,7 +925,8 @@ function selectUser {
         # Return the user data dictionary
         return $data
     } catch {
-        writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
 function installEXE {
@@ -868,14 +945,14 @@ function installEXE {
     $process = New-Object System.Diagnostics.Process
     $process.StartInfo = $startInfo
 
-    writeText -type "plain" -text "Running installer."
+    writeText -type "plain" -text "Running installer at ($Path)."
 
     try {
         $process.Start() | Out-Null
         if ($Wait) {
             $process.WaitForExit()
             if ($process.ExitCode -eq 0) {
-                writeText -type "plain" -text "Installer ran successfully."
+                writeText -type "plain" -text "Installer finished successfully."
             } else {
                 writeText -type "plain" -text "Installer failed with exit code $($process.ExitCode)."
             }
@@ -886,7 +963,7 @@ function installEXE {
         }
     } catch {
         writeText -type "plain" -text "Failed to start the installation process. Error: $_"
-        return - 1  # Return -1 to indicate a failure to start the process
+        return -1  # Return -1 to indicate a failure to start the process
     }
 }
 function installMSI {
@@ -895,19 +972,19 @@ function installMSI {
         [string]$msiArguments # Additional arguments for the MSI installer
     )
 
-    writeText -type "plain" -text "Running installer."
+    writeText -type "plain" -text "Running installer at ($Path)."
 
     try {
         $process = Start-Process "msiexec.exe" -ArgumentList "/i `"$Path`" $msiArguments" -Wait -PassThru
         if ($process.ExitCode -eq 0) {
-            writeText -type "plain" -text "Installer ran successfully."
+            writeText -type "plain" -text "Installer finished successfully."
         } else {
             writeText -type "plain" -text "Installer failed with exit code $($process.ExitCode)."
         }
         return $process.ExitCode  # Return the exit code
     } catch {
         writeText -type "plain" -text "Failed to start the installation process. Error: $_"
-        return - 1  # Return -1 to indicate a failure to start the process
+        return -1  # Return -1 to indicate a failure to start the process
     }
 }
 function installProgram {
@@ -923,6 +1000,8 @@ function installProgram {
     try {
         $fileName = Split-Path -Path $url -Leaf
         $outputPath = Join-Path -Path "$env:SystemRoot\Temp" -ChildPath $fileName
+
+        writeText -type "plain" -text "Running installer at ($fileName)."
 
         if (getDownload -url $url -target $outputPath) {
             $fileExtension = [System.IO.Path]::GetExtension($outputPath).ToLower()
@@ -988,42 +1067,4 @@ function getFolderSize {
         $size = 0 
     }
     return $size
-}
-function log {
-    param(
-        [Parameter(Mandatory = $true, Position = 0)]
-        [string]$msg,
-        [Parameter(Position = 1)]
-        [ValidateSet('INFO', 'WARNING', 'ERROR', 'DEBUG', 'SUCCESS')]
-        [string]$lvl = 'INFO'
-    )
-
-    try {      
-        # Define log directory
-        $logDirectory = "C:\Nuvia\Temp\ShellCLI"
-        
-        # Create log directory if it doesn't exist
-        if (-not (Test-Path -Path $logDirectory)) {
-            try {
-                New-Item -Path $logDirectory -ItemType Directory -Force -ErrorAction Stop | Out-Null
-            } catch {
-                Write-Error "Failed to create log directory: $_"
-                return
-            }
-        }
-        
-        # Define log file path
-        $dateStamp = Get-Date -Format "yyyy-MM-dd"
-        $logFileName = "${dateStamp}.log"
-        $logFilePath = Join-Path -Path $logDirectory -ChildPath $logFileName
-
-        # Format log entry
-        $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-        $logEntry = "[$timestamp] [$lvl] $msg"
-            
-        # Write to log file
-        Add-Content -Path $logFilePath -Value $logEntry -ErrorAction Stop
-    } catch {
-        Write-Error "Failed to write log entry: $_"
-    }
 }
