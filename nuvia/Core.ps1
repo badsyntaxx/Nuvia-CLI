@@ -70,7 +70,6 @@ function writeHelp {
     writeText -type "plain" -text "n menu    - Display a menu with some available functions."
     writeText -type "plain" -text "n help    - Display this help text."
     getWinDirStat
-    getRevoUninstaller
 }
 function getWinDirStat {
     try {
