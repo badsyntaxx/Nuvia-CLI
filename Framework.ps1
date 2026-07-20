@@ -78,7 +78,7 @@ $global:commandMap = [ordered]@{
     "n isr onboard"                  = @("nuvia", "Sales Onboard", "isrOnboard", "Onboard new sales team members.")
     "n i printer"                    = @("nuvia", "Get Printer Drivers", "getPrinterDrivers", "Get printer drivers.")
     "n declutter drive"              = @("nuvia", "Declutter Drive", "declutterDrive", "Clear up space on drive.")
-    "n declutter vatech"             = @("nuvia", "Declutter Drive", "decluttterVatech", "Clear up space on drive.")
+    "n declutter vatech"             = @("nuvia", "Declutter Drive", "declutterVatech", "Clear up space on drive.")
 }
 
 function listAllCommands {
