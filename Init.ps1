@@ -32,7 +32,6 @@ function initializeShellCLI {
         Write-Host "  $($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -ForegroundColor "Red"
     }
 }
-
 function getScript {
     param (
         [Parameter(Mandatory)]
@@ -85,6 +84,43 @@ function getScript {
         }
     }
 }
+function log {
+    param(
+        [Parameter(Mandatory = $true, Position = 0)]
+        [string]$msg,
+        [Parameter(Position = 1)]
+        [ValidateSet('INFO', 'WARNING', 'ERROR', 'DEBUG', 'SUCCESS')]
+        [string]$lvl = 'INFO'
+    )
 
+    try {      
+        # Define log directory
+        $logDirectory = "C:\Nuvia\Logs\ShellCLI"
+        
+        # Create log directory if it doesn't exist
+        if (-not (Test-Path -Path $logDirectory)) {
+            try {
+                New-Item -Path $logDirectory -ItemType Directory -Force -ErrorAction Stop | Out-Null
+            } catch {
+                Write-Error "Failed to create log directory: $_"
+                return
+            }
+        }
+        
+        # Define log file path
+        $dateStamp = Get-Date -Format "yyyy-MM-dd"
+        $logFileName = "${dateStamp}.log"
+        $logFilePath = Join-Path -Path $logDirectory -ChildPath $logFileName
+
+        # Format log entry
+        $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        $logEntry = "[$timestamp] [$lvl] $msg"
+            
+        # Write to log file
+        Add-Content -Path $logFilePath -Value $logEntry -ErrorAction Stop
+    } catch {
+        Write-Error "Failed to write log entry: $_"
+    }
+}
 # Invoke the root of Shell CLI
 initializeShellCLI
