@@ -1,13 +1,14 @@
 function installTscan {
     try {
-        writeText "Creating TScan folder..."
-        writeText "$env:SystemRoot\Temp\tscan"
+        $nuviaPath = "C:\Nuvia"
+        writeText -type "plain" -text "Creating TScan folder..."
+        writeText -type "plain" -text "$nuviaPath\Temp\tscan"
 
-        if (-not (Test-Path -PathType Container "$env:SystemRoot\Temp\tscan")) {
-            New-Item -Path "$env:SystemRoot\Temp" -Name "tscan" -ItemType Directory | Out-Null
+        if (-not (Test-Path -PathType Container "$nuviaPath\Temp\tscan")) {
+            New-Item -Path "$nuviaPath\Temp" -Name "tscan" -ItemType Directory | Out-Null
         }
 
-        if (-not (Test-Path -PathType Container "$env:SystemRoot\Temp\tscan")) {
+        if (-not (Test-Path -PathType Container "$nuviaPath\Temp\tscan")) {
             writeText -type "error" -text "Failed to create TScan folder." -lineAfter
             readCommand
         } else {
@@ -21,10 +22,11 @@ function installTscan {
         writeText -type "plain" -text "T-Scan SQL Server:	SERVER\TSCAN10"
         writeText -type "plain" -text "Scans shared path:   \\SERVER\Scans" -lineAfter
 
-        $networkPath = readInput -prompt "Enter network path for T-Scan"
+        writeText -type "prompt" -text "What is the install path?"
+        $networkPath = readInput -prompt "Path:"
         
         # Authenticate to network share using net use (no drive letter)
-        writeText "Authenticating to network share..."
+        writeText -type "plain" -text "Authenticating to network share..."
         $credentials = Get-Credential -Message "Enter credentials for network share: $networkPath"
         
         # Use net use with the UNC path (no drive letter)
@@ -32,11 +34,11 @@ function installTscan {
         
         # Check if authentication was successful
         if ($LASTEXITCODE -eq 0) {
-            writeText "Authentication successful."
+            writeText -type "plain" -text "Authentication successful"
             
             # Verify the path is accessible
             if (Test-Path $networkPath) {
-                writeText "Network share is accessible."
+                writeText -type "plain" -text "Network share is accessible"
                 
                 Set-Service -Name "SSDPSRV" -StartupType Automatic
                 Start-Service -Name "SSDP Discovery"
@@ -45,11 +47,11 @@ function installTscan {
                 Set-NetFirewallRule -DisplayGroup "Network Discovery" -Enabled True
                 Set-NetFirewallRule -DisplayGroup "File and Printer Sharing" -Enabled True
 
-                robocopy $networkPath "$env:SystemRoot\Temp\tscan" /E /IS /COPYALL
+                robocopy "$networkPath" "$nuviaPath\Temp\tscan" /E /IS /COPY:DAT > "$nuviaPath\Logs\shellcli_tscan_robocopy.txt" 2>&1
                 
                 if ($LASTEXITCODE -le 7) {
                     writeText -type "plain" -text "Installing T-Scan..."
-                    Start-Process -FilePath "$env:SystemRoot\Temp\tscan\tekscan\setup.exe" -ArgumentList "/quiet" -Wait
+                    Start-Process -FilePath "$nuviaPath\Temp\tscan\tekscan\setup.exe" -ArgumentList "/quiet" -Wait
                     writeText -type "plain" -text "T-Scan installed."
                 } else {
                     throw "Robocopy failed with exit code: $LASTEXITCODE"
@@ -62,15 +64,15 @@ function installTscan {
         }
         
         # Cleanup
-        Get-Item -ErrorAction SilentlyContinue "$env:SystemRoot\Temp\tscan" | Remove-Item -ErrorAction SilentlyContinue -Confirm $false
+        Get-Item -ErrorAction SilentlyContinue "$nuviaPath\Temp\tscan" | Remove-Item -ErrorAction SilentlyContinue -Confirm $false
         
         # Remove the network connection (optional)
+        net use $networkPath /delete 2>$null
         readCommand
-        
     } catch {
         # Cleanup on error
         net use $networkPath /delete 2>$null
-        # writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)"
-        writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }

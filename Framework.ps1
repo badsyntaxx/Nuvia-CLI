@@ -51,6 +51,8 @@ $global:commandMap = [ordered]@{
     "install host gpu drivers on vm" = @("windows", "Share GPU with VM", "installHostGPUDriversOnVM", "Install host GPU drivers on VM.")
     "partition gpu"                  = @("windows", "Share GPU with VM", "partitionGPU", "Partition the GPU.")
     "generate encrypted password"    = @("windows", "Generate Encrypted Password", "generateEncryptedPassword", "Generate an encrypted password.")
+    "unlock local user"              = @("windows", "User", "unlockLocalUser", "Unlock a locked local account.")
+    "find dc"                        = @("windows", "Core", "findDC", "Find the domain controller.")
     #-- PLUGIN COMMANDS --#
     "plugins"                        = @("plugins", "Core", "plugins", "List available plugins.")
     "plugins menu"                   = @("plugins", "Core", "readMenu", "Display the plugin menu.")
@@ -273,17 +275,19 @@ function log {
         [string]$msg,
         [Parameter(Position = 1)]
         [ValidateSet('INFO', 'WARNING', 'ERROR', 'DEBUG', 'SUCCESS')]
-        [string]$lvl = 'INFO'
+        [string]$lvl = 'INFO',
+        [Parameter(Mandatory = $false)]
+        [string]$logDir = "C:\Nuvia\Logs\ShellCLI",
+        [Parameter(Mandatory = $false)]
+        [string]$logName = (Get-Date -Format "yyyy-MM-dd")
+
     )
 
-    try {      
-        # Define log directory
-        $logDirectory = "C:\Nuvia\Logs\ShellCLI"
-        
+    try {             
         # Create log directory if it doesn't exist
-        if (-not (Test-Path -Path $logDirectory)) {
+        if (-not (Test-Path -Path $logDir)) {
             try {
-                New-Item -Path $logDirectory -ItemType Directory -Force -ErrorAction Stop | Out-Null
+                New-Item -Path $logDir -ItemType Directory -Force -ErrorAction Stop | Out-Null
             } catch {
                 Write-Error "Failed to create log directory: $_"
                 return
@@ -291,9 +295,7 @@ function log {
         }
         
         # Define log file path
-        $dateStamp = Get-Date -Format "yyyy-MM-dd"
-        $logFileName = "${dateStamp}.log"
-        $logFilePath = Join-Path -Path $logDirectory -ChildPath $logFileName
+        $logFilePath = Join-Path -Path $logDir -ChildPath $logName
 
         # Format log entry
         $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
@@ -302,7 +304,8 @@ function log {
         # Write to log file
         Add-Content -Path $logFilePath -Value $logEntry -ErrorAction Stop
     } catch {
-        Write-Error "Failed to write log entry: $_"
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
 function writeText {
@@ -341,6 +344,7 @@ function writeText {
             Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
             Write-Host " $([char]0x251C)" -NoNewline -ForegroundColor "Gray"
             Write-Host " $text " -ForegroundColor "White"
+            log -msg $text -lvl "INFO"
         }
 
         if ($type -eq "prompt") {
@@ -903,21 +907,32 @@ function selectUser {
             
             $groupNames = @()
             
-            # Check each group for membership
+            # Check each group for membership with improved error handling
             foreach ($group in $allGroups) {
                 try {
-                    # Use -ErrorAction Stop to catch errors from Get-LocalGroupMember
-                    $members = Get-LocalGroupMember -Group $group.Name -ErrorAction Stop
+                    # Use SilentlyContinue to handle groups with domain members
+                    $members = Get-LocalGroupMember -Group $group.Name -ErrorAction SilentlyContinue 2>$null
                     
-                    # Check if the user's SID is in the group members
-                    if ($username.SID -in ($members | Select-Object -ExpandProperty SID)) {
-                        $groupNames += $group.Name
+                    # Only check membership if we got results
+                    if ($members) {
+                        # Check if the user's SID is in the group members
+                        if ($username.SID -in ($members | Select-Object -ExpandProperty SID)) {
+                            $groupNames += $group.Name
+                        }
                     }
+                } catch [System.ComponentModel.Win32Exception] {
+                    # Handle error 1789 specifically (Domain unavailable)
+                    if ($_.Exception.ErrorCode -eq 1789) {
+                        # Domain is unavailable, skip this group
+                        Write-Verbose "Domain unavailable, skipping group: $($group.Name)"
+                        continue
+                    }
+                    # Handle other Win32 exceptions
+                    log -msg "Win32 error checking group $($group.Name): $($_.Exception.Message)" -lvl "WARNING"
+                    continue
                 } catch {
-                    # Skip groups that cause errors (like built-in groups with permission issues)
-                    # Optionally log which groups failed
-                    # Write-Verbose "Could not enumerate members for group: $($group.Name)"
-                    log -msg "Could not enumerate members for group: $($group.Name)" -lvl "ERROR"
+                    # Handle any other errors
+                    log -msg "Could not enumerate members for group: $($group.Name) - $($_.Exception.Message)" -lvl "WARNING"
                     continue
                 }
             }
@@ -993,7 +1008,8 @@ function installEXE {
             return 0  # Return 0 if not waiting
         }
     } catch {
-        writeText -type "plain" -text "Failed to start the installation process. Error: $_"
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
         return -1  # Return -1 to indicate a failure to start the process
     }
 }
@@ -1014,7 +1030,8 @@ function installMSI {
         }
         return $process.ExitCode  # Return the exit code
     } catch {
-        writeText -type "plain" -text "Failed to start the installation process. Error: $_"
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
         return -1  # Return -1 to indicate a failure to start the process
     }
 }
@@ -1077,8 +1094,103 @@ function installProgram {
             }
         }        
     } catch {
-        writeText -type "error" -text "Installation error: $($_.Exception.Message)"
-        writeText "Skipping $AppName installation."
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
+    }
+}
+function uninstallWin32App {
+    param(
+        [string]$AppName
+    )
+
+    try {
+        writeText -type "plain" -text "Searching for $AppName" -lineBefore
+
+        $found = $false
+        $regPaths = @(
+            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*"
+        )
+
+        foreach ($regPath in $regPaths) {
+            $apps = Get-ItemProperty $regPath -ErrorAction SilentlyContinue |
+            Where-Object { $_.DisplayName -like "*$AppName*" }
+            foreach ($app in $apps) {
+                $found = $true
+                writeText -type "notice" -text "$($app.DisplayName) v$($app.DisplayVersion) and uninstalling: $($app.DisplayName)..."
+
+                $cmd = if ($app.QuietUninstallString) { 
+                    $app.QuietUninstallString 
+                } elseif ($app.UninstallString) { 
+                    $app.UninstallString 
+                } else { 
+                    $null 
+                }
+
+                if ($cmd) {
+                    if ($cmd -match "msiexec") {
+                        $cmd = $cmd -replace "/I", "/X"
+                        if ($cmd -notmatch "/quiet|/qn|/qb") { $cmd += " /quiet /norestart" }
+                    } elseif ($cmd -match "OfficeClickToRun|C2RClient|officec2rclient") {
+                        if ($cmd -notmatch "DisplayLevel") { $cmd = $cmd.TrimEnd() + " DisplayLevel=False" }
+                    }
+                    try {
+                        Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmd" -Wait -WindowStyle Hidden
+                        writeText -type "success" -text "$($app.DisplayName) v$($app.DisplayVersion) uninstalled"
+                    } catch {
+                        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+                        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
+                    }
+                } else {
+                    writeText -type "notice" -text "Uninstall failed. No uninstall string found."
+                }
+            }
+        }
+        if (-not $found) {
+            writeText -type "plain" -text "$AppName not found. Skipped"
+        }
+    } catch {
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
+    }
+}
+function uninstallAppXApp {
+    param(
+        [string]$PackageName, 
+        [string]$FriendlyName = $PackageName
+    )
+
+    writeText -type "plain" -text "Searching for AppX: $FriendlyName" -lineBefore
+    $found = $false
+    $installed = Get-AppxPackage -AllUsers -Name "*$PackageName*" -ErrorAction SilentlyContinue
+
+    foreach ($app in $installed) {
+        $found = $true
+        writeText -type "plain" -text "Removing: $($app.Name)..."
+        try {
+            Remove-AppxPackage -Package $app.PackageFullName -AllUsers -ErrorAction Stop
+            writeText -type "success" -text "$FriendlyName uninstalled successfully"
+        } catch {
+            writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+            log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
+        }
+    }
+
+    $provisioned = Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like "*$PackageName*" }
+    
+    foreach ($app in $provisioned) {
+        $found = $true
+        try {
+            Remove-AppxProvisionedPackage -Online -PackageName $app.PackageName -ErrorAction Stop
+            writeText "$FriendlyName (Provisioned) removed successfully"
+        } catch {
+            writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+            log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
+        }
+    }
+    if (-not $found) {
+        writeText -type "plain" -text "$FriendlyName not found. Skipping"
     }
 }
 function formatSize {
