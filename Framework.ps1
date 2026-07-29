@@ -1,6 +1,6 @@
 $global:commandMap = [ordered]@{
-    "?"                              = @("windows", "Core", "writeHelp", "List some help info.")
-    "help"                           = @("windows", "Core", "writeHelp", "List some help info.")
+    "?"                              = @("nuvia", "Core", "writeHelp", "List some help info.")
+    "help"                           = @("nuvia", "Core", "writeHelp", "List some help info.")
     "menu"                           = @("windows", "Core", "readMenu", "Display the main menu.")
     "commands"                       = @("windows", "Core", "listAllCommands", "List all available commands.")
     #-- CUSTOMIZATION COMMANDS --#
@@ -27,12 +27,12 @@ $global:commandMap = [ordered]@{
     "network"                        = @("windows", "Edit Net Adapter", "network", "Get net adapter info.")
     "edit net adapter"               = @("windows", "Edit Net Adapter", "editNetAdapter", "Edit the network adapter.")
     "get wifi creds"                 = @("windows", "Core", "getWifiCreds", "Get WiFi credentials.")
-    #-- SOFTWARE COMMANDS --#
-    "get software"                   = @("windows", "Get Software", "getSoftware", "Display a menu of available software.")
-    "get windirstat"                 = @("windows", "Get Software", "getWinDirStat", "Get WinDirStat.")
-    "get revouninstaller"            = @("windows", "Get Software", "getRevoUninstaller", "Get Revo Uninstaller.")
-    "get hwinfo"                     = @("windows", "Get Software", "getHWInfo", "Get HWInfo.")
-    "get bginfo"                     = @("windows", "Get Software", "getBGInfo", "Get BGInfo.")
+    #-- APPS COMMANDS --#
+    "get apps"                       = @("windows", "Get Apps", "getApps", "Display a menu of available apps.")
+    "get browser apps"               = @("windows", "Get Apps", "getBrowserApps", "Display a menu of web browsers.")
+    "get diagnostic apps"            = @("windows", "Get Apps", "getDiagnosticApps", "Display a menu of PC diagnostic software.")
+    "get productivity apps"          = @("windows", "Get Apps", "getProductivityApps", "Display a menu of productivity apps.")
+    "get customization apps"         = @("windows", "Get Apps", "getCostomizationApps", "Display a menu of customization apps.")
     #-- SYSTEM COMMANDS --#
     "techmode 1"                     = @("windows", "Core", "techMode", "Enable tech mode.")
     "techmode 0"                     = @("windows", "Core", "userMode", "Enable user mode.")
@@ -62,25 +62,24 @@ $global:commandMap = [ordered]@{
     "plugins reclaim"                = @("plugins", "Reclaim", "reclaim", "Disable telemetry and bloatware in Windows 11.")
     #-- NUVIA COMMANDS --#
     "nuv"                            = @("nuvia", "Core", "nuvia", "Nuvia CLI plugin.")
-    "n help"                         = @("nuvia", "Core", "writeHelp", "Display help information.")
     "n menu"                         = @("nuvia", "Core", "readMenu", "Display the Nuvia CLI menu.")
-    "n i jumpcloud"                  = @("nuvia", "Install JumpCloud", "installJumpCloud", "Install JumpCloud.")
-    "n i ninja"                      = @("nuvia", "Ninja", "installNinja", "Install Ninja.")
-    "n u ninja"                      = @("nuvia", "Ninja", "uninstallNinja", "Uninstall Ninja.")
-    "n r ninja"                      = @("nuvia", "Ninja", "restartNinjaService", "Restart Ninja service (NRStreamer).")
+    "i jumpcloud"                  = @("nuvia", "Install JumpCloud", "installJumpCloud", "Install JumpCloud.")
+    "i ninja"                      = @("nuvia", "Ninja", "installNinja", "Install Ninja.")
+    "u ninja"                      = @("nuvia", "Ninja", "uninstallNinja", "Uninstall Ninja.")
+    "r ninja"                      = @("nuvia", "Ninja", "restartNinjaService", "Restart Ninja service (NRStreamer).")
     "od menu"                        = @("nuvia", "Clinic OpenDental", "odMenu", "Display the OpenDental menu.")
     "od get ver"                     = @("nuvia", "Clinic OpenDental", "getODVersion", "Get the OpenDental version.")
     "get od ver"                     = @("nuvia", "Clinic OpenDental", "getODVersion", "Get the OpenDental version.")
     "od get conf"                    = @("nuvia", "Clinic OpenDental", "getODConfig", "Get the OpenDental configuration.")
     "get od conf"                    = @("nuvia", "Clinic OpenDental", "getODConfig", "Get the OpenDental configuration.")
     "od install 24341"               = @("nuvia", "Clinic OpenDental", "install24341", "Install OpenDental version 24341.")
-    "n i tscan"                      = @("nuvia", "Clinic Install Tscan", "installTscan", "Install Tscan.")
-    "n isr i apps"                   = @("nuvia", "Sales Install Apps", "isrInstallApps", "Install sales applications.")
-    "n isr add bookmarks"            = @("nuvia", "Sales Add Bookmarks", "isrAddBookmarks", "Add sales bookmarks.")
-    "n isr onboard"                  = @("nuvia", "Sales Onboard", "isrOnboard", "Onboard new sales team members.")
-    "n i printer"                    = @("nuvia", "Get Printer Drivers", "getPrinterDrivers", "Get printer drivers.")
-    "n declutter drive"              = @("nuvia", "Declutter Drive", "declutterDrive", "Clear up space on drive.")
-    "n declutter vatech"             = @("nuvia", "Declutter Drive", "declutterVatech", "Clear up space on drive.")
+    "i tscan"                      = @("nuvia", "Clinic Install Tscan", "installTscan", "Install Tscan.")
+    "isr i apps"                   = @("nuvia", "Sales Install Apps", "isrInstallApps", "Install sales applications.")
+    "isr add bookmarks"            = @("nuvia", "Sales Add Bookmarks", "isrAddBookmarks", "Add sales bookmarks.")
+    "isr onboard"                  = @("nuvia", "Sales Onboard", "isrOnboard", "Onboard new sales team members.")
+    "i printer"                    = @("nuvia", "Get Printer Drivers", "getPrinterDrivers", "Get printer drivers.")
+    "clean drive"                  = @("nuvia", "Clean Drive", "cleanDrive", "Clear up space on drive.")
+    "clean vatech"                 = @("nuvia", "Clean Drive", "cleanVatech", "Clear up space on drive.")
 }
 
 function listAllCommands {
@@ -1048,8 +1047,6 @@ function installProgram {
     try {
         $fileName = Split-Path -Path $url -Leaf
         $outputPath = Join-Path -Path "$env:SystemRoot\Temp" -ChildPath $fileName
-
-        writeText -type "plain" -text "Running installer at ($fileName)."
 
         if (getDownload -url $url -target $outputPath) {
             $fileExtension = [System.IO.Path]::GetExtension($outputPath).ToLower()

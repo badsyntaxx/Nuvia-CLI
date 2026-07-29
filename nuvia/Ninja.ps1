@@ -209,8 +209,9 @@ function removeNinjaDirectories {
     
     $Directories = @(
         @{Path = $InstallLocation; Name = 'installation directory' },
-        @{Path = "$($env:ProgramData)\NinjaRMMAgent"; Name = 'data directory' },
+        @{Path = "$env:ProgramData\NinjaRMMAgent"; Name = 'data directory' },
         @{Path = "$env:ProgramFiles\WindowsPowerShell\Modules\NJCliPSh"; Name = 'PowerShell module directory' }
+        @{Path = "$env:ProgramFiles\NinjaOne"; Name = 'NinjeOne' }
     )
     
     foreach ($Dir in $Directories) {
@@ -466,7 +467,7 @@ function findMissingProductKeyNames {
         writeText -type "warning" -text "##################################################################################" -lineAfter
     }
 }
-function restartNinjaService {
+function restartNCStreamer {
     try {
         $serviceName = "ncstreamer"
         $service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
@@ -478,7 +479,24 @@ function restartNinjaService {
             writeText -type "notice" -text "Service '$serviceName' not found."
         }
     } catch {
-        # writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)"
-        writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
+    }
+}
+
+function restartNCStreamer {
+    try {
+        $serviceName = "ncstreamer"
+        $service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
+        if ($null -ne $service) {
+            Restart-Service -Name $serviceName -Force
+            Start-Sleep 3  # Wait for a moment to allow the service to start
+            writeText -type "plain" -text "Service '$serviceName' is: $($service.Status)"
+        } else {
+            writeText -type "notice" -text "Service '$serviceName' not found."
+        }
+    } catch {
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
