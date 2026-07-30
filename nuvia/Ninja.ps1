@@ -501,3 +501,6 @@ function restartNCStreamer {
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
+
+
+Restart-Service -Name "ncstreamer" -Force
