@@ -1,6 +1,7 @@
 function installNinja {
     try {
-        $url = "https://us2.ninjarmm.com/agent/installer/988d7a4f-f8f5-49f3-9316-443b7801432d/13.0.7662/NinjaOne-Agent-Nuvia-Inventory-WINDOWSDESKTOP-x86-64.msi"
+        $url = readInput -prompt "Enter the Ninja installer url"
+        # $url = "https://us2.ninjarmm.com/agent/installer/988d7a4f-f8f5-49f3-9316-443b7801432d/13.0.7662/NinjaOne-Agent-Nuvia-Inventory-WINDOWSDESKTOP-x86-64.msi"
         $service = Get-Service -Name "NinjaRMMAgent" -ErrorAction SilentlyContinue
 
         writeText -type "notice" -text "This computer will be in *Inventory after install."
