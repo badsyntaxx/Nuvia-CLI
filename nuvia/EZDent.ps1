@@ -1,3 +1,24 @@
+function vatechMenu {
+    try {
+        $installChoice = readOption -options $([ordered]@{
+                "get ezdent ver"    = "Get the EZDent version."
+                "get ezserver ver"  = "The the EZServer version."
+                "get ezdent config" = "Get the EZDent VTServerConfig."
+                "Exit"              = "Exit this script and go back to main command line."
+            }) -prompt "Select which apps to install." -lineAfter
+
+        switch ($installChoice) {
+            0 { getEZDentVersion }
+            1 { getEZServerVersion }
+            2 { getVTServerConfig }
+            Default { readCommand }
+        }
+    } catch {
+        # Display error message and end the script
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
+    }
+}
+
 function getEZDentVersion {
     writeText -type "plain" -text "Searching for EZDent client version"
 
