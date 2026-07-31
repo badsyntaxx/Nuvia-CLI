@@ -70,7 +70,14 @@ function getODConfig {
     
     if (Test-Path $filePath) {
         writeText -type "plain" -text "FreeDentalConfig.xml found:" -lineAfter
-        Get-Content $filePath
+        
+        # Force the content to be output properly
+        $content = Get-Content $filePath
+        foreach ($line in $content) {
+            Write-Host $line
+        }
+        # Add a blank line after
+        Write-Host ""
     } else {
         writeText -type "plain" -text "FreeDentalConfig.xml not found at: $filePath" -lineAfter
     }
