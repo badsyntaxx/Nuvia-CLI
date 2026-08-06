@@ -25,6 +25,4 @@ function getDTXVersion {
     if (-not $found) {
         writeText -type "warning" -text "Could not find the DTX Studio executable in the default paths." -lineAfter
     }
-
-    getODConfig
 }
