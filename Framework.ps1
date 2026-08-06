@@ -71,6 +71,7 @@ $global:commandMap = [ordered]@{
     "od version"                     = @("nuvia", "OpenDental", "getODVersion", "Get the OpenDental version.")
     "od config"                      = @("nuvia", "OpenDental", "getODConfig", "Get the OpenDental configuration.")
     "od install 24341"               = @("nuvia", "OpenDental", "install24341", "Install OpenDental version 24341.")
+    "dtx version"                    = @("nuvia", "DTX", "getDTXVersion", "Get the DTX Studio version.")
     "ezdent version"                 = @("nuvia", "EZDent", "getEZDentVersion", "Get the EZDent version number.")
     "ezsever version"                = @("nuvia", "EZDent", "getEZServerVersion", "Get the EZServer version number.")
     "vatech config"                  = @("nuvia", "EZDent", "getVTServerConfig", "Get the EZDent VTServerConfig.")

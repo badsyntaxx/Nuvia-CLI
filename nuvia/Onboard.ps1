@@ -153,8 +153,9 @@ function uninstallOneDrive {
         }
 
         if (-not $onedriveInstalled) {
-            writeText -type "warning" -text "OneDrive does not appear to be installed, skipping uninstall"
-            return
+            writeText -type "plain" -text "OneDrive not found. Skipping."
+            writeText -type "plain" -text "----------------------------------"
+            return  # <-- ADD THIS LINE TO EXIT THE FUNCTION
         }
 
         # Stop OneDrive process if running
@@ -197,7 +198,7 @@ function uninstallOneDrive {
                     continue
                 }
             } catch {
-                writeText -type "warning" -text "Direct uninstall failed for user $($u.Name): $($_.Exception.Message)"
+                writeText -type "notice" -text "Direct uninstall failed for user $($u.Name): $($_.Exception.Message)"
             }
 
             # Fallback to scheduled task method if direct uninstall fails
@@ -229,10 +230,10 @@ function uninstallOneDrive {
                     writeText -type "success" -text "OneDrive uninstalled for user: $($u.Name) via scheduled task"
                     $uninstalled = $true
                 } else {
-                    writeText -type "warning" -text "Failed to register scheduled task for user: $($u.Name)"
+                    writeText -type "notice" -text "Failed to register scheduled task for user: $($u.Name)"
                 }
             } catch {
-                writeText -type "warning" -text "Failed to uninstall OneDrive for user $($u.Name): $($_.Exception.Message)"
+                writeText -type "notice" -text "Failed to uninstall OneDrive for user $($u.Name): $($_.Exception.Message)"
                 Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
             }
         }
@@ -312,7 +313,7 @@ function uninstallOneDrive {
 
 function uninstallTeams {
     try {
-        writeText -type "plain" -text "Searching for Microsoft Teams" -lineBefore
+        writeText -type "plain" -text "Searching for Microsoft Teams"
         foreach ($proc in @("Teams", "ms-teams", "msteams")) {
             Get-Process -Name $proc -ErrorAction SilentlyContinue | Stop-Process -Force
         }
@@ -404,13 +405,13 @@ function disableTaskbarWidgets {
             }
             Set-ItemProperty -Path $widgetsUserPath -Name "TaskbarDa" -Value 0 -Type DWord -Force -ErrorAction Stop
         } catch {
-            writeText -type "warning" -text "Could not modify HKCU\...\TaskbarDa. This might require admin rights."
+            writeText -type "notice" -text "Could not modify HKCU\...\TaskbarDa. This might require admin rights."
             # Alternative: Use .NET method to write registry
             try {
                 [Microsoft.Win32.Registry]::SetValue("HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "TaskbarDa", 0, [Microsoft.Win32.RegistryValueKind]::DWord)
                 writeText -type "success" -text "TaskbarDa set using .NET method"
             } catch {
-                writeText -type "warning" -text "Could not set TaskbarDa. Widgets might still be disabled via policy."
+                writeText -type "notice" -text "Could not set TaskbarDa. Widgets might still be disabled via policy."
             }
         }
 
