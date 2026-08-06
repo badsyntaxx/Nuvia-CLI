@@ -230,6 +230,7 @@ function filterCommands {
                     } catch {
                         Write-Host "Error executing command: $($_.Exception.Message)" -ForegroundColor Red
                     }
+                    readCommand
                 }
             }
             
