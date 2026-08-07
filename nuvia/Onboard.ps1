@@ -435,42 +435,70 @@ function removeTaskbarPins {
         writeText -type "plain" -text "Removing Taskbar Pins"
         $appsToUnpin = @("Microsoft Edge", "Microsoft Store", "Dell Optimizer", "Dell Command Update")
         
-        foreach ($appName in $appsToUnpin) {
-            try {
-                $appPath = ((New-Object -Com Shell.Application).NameSpace('shell:::{4234d49b-0245-4df3-b780-3893943456e1}').Items() | Where-Object { $_.Name -like "*$appName*" })
-                if ($appPath) {
-                    $appPath | ForEach-Object {
-                        $_.Verbs() | Where-Object { $_.Name -match "Unpin from taskbar" } | ForEach-Object { $_.DoIt() }
-                    }
-                    writeText -type "success" -text "$appName Unpinned successfully"
+        # Get all taskbar pins
+        $shell = New-Object -Com Shell.Application
+        $taskbarItems = $shell.NameSpace('shell:::{4234d49b-0245-4df3-b780-3893943456e1}').Items()
+        
+        foreach ($item in $taskbarItems) {
+            $shouldUnpin = $false
+            foreach ($appName in $appsToUnpin) {
+                if ($item.Name -like "*$appName*") {
+                    $shouldUnpin = $true
+                    break
                 }
-            } catch {
-                writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
-                log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR" 
+            }
+            
+            if ($shouldUnpin) {
+                try {
+                    $verbs = $item.Verbs()
+                    $unpinVerb = $verbs | Where-Object { $_.Name -match "Unpin from taskbar" }
+                    if ($unpinVerb) {
+                        $unpinVerb.DoIt()
+                        writeText -type "success" -text "$($item.Name) Unpinned successfully"
+                    }
+                } catch {
+                    writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+                    log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR" 
+                }
             }
         }
 
+        # Clean up registry - but ONLY remove specific entries, not all
         $taskbarRegPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband"
         if (Test-Path $taskbarRegPath) {
-            Remove-ItemProperty -Path $taskbarRegPath -Name "FavoritesResolve" -ErrorAction SilentlyContinue
-            Remove-ItemProperty -Path $taskbarRegPath -Name "Favorites"        -ErrorAction SilentlyContinue
+            # Don't remove Favorites and FavoritesResolve as these might contain other pins
+            # Only remove if you're sure these only contain the apps you want to remove
+            # Remove-ItemProperty -Path $taskbarRegPath -Name "FavoritesResolve" -ErrorAction SilentlyContinue
+            # Remove-ItemProperty -Path $taskbarRegPath -Name "Favorites"        -ErrorAction SilentlyContinue
         }
 
         $taskbarLayoutFile = "$env:LOCALAPPDATA\Microsoft\Windows\Shell\LayoutModification.xml"
         if (Test-Path $taskbarLayoutFile) { 
-            Remove-Item $taskbarLayoutFile -Force -ErrorAction SilentlyContinue 
+            # Only remove if this file only contains the apps you want to remove
+            # Consider parsing the XML instead of deleting the entire file
+            # Remove-Item $taskbarLayoutFile -Force -ErrorAction SilentlyContinue 
         }
 
         $taskbarPinPath = "$env:APPDATA\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
         if (Test-Path $taskbarPinPath) {
+            # Only remove specific .lnk files, not all matching the pattern
             Get-ChildItem $taskbarPinPath -Filter "*.lnk" -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -match "Edge|Store|Dell Optimizer|Dell Command" } |
-            ForEach-Object { 
-                Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue 
+            ForEach-Object {
+                $shouldRemove = $false
+                foreach ($appName in $appsToUnpin) {
+                    if ($_.Name -match [regex]::Escape($appName)) {
+                        $shouldRemove = $true
+                        break
+                    }
+                }
+                if ($shouldRemove) {
+                    Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue
+                    writeText -type "info" -text "Removed shortcut: $($_.Name)"
+                }
             }
         }
 
-        writeText -type "success" -text "Taskbar Pins (Edge, Store, Dell apps) removed"
+        writeText -type "success" -text "Taskbar Pins removal completed"
     } catch {
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
