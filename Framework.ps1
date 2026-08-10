@@ -280,19 +280,17 @@ function log {
         [string]$msg,
         [Parameter(Position = 1)]
         [ValidateSet('INFO', 'WARNING', 'ERROR', 'DEBUG', 'SUCCESS')]
-        [string]$lvl = 'INFO',
-        [Parameter(Mandatory = $false)]
-        [string]$logDir = "C:\Nuvia\Logs\ShellCLI",
-        [Parameter(Mandatory = $false)]
-        [string]$logName = (Get-Date -Format "yyyy-MM-dd")
-
+        [string]$lvl = 'INFO'
     )
 
-    try {             
+    try {      
+        # Define log directory
+        $logDirectory = "C:\Nuvia\Logs\ShellCLI"
+        
         # Create log directory if it doesn't exist
-        if (-not (Test-Path -Path $logDir)) {
+        if (-not (Test-Path -Path $logDirectory)) {
             try {
-                New-Item -Path $logDir -ItemType Directory -Force -ErrorAction Stop | Out-Null
+                New-Item -Path $logDirectory -ItemType Directory -Force -ErrorAction Stop | Out-Null
             } catch {
                 Write-Error "Failed to create log directory: $_"
                 return
@@ -300,7 +298,9 @@ function log {
         }
         
         # Define log file path
-        $logFilePath = Join-Path -Path $logDir -ChildPath $logName
+        $dateStamp = Get-Date -Format "yyyy-MM-dd"
+        $logFileName = "${dateStamp}.log"
+        $logFilePath = Join-Path -Path $logDirectory -ChildPath $logFileName
 
         # Format log entry
         $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
@@ -309,8 +309,7 @@ function log {
         # Write to log file
         Add-Content -Path $logFilePath -Value $logEntry -ErrorAction Stop
     } catch {
-        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
-        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
+        Write-Error "Failed to write log entry: $_"
     }
 }
 function writeText {

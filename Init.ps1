@@ -128,5 +128,6 @@ function log {
         Write-Error "Failed to write log entry: $_"
     }
 }
+
 # Invoke the root of Shell CLI
 initializeShellCLI
