@@ -129,7 +129,8 @@ function invokeScript {
 
         Invoke-Expression $script
     } catch {
-        writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
 function readCommand {
@@ -183,6 +184,8 @@ function readCommand {
         $command = $command.ToLower()
         $command = $command.Trim()
         $filteredCommand = filterCommands -command $command
+
+        log -msg "Running command: $command"
             
         # Check if filterCommands returned a valid array (4 elements)
         if ($filteredCommand -and $filteredCommand.Count -eq 4) {
@@ -200,7 +203,8 @@ function readCommand {
             Invoke-Expression $shellCLI
         }
     } catch {
-        writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
 function filterCommands {
@@ -241,7 +245,8 @@ function filterCommands {
             readCommand
         }
     } catch {
-        writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
 function addScript {
@@ -254,7 +259,7 @@ function addScript {
 
     try {
         $url = "https://raw.githubusercontent.com/badsyntaxx/Nuvia-CLI/main"
-        if ($directory -eq 'windows' -or $directory -eq 'plugins') {
+        if ($directory -eq 'main' -or $directory -eq 'plugins') {
             $url = "https://raw.githubusercontent.com/badsyntaxx/shellcli/main"
         }
 
