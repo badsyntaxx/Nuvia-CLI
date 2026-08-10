@@ -27,7 +27,7 @@ function initializeShellCLI {
             Get-Item -ErrorAction SilentlyContinue "$env:SystemRoot\Temp\Framework.ps1" | Remove-Item -ErrorAction SilentlyContinue
 
             # Add a final line that will invoke the desired function
-            Add-Content -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -Value 'invokeScript -script "readCommand -command `"help`"" -initialize $true'
+            Add-Content -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -Value 'invokeScript -script "readCommand -command `"n?`"" -initialize $true'
 
             log -msg "Starting..."
             # Execute the combined script

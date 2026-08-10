@@ -64,6 +64,7 @@ $global:commandMap = [ordered]@{
     "plugins reclaim"                = @("plugins", "Reclaim", "reclaim", "Disable telemetry and bloatware in Windows 11.")
     #-- NUVIA COMMANDS --#
     "nuv"                            = @("nuvia", "Core", "nuvia", "Nuvia CLI plugin.")
+    "n?"                             = @("nuvia", "Core", "writeHelp", "Nuvia CLI plugin.")
     "n menu"                         = @("nuvia", "Core", "readMenu", "Display the Nuvia CLI menu.")
     "i jumpcloud"                    = @("nuvia", "Install JumpCloud", "installJumpCloud", "Install JumpCloud.")
     "i ninja"                        = @("nuvia", "Ninja", "installNinja", "Install Ninja.")
