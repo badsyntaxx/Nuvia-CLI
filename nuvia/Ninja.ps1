@@ -56,8 +56,8 @@ function installNinja {
 }
 function uninstallNinja {
     removeNinjaRMM
-    # removeNinjaRemote
-    # findMissingProductKeyNames
+    removeNinjaRemote
+    findMissingProductKeyNames
     writeText -type "success" -text "Ninja Successfully Uninstalled" -lineAfter
 }
 function removeNinjaRMM {
@@ -155,6 +155,7 @@ function removeNinjaDirectories {
     )
     
     foreach ($Dir in $Directories) {
+        write-host $Dir
         if ($Dir.Path -and (Test-Path $Dir.Path)) {
             writeText -type "plain" -text "Removing Ninja $($Dir.Name): $($Dir.Path)"
             try {
