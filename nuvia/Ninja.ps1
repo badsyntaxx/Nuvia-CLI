@@ -494,9 +494,8 @@ function restartNCStreamer {
             writeText -type "notice" -text "Service '$serviceName' not found."
         }
     } catch {
-        $errorMsg = "$($MyInvocation.MyCommand.Name)-Line $($_.InvocationInfo.ScriptLineNumber): $($_.Exception.Message)"
-        writeText -type "error" -text $errorMsg
-        log -msg $errorMsg -lvl "ERROR"
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
 
@@ -526,9 +525,8 @@ function restartRMMAgent {
             writeText -type "notice" -text "Service '$serviceName' not found."
         }
     } catch {
-        $errorMsg = "$($MyInvocation.MyCommand.Name)-Line $($_.InvocationInfo.ScriptLineNumber): $($_.Exception.Message)"
-        writeText -type "error" -text $errorMsg
-        log -msg $errorMsg -lvl "ERROR"
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
 function restartNinjaService {
