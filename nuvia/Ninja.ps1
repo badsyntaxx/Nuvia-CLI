@@ -113,7 +113,7 @@ function findNinjaInstallPaths {
             }
         }
     } catch {
-        writeText -type "warning" -text "Unable to locate Ninja installation path. Continuing with cleanup..." -lineAfter
+        writeText -type "notice" -text "Unable to locate Ninja installation path. Continuing with cleanup..." -lineAfter
     }
     
     return $null
@@ -152,112 +152,6 @@ function invokeNinjaMSIUninstall {
     Start-Sleep -Seconds 30
 }
 
-function stopNinjaProcess {
-    $Processes = @("NinjaRMMAgent", "NinjaRMMAgentPatcher", "njbar", "NinjaRMMProxyProcess64")
-    
-    foreach ($ProcessName in $Processes) {
-        $Process = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
-        if ($Process) {
-            try {
-                Stop-Process $Process -Force -ErrorAction Stop
-                writeText -type "success" -text "Successfully stopped process: $ProcessName" -lineAfter
-            } catch {
-                writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
-            }
-        }
-    }
-}
-
-function removeNinjaServices {
-    param (
-        [string]$InstallLocation
-    )
-    
-    $Services = @('NinjaRMMAgent', 'nmsmanager', 'lockhart')
-    
-    foreach ($ServiceName in $Services) {
-        if ($ServiceName -eq 'lockhart' -and !(Test-Path "$InstallLocation\lockhart\bin\lockhart.exe")) {
-            continue
-        }
-        
-        $Service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
-        if ($Service) {
-            try {
-                writeText -type "plain" -text "Stopping service: $ServiceName"
-                Stop-Service $ServiceName -Force -ErrorAction Stop
-            } catch {
-                writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
-            }
-            
-            & sc.exe DELETE $ServiceName
-            Start-Sleep -Seconds 5
-            
-            if (Get-Service -Name $ServiceName -ErrorAction SilentlyContinue) {
-                writeText -type "warning" -text "Failed to remove $ServiceName service. Continuing..." -lineAfter
-            } else {
-                writeText -type "success" -text "Successfully removed $ServiceName service" -lineAfter
-            }
-        }
-    }
-}
-
-function removeNinjaDirectories {
-    param (
-        [string]$InstallLocation
-    )
-    
-    $Directories = @(
-        @{Path = $InstallLocation; Name = 'installation directory' },
-        @{Path = "$env:ProgramData\NinjaRMMAgent"; Name = 'data directory' },
-        @{Path = "$env:ProgramFiles\WindowsPowerShell\Modules\NJCliPSh"; Name = 'PowerShell module directory' }
-        @{Path = "$env:ProgramFiles\NinjaOne"; Name = 'NinjeOne' }
-    )
-    
-    foreach ($Dir in $Directories) {
-        if ($Dir.Path -and (Test-Path $Dir.Path)) {
-            writeText -type "plain" -text "Removing Ninja $($Dir.Name): $($Dir.Path)"
-            try {
-                Remove-Item $Dir.Path -Recurse -Force -ErrorAction Stop
-                writeText -type "success" -text "Successfully removed"
-            } catch {
-                writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
-            }
-        }
-    }
-}
-
-function removeNinjaRegistryItems {
-    $RegPaths = getNinjaRegistryPaths
-    $KeysToRemove = [System.Collections.Generic.List[string]]::new()
-    
-    # Collect registry keys
-    (Get-ItemProperty $RegPaths.Uninstall | Where-Object { $_.DisplayName -eq 'NinjaRMMAgent' }).PSPath | ForEach-Object { $KeysToRemove.Add($_) }
-    (Get-ItemProperty $RegPaths.ProductInstaller | Where-Object { $_.ProductName -eq 'NinjaRMMAgent' }).PSPath | ForEach-Object { $KeysToRemove.Add($_) }
-    (Get-ChildItem $RegPaths.MSIWrapper | Where-Object { $_.Name -match 'NinjaRMMAgent' }).PSPath | ForEach-Object { $KeysToRemove.Add($_) }
-    
-    Get-ChildItem $RegPaths.HKCRInstaller | ForEach-Object {
-        if ((Get-ItemPropertyValue $_.PSPath -Name 'ProductName' -ErrorAction SilentlyContinue) -eq 'NinjaRMMAgent') {
-            $KeysToRemove.Add($_.PSPath)
-        }
-    }
-    
-    # Additional product installer keys
-    Get-ChildItem $RegPaths.ProductInstaller | ForEach-Object {
-        $InstallProps = "$($_.PSPath)\InstallProperties"
-        if ((Get-ItemProperty $InstallProps -ErrorAction SilentlyContinue) | Where-Object { $_.DisplayName -eq 'NinjaRMMAgent' }) {
-            $KeysToRemove.Add($_.PSPath)
-        }
-    }
-    
-    writeText -type "plain" -text "Removing registry items if found..."
-    foreach ($Key in $KeysToRemove | Where-Object { $_ }) {
-        removeRegistryKey -RegPath $Key
-    }
-    
-    # Remove main registry path
-    removeRegistryKey -RegPath $RegPaths.Main
-}
-
 function removeNinjaRemoteService {
     $ServiceName = 'ncstreamer'
     $ProcessName = 'ncstreamer'
@@ -279,14 +173,14 @@ function removeNinjaRemoteService {
         try {
             Stop-Service $ServiceName -Force -ErrorAction Stop
         } catch {
-            writeText -type "warning" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
+            writeText -type "notice" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
         }
         
         & sc.exe DELETE $ServiceName
         Start-Sleep -Seconds 5
         
         if (Get-Service -Name $ServiceName -ErrorAction SilentlyContinue) {
-            writeText -type "warning" -text "Failed to remove Ninja Remote service. Continuing..." -lineAfter
+            writeText -type "notice" -text "Failed to remove Ninja Remote service. Continuing..." -lineAfter
         }
     }
 }
@@ -417,6 +311,7 @@ function removeNinjaRemote {
 }
 
 function removeNinjaRMM {
+    writeText -type "plain" -text "Starting Ninja RMM removal..."
     $InstallPath = findNinjaInstallPaths
     
     # Disable uninstall prevention if installation found
@@ -430,7 +325,7 @@ function removeNinjaRMM {
     if ($UninstallString) {
         invokeNinjaMSIUninstall -UninstallString $UninstallString
     } else {
-        writeText -type "warning" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
+        writeText -type "notice" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
     }
     
     # Cleanup operations
@@ -439,7 +334,114 @@ function removeNinjaRMM {
     removeNinjaDirectories -InstallLocation $InstallPath
     removeNinjaRegistryItems
 }
+function stopNinjaProcess {
+    writeText -type "plain" -text "Stopping Ninja processes..."
+    $Processes = @("NinjaRMMAgent", "NinjaRMMAgentPatcher", "njbar", "NinjaRMMProxyProcess64")
+    
+    foreach ($ProcessName in $Processes) {
+        $Process = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
+        if ($Process) {
+            try {
+                Stop-Process $Process -Force -ErrorAction Stop
+                writeText -type "success" -text "Successfully stopped process: $ProcessName" -lineAfter
+            } catch {
+                writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
+            }
+        }
+    }
+}
+function removeNinjaServices {
+    param (
+        [string]$InstallLocation
+    )
 
+    writeText -type "plain" -text "Removing Ninja services..."
+    
+    $Services = @('NinjaRMMAgent', 'nmsmanager', 'lockhart')
+    
+    foreach ($ServiceName in $Services) {
+        if ($ServiceName -eq 'lockhart' -and !(Test-Path "$InstallLocation\lockhart\bin\lockhart.exe")) {
+            continue
+        }
+        
+        $Service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
+        if ($Service) {
+            try {
+                writeText -type "plain" -text "Stopping service: $ServiceName"
+                Stop-Service $ServiceName -Force -ErrorAction Stop
+            } catch {
+                writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
+            }
+            
+            & sc.exe DELETE $ServiceName
+            Start-Sleep -Seconds 5
+            
+            if (Get-Service -Name $ServiceName -ErrorAction SilentlyContinue) {
+                writeText -type "notice" -text "Failed to remove $ServiceName service. Continuing..." -lineAfter
+            } else {
+                writeText -type "plain" -text "Successfully removed $ServiceName service" -lineAfter
+            }
+        }
+    }
+}
+function removeNinjaDirectories {
+    param (
+        [string]$InstallLocation
+    )
+
+    writeText -type "plain" -text "Removing Ninja directories..."
+    
+    $Directories = @(
+        @{Path = $InstallLocation; Name = 'installation directory' },
+        @{Path = "$env:ProgramData\NinjaRMMAgent"; Name = 'data directory' },
+        @{Path = "$env:ProgramFiles\WindowsPowerShell\Modules\NJCliPSh"; Name = 'PowerShell module directory' }
+        @{Path = "$env:ProgramFiles\NinjaOne"; Name = 'NinjeOne' }
+    )
+    
+    foreach ($Dir in $Directories) {
+        if ($Dir.Path -and (Test-Path $Dir.Path)) {
+            writeText -type "plain" -text "Removing Ninja $($Dir.Name): $($Dir.Path)"
+            try {
+                Remove-Item $Dir.Path -Recurse -Force -ErrorAction Stop
+                writeText -type "success" -text "Ninja directories removed"
+            } catch {
+                writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
+            }
+        }
+    }
+}
+function removeNinjaRegistryItems {
+    writeText -type "plain" -text "Removing Ninja registry items..."
+    $RegPaths = getNinjaRegistryPaths
+    $KeysToRemove = [System.Collections.Generic.List[string]]::new()
+    
+    # Collect registry keys
+    (Get-ItemProperty $RegPaths.Uninstall | Where-Object { $_.DisplayName -eq 'NinjaRMMAgent' }).PSPath | ForEach-Object { $KeysToRemove.Add($_) }
+    (Get-ItemProperty $RegPaths.ProductInstaller | Where-Object { $_.ProductName -eq 'NinjaRMMAgent' }).PSPath | ForEach-Object { $KeysToRemove.Add($_) }
+    (Get-ChildItem $RegPaths.MSIWrapper | Where-Object { $_.Name -match 'NinjaRMMAgent' }).PSPath | ForEach-Object { $KeysToRemove.Add($_) }
+    
+    Get-ChildItem $RegPaths.HKCRInstaller | ForEach-Object {
+        if ((Get-ItemPropertyValue $_.PSPath -Name 'ProductName' -ErrorAction SilentlyContinue) -eq 'NinjaRMMAgent') {
+            $KeysToRemove.Add($_.PSPath)
+        }
+    }
+    
+    # Additional product installer keys
+    Get-ChildItem $RegPaths.ProductInstaller | ForEach-Object {
+        $InstallProps = "$($_.PSPath)\InstallProperties"
+        if ((Get-ItemProperty $InstallProps -ErrorAction SilentlyContinue) | Where-Object { $_.DisplayName -eq 'NinjaRMMAgent' }) {
+            $KeysToRemove.Add($_.PSPath)
+        }
+    }
+    
+    writeText -type "plain" -text "Removing registry items if found..."
+    foreach ($Key in $KeysToRemove | Where-Object { $_ }) {
+        removeRegistryKey -RegPath $Key
+    }
+    
+    # Remove main registry path
+    removeRegistryKey -RegPath $RegPaths.Main
+}
 function findMissingProductKeyNames {
     $MissingPNs = [System.Collections.Generic.List[string]]::new()
     $ChildKeys = Get-ChildItem 'HKLM:\Software\Classes\Installer\Products' -ErrorAction SilentlyContinue
@@ -457,13 +459,13 @@ function findMissingProductKeyNames {
     }
     
     if ($MissingPNs.Count -gt 0) {
-        writeText -type "warning" -text "############################# !!! WARNING !!! ####################################" -lineAfter
-        writeText -type "warning" -text "Some registry keys are missing the Product Name." -lineAfter
-        writeText -type "warning" -text "This could be an indicator of a corrupt Ninja install key." -lineAfter
-        writeText -type "warning" -text "If you are still unable to install the NinjaOne Agent after running this script..." -lineAfter
-        writeText -type "warning" -text "Please make a backup of the following keys and then remove them from the registry:" -lineAfter
-        writeText -type "warning" -text ($MissingPNs | Out-String) -lineAfter
-        writeText -type "warning" -text "##################################################################################" -lineAfter
+        writeText -type "notice" -text "############################# !!! WARNING !!! ####################################" -lineAfter
+        writeText -type "notice" -text "Some registry keys are missing the Product Name." -lineAfter
+        writeText -type "notice" -text "This could be an indicator of a corrupt Ninja install key." -lineAfter
+        writeText -type "notice" -text "If you are still unable to install the NinjaOne Agent after running this script..." -lineAfter
+        writeText -type "notice" -text "Please make a backup of the following keys and then remove them from the registry:" -lineAfter
+        writeText -type "notice" -text ($MissingPNs | Out-String) -lineAfter
+        writeText -type "notice" -text "##################################################################################" -lineAfter
     }
 }
 function restartNCStreamer {

@@ -53,13 +53,13 @@ function getODVersion {
                 $found = $true
                 break
             } catch {
-                writeText -type "warning" -text "Could not read version information from $path" -lineAfter
+                writeText -type "notice" -text "Could not read version information from $path" -lineAfter
             }
         }
     }
 
     if (-not $found) {
-        writeText -type "warning" -text "Could not find the DTX Studio executable in the default paths." -lineAfter
+        writeText -type "notice" -text "Could not find the DTX Studio executable in the default paths." -lineAfter
     }
 
     getODConfig
