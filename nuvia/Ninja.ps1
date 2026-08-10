@@ -69,8 +69,9 @@ function removeNinjaRMM {
         if ($installPath -and (Test-Path "$installPath\NinjaRMMAgent.exe")) {
             writeText -type "plain" -text "Disabling uninstall prevention..."
             Start-Process "$installPath\NinjaRMMAgent.exe" -ArgumentList "-disableUninstallPrevention NOUI" -Wait -NoNewWindow
+            write-host "Uninstall prevention disabled."
         }
-
+        write-host "trying msi uninstall"
         # Run MSI uninstaller
         $UninstallString = getNinjaUninstallString
         if ($UninstallString) {
