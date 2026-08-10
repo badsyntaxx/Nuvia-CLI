@@ -60,278 +60,30 @@ function uninstallNinja {
     findMissingProductKeyNames
     writeText -type "success" -text "Ninja Successfully Uninstalled" -lineAfter
 }
-
-function getNinjaRegistryPaths {
-    $Paths = @{
-        Main             = 'HKLM:\SOFTWARE\WOW6432Node\NinjaRMM LLC\NinjaRMMAgent'
-        Uninstall        = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
-        MSIWrapper       = 'HKLM:\SOFTWARE\WOW6432Node\EXEMSI.COM\MSI Wrapper\Installed'
-        ProductInstaller = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Products'
-        HKCRInstaller    = 'Registry::\HKEY_CLASSES_ROOT\Installer\Products'
-    }
-    
-    if (!([System.Environment]::Is64BitOperatingSystem)) {
-        $Paths.Main = 'HKLM:\SOFTWARE\NinjaRMM LLC\NinjaRMMAgent'
-        $Paths.Uninstall = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
-    }
-    
-    return $Paths
-}
-
-function removeRegistryKey {
-    param (
-        [Parameter(Mandatory = $true)]
-        [string]$RegPath
-    )
-    
-    if (Test-Path $RegPath) {
-        try {
-            writeText -type "plain" -text "Removing registry key: $RegPath"
-            Remove-Item $RegPath -Recurse -Force -ErrorAction Stop
-            writeText -type "success" -text "Successfully removed registry key" -lineAfter
-            return $true
-        } catch {
-            writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
-            return $false
-        }
-    }
-    return $false
-}
-
-function findNinjaInstallPaths {
-    $RegPaths = getNinjaRegistryPaths
-    
-    try {
-        $InstallLocation = (Get-ItemPropertyValue $RegPaths.Main -Name Location -ErrorAction Stop).Replace('/', '\')
-        
-        if (Test-Path "$InstallLocation\NinjaRMMAgent.exe") {
-            return $InstallLocation
-        } else {
-            $ServicePath = ((Get-CimInstance Win32_Service | Where-Object { $_.Name -eq 'NinjaRMMAgent' }).PathName).Trim('"')
-            if (Test-Path $ServicePath) {
-                return $ServicePath | Split-Path
-            }
-        }
-    } catch {
-        writeText -type "notice" -text "Unable to locate Ninja installation path. Continuing with cleanup..." -lineAfter
-    }
-    
-    return $null
-}
-
-function getNinjaUninstallString {
-    $RegPaths = getNinjaRegistryPaths
-    
-    $UninstallString = (Get-ItemProperty $RegPaths.Uninstall | 
-        Where-Object { ($_.DisplayName -eq 'NinjaRMMAgent') -and ($_.UninstallString -match 'msiexec') }).UninstallString
-    
-    if ($UninstallString) {
-        return $UninstallString.Split('X')[1]
-    }
-    
-    return $null
-}
-
-function invokeNinjaMSIUninstall {
-    param (
-        [Parameter(Mandatory = $true)]
-        [string]$UninstallString
-    )
-    
-    $Arguments = @(
-        "/x$UninstallString"
-        '/quiet'
-        '/L*V'
-        "$env:windir\temp\NinjaRMMAgent_uninstall.log"
-        "WRAPPED_ARGUMENTS=`"--mode unattended`""
-    )
-    
-    writeText -type "plain" -text "Starting MSI uninstaller..."
-    Start-Process "msiexec.exe" -ArgumentList $Arguments -Wait -NoNewWindow
-    writeText -type "plain" -text "Finished running uninstaller. Continuing to clean up..."
-    Start-Sleep -Seconds 30
-}
-
-function removeNinjaRemoteService {
-    $ServiceName = 'ncstreamer'
-    $ProcessName = 'ncstreamer'
-    
-    # Stop process
-    $Process = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
-    if ($Process) {
-        writeText -type "plain" -text "Stopping Ninja Remote process..."
-        try {
-            Stop-Process $Process -Force -ErrorAction Stop
-        } catch {
-            writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
-        }
-    }
-    
-    # Stop and remove service
-    $Service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
-    if ($Service) {
-        try {
-            Stop-Service $ServiceName -Force -ErrorAction Stop
-        } catch {
-            writeText -type "notice" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
-        }
-        
-        & sc.exe DELETE $ServiceName
-        Start-Sleep -Seconds 5
-        
-        if (Get-Service -Name $ServiceName -ErrorAction SilentlyContinue) {
-            writeText -type "notice" -text "Failed to remove Ninja Remote service. Continuing..." -lineAfter
-        }
-    }
-}
-
-function removeNinjaRemoteDriver {
-    $DriverName = 'nrvirtualdisplay.inf'
-    $DriverCheck = pnputil /enum-drivers | Where-Object { $_ -match $DriverName }
-    
-    if ($DriverCheck) {
-        writeText -type "plain" -text "Ninja Remote Virtual Driver found. Removing..."
-        
-        $DriversArray = [System.Collections.Generic.List[object]]::new()
-        $CurrentDriver = @{}
-        
-        $DriverBreakdown = pnputil /enum-drivers | Where-Object { $_ -ne 'Microsoft PnP Utility' }
-        
-        foreach ($Line in $DriverBreakdown) {
-            if ($Line -ne "") {
-                $ObjectName = $Line.Split(':').Trim()[0]
-                $ObjectValue = $Line.Split(':').Trim()[1]
-                $CurrentDriver[$ObjectName] = $ObjectValue
-            } else {
-                if ($CurrentDriver.Count -gt 0) {
-                    $DriversArray.Add([PSCustomObject]$CurrentDriver)
-                    $CurrentDriver = @{}
-                }
-            }
-        }
-        
-        $DriverToRemove = ($DriversArray | Where-Object { $_.'Provider Name' -eq 'NinjaOne' }).'Published Name'
-        if ($DriverToRemove) {
-            pnputil /delete-driver "$DriverToRemove" /force
-        }
-    }
-}
-
-function removeNinjaRemoteDirectories {
-    $Directories = @(
-        "$env:ProgramFiles\NinjaRemote",
-        "$env:SystemDrive\Users\Public\Documents\NrSpool\NrPdfPrint"
-    )
-    
-    foreach ($Directory in $Directories) {
-        if (Test-Path $Directory) {
-            writeText -type "plain" -text "Removing directory: $Directory"
-            try {
-                Remove-Item $Directory -Recurse -Force -ErrorAction Stop
-            } catch {
-                writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
-            }
-        }
-    }
-}
-
-function removeNinjaRemoteRegistriesForUser {
-    param (
-        [Parameter(Mandatory = $true)]
-        [string]$SID
-    )
-    
-    $RunRegPath = "Registry::\HKEY_USERS\$SID\SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
-    $SoftwareRegPath = "Registry::\HKEY_USERS\$SID\Software\NinjaRMM LLC"
-    
-    # Remove Run registry entries
-    if (Test-Path $RunRegPath) {
-        $RunValues = Get-ItemProperty -Path $RunRegPath
-        $PropertiesToRemove = $RunValues.PSObject.Properties | Where-Object { $_.Name -match "NinjaRMM|NinjaOne" }
-        
-        foreach ($Property in $PropertiesToRemove) {
-            writeText -type "plain" -text "Removing registry entry: $($Property.Name) = $($Property.Value)"
-            Remove-ItemProperty -Path $RunRegPath -Name $Property.Name -Force -ErrorAction SilentlyContinue
-        }
-    }
-    
-    # Remove software registry key
-    removeRegistryKey -RegPath $SoftwareRegPath
-    
-    # Remove HKU base key
-    removeRegistryKey -RegPath "Registry::\HKEY_USERS\S-1-5-18\Software\NinjaRMM LLC"
-}
-
-function removeNinjaRemoteRegistries {
-    $AllProfiles = Get-CimInstance Win32_UserProfile | 
-    Where-Object { $_.SID -like "S-1-5-21-*" }
-    
-    $Mounted = $AllProfiles | Where-Object { $_.Loaded -eq $true }
-    $Unmounted = $AllProfiles | Where-Object { $_.Loaded -eq $false }
-    
-    # Process mounted profiles
-    foreach ($Profile in $Mounted) {
-        writeText -type "plain" -text "Removing registry items for $($Profile.LocalPath)"
-        removeNinjaRemoteRegistriesForUser -SID $Profile.SID
-    }
-    
-    # Process unmounted profiles
-    foreach ($Profile in $Unmounted) {
-        $HivePath = "$($Profile.LocalPath)\NTUSER.DAT"
-        if (Test-Path $HivePath) {
-            writeText -type "plain" -text "Loading hive and removing Ninja Remote registry items for $($Profile.LocalPath)..."
-            
-            REG LOAD "HKU\$($Profile.SID)" $HivePath 2>&1 > $null
-            removeNinjaRemoteRegistriesForUser -SID $Profile.SID
-            
-            [GC]::Collect()
-            [GC]::WaitForPendingFinalizers()
-            
-            REG UNLOAD "HKU\$($Profile.SID)" 2>&1 > $null
-        }
-    }
-}
-
-function removeNinjaRemotePrinter {
-    $Printer = Get-Printer -Name 'NinjaRemote' -ErrorAction SilentlyContinue
-    if ($Printer) {
-        writeText -type "plain" -text "Removing Ninja Remote printer..."
-        Remove-Printer -InputObject $Printer -ErrorAction SilentlyContinue
-    }
-}
-
-function removeNinjaRemote {
-    writeText -type "plain" -text "Starting Ninja Remote removal..."
-    removeNinjaRemoteService
-    removeNinjaRemoteDriver
-    removeNinjaRemoteDirectories
-    removeNinjaRemoteRegistries
-    removeNinjaRemotePrinter
-    writeText -type "plain" -text "Ninja Remote removal complete"
-}
-
 function removeNinjaRMM {
     writeText -type "plain" -text "Starting Ninja RMM removal..."
-    $InstallPath = findNinjaInstallPaths
+    $installPath = findNinjaInstallPaths
     
     # Disable uninstall prevention if installation found
-    if ($InstallPath -and (Test-Path "$InstallPath\NinjaRMMAgent.exe")) {
+    if ($installPath -and (Test-Path "$installPath\NinjaRMMAgent.exe")) {
         writeText -type "plain" -text "Disabling uninstall prevention..."
-        Start-Process "$InstallPath\NinjaRMMAgent.exe" -ArgumentList "-disableUninstallPrevention NOUI" -Wait -NoNewWindow
+        Start-Process "$installPath\NinjaRMMAgent.exe" -ArgumentList "-disableUninstallPrevention NOUI" -Wait -NoNewWindow
+        write-host "disabled"
     }
     
     # Run MSI uninstaller
     $UninstallString = getNinjaUninstallString
     if ($UninstallString) {
+        write-host "uninstall string found"
         invokeNinjaMSIUninstall -UninstallString $UninstallString
     } else {
         writeText -type "notice" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
     }
-    
+    write-host "doing rest"
     # Cleanup operations
     stopNinjaProcess
-    removeNinjaServices -InstallLocation $InstallPath
-    removeNinjaDirectories -InstallLocation $InstallPath
+    removeNinjaServices -InstallLocation $installPath
+    removeNinjaDirectories -InstallLocation $installPath
     removeNinjaRegistryItems
 }
 function stopNinjaProcess {
@@ -441,6 +193,243 @@ function removeNinjaRegistryItems {
     
     # Remove main registry path
     removeRegistryKey -RegPath $RegPaths.Main
+}
+function getNinjaRegistryPaths {
+    $Paths = @{
+        Main             = 'HKLM:\SOFTWARE\WOW6432Node\NinjaRMM LLC\NinjaRMMAgent'
+        Uninstall        = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+        MSIWrapper       = 'HKLM:\SOFTWARE\WOW6432Node\EXEMSI.COM\MSI Wrapper\Installed'
+        ProductInstaller = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Products'
+        HKCRInstaller    = 'Registry::\HKEY_CLASSES_ROOT\Installer\Products'
+    }
+    
+    if (!([System.Environment]::Is64BitOperatingSystem)) {
+        $Paths.Main = 'HKLM:\SOFTWARE\NinjaRMM LLC\NinjaRMMAgent'
+        $Paths.Uninstall = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+    }
+    
+    return $Paths
+}
+function removeRegistryKey {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$RegPath
+    )
+    
+    if (Test-Path $RegPath) {
+        try {
+            writeText -type "plain" -text "Removing registry key: $RegPath"
+            Remove-Item $RegPath -Recurse -Force -ErrorAction Stop
+            writeText -type "success" -text "Successfully removed registry key" -lineAfter
+            return $true
+        } catch {
+            writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
+            return $false
+        }
+    }
+    return $false
+}
+function findNinjaInstallPaths {
+    $RegPaths = getNinjaRegistryPaths
+    
+    try {
+        $InstallLocation = (Get-ItemPropertyValue $RegPaths.Main -Name Location -ErrorAction Stop).Replace('/', '\')
+        
+        if (Test-Path "$InstallLocation\NinjaRMMAgent.exe") {
+            return $InstallLocation
+        } else {
+            $ServicePath = ((Get-CimInstance Win32_Service | Where-Object { $_.Name -eq 'NinjaRMMAgent' }).PathName).Trim('"')
+            if (Test-Path $ServicePath) {
+                return $ServicePath | Split-Path
+            }
+        }
+    } catch {
+        writeText -type "notice" -text "Unable to locate Ninja installation path. Continuing with cleanup..." -lineAfter
+    }
+    
+    return $null
+}
+function getNinjaUninstallString {
+    $RegPaths = getNinjaRegistryPaths
+    
+    $UninstallString = (Get-ItemProperty $RegPaths.Uninstall | 
+        Where-Object { ($_.DisplayName -eq 'NinjaRMMAgent') -and ($_.UninstallString -match 'msiexec') }).UninstallString
+    
+    if ($UninstallString) {
+        return $UninstallString.Split('X')[1]
+    }
+    
+    return $null
+}
+function invokeNinjaMSIUninstall {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$UninstallString
+    )
+    
+    $Arguments = @(
+        "/x$UninstallString"
+        '/quiet'
+        '/L*V'
+        "$env:windir\temp\NinjaRMMAgent_uninstall.log"
+        "WRAPPED_ARGUMENTS=`"--mode unattended`""
+    )
+    
+    writeText -type "plain" -text "Starting MSI uninstaller..."
+    Start-Process "msiexec.exe" -ArgumentList $Arguments -Wait -NoNewWindow
+    writeText -type "plain" -text "Finished running uninstaller. Continuing to clean up..."
+    Start-Sleep -Seconds 30
+}
+function removeNinjaRemoteService {
+    $ServiceName = 'ncstreamer'
+    $ProcessName = 'ncstreamer'
+    
+    # Stop process
+    $Process = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
+    if ($Process) {
+        writeText -type "plain" -text "Stopping Ninja Remote process..."
+        try {
+            Stop-Process $Process -Force -ErrorAction Stop
+        } catch {
+            writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
+        }
+    }
+    
+    # Stop and remove service
+    $Service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
+    if ($Service) {
+        try {
+            Stop-Service $ServiceName -Force -ErrorAction Stop
+        } catch {
+            writeText -type "notice" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
+        }
+        
+        & sc.exe DELETE $ServiceName
+        Start-Sleep -Seconds 5
+        
+        if (Get-Service -Name $ServiceName -ErrorAction SilentlyContinue) {
+            writeText -type "notice" -text "Failed to remove Ninja Remote service. Continuing..." -lineAfter
+        }
+    }
+}
+function removeNinjaRemoteDriver {
+    $DriverName = 'nrvirtualdisplay.inf'
+    $DriverCheck = pnputil /enum-drivers | Where-Object { $_ -match $DriverName }
+    
+    if ($DriverCheck) {
+        writeText -type "plain" -text "Ninja Remote Virtual Driver found. Removing..."
+        
+        $DriversArray = [System.Collections.Generic.List[object]]::new()
+        $CurrentDriver = @{}
+        
+        $DriverBreakdown = pnputil /enum-drivers | Where-Object { $_ -ne 'Microsoft PnP Utility' }
+        
+        foreach ($Line in $DriverBreakdown) {
+            if ($Line -ne "") {
+                $ObjectName = $Line.Split(':').Trim()[0]
+                $ObjectValue = $Line.Split(':').Trim()[1]
+                $CurrentDriver[$ObjectName] = $ObjectValue
+            } else {
+                if ($CurrentDriver.Count -gt 0) {
+                    $DriversArray.Add([PSCustomObject]$CurrentDriver)
+                    $CurrentDriver = @{}
+                }
+            }
+        }
+        
+        $DriverToRemove = ($DriversArray | Where-Object { $_.'Provider Name' -eq 'NinjaOne' }).'Published Name'
+        if ($DriverToRemove) {
+            pnputil /delete-driver "$DriverToRemove" /force
+        }
+    }
+}
+function removeNinjaRemoteDirectories {
+    $Directories = @(
+        "$env:ProgramFiles\NinjaRemote",
+        "$env:SystemDrive\Users\Public\Documents\NrSpool\NrPdfPrint"
+    )
+    
+    foreach ($Directory in $Directories) {
+        if (Test-Path $Directory) {
+            writeText -type "plain" -text "Removing directory: $Directory"
+            try {
+                Remove-Item $Directory -Recurse -Force -ErrorAction Stop
+            } catch {
+                writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
+            }
+        }
+    }
+}
+function removeNinjaRemoteRegistriesForUser {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$SID
+    )
+    
+    $RunRegPath = "Registry::\HKEY_USERS\$SID\SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
+    $SoftwareRegPath = "Registry::\HKEY_USERS\$SID\Software\NinjaRMM LLC"
+    
+    # Remove Run registry entries
+    if (Test-Path $RunRegPath) {
+        $RunValues = Get-ItemProperty -Path $RunRegPath
+        $PropertiesToRemove = $RunValues.PSObject.Properties | Where-Object { $_.Name -match "NinjaRMM|NinjaOne" }
+        
+        foreach ($Property in $PropertiesToRemove) {
+            writeText -type "plain" -text "Removing registry entry: $($Property.Name) = $($Property.Value)"
+            Remove-ItemProperty -Path $RunRegPath -Name $Property.Name -Force -ErrorAction SilentlyContinue
+        }
+    }
+    
+    # Remove software registry key
+    removeRegistryKey -RegPath $SoftwareRegPath
+    
+    # Remove HKU base key
+    removeRegistryKey -RegPath "Registry::\HKEY_USERS\S-1-5-18\Software\NinjaRMM LLC"
+}
+function removeNinjaRemoteRegistries {
+    $AllProfiles = Get-CimInstance Win32_UserProfile | 
+    Where-Object { $_.SID -like "S-1-5-21-*" }
+    
+    $Mounted = $AllProfiles | Where-Object { $_.Loaded -eq $true }
+    $Unmounted = $AllProfiles | Where-Object { $_.Loaded -eq $false }
+    
+    # Process mounted profiles
+    foreach ($Profile in $Mounted) {
+        writeText -type "plain" -text "Removing registry items for $($Profile.LocalPath)"
+        removeNinjaRemoteRegistriesForUser -SID $Profile.SID
+    }
+    
+    # Process unmounted profiles
+    foreach ($Profile in $Unmounted) {
+        $HivePath = "$($Profile.LocalPath)\NTUSER.DAT"
+        if (Test-Path $HivePath) {
+            writeText -type "plain" -text "Loading hive and removing Ninja Remote registry items for $($Profile.LocalPath)..."
+            
+            REG LOAD "HKU\$($Profile.SID)" $HivePath 2>&1 > $null
+            removeNinjaRemoteRegistriesForUser -SID $Profile.SID
+            
+            [GC]::Collect()
+            [GC]::WaitForPendingFinalizers()
+            
+            REG UNLOAD "HKU\$($Profile.SID)" 2>&1 > $null
+        }
+    }
+}
+function removeNinjaRemotePrinter {
+    $Printer = Get-Printer -Name 'NinjaRemote' -ErrorAction SilentlyContinue
+    if ($Printer) {
+        writeText -type "plain" -text "Removing Ninja Remote printer..."
+        Remove-Printer -InputObject $Printer -ErrorAction SilentlyContinue
+    }
+}
+function removeNinjaRemote {
+    writeText -type "plain" -text "Starting Ninja Remote removal..."
+    removeNinjaRemoteService
+    removeNinjaRemoteDriver
+    removeNinjaRemoteDirectories
+    removeNinjaRemoteRegistries
+    removeNinjaRemotePrinter
+    writeText -type "plain" -text "Ninja Remote removal complete"
 }
 function findMissingProductKeyNames {
     $MissingPNs = [System.Collections.Generic.List[string]]::new()
