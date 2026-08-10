@@ -1,13 +1,3 @@
-function nuvia {
-    Write-Host
-    Write-Host " $([char]0x250C)" -NoNewline -ForegroundColor "Gray"
-    Write-Host " Try" -NoNewline
-    Write-Host " n help" -ForegroundColor "Cyan" -NoNewline
-    Write-Host " or" -NoNewline
-    Write-Host " n menu" -NoNewline -ForegroundColor "Cyan"
-    Write-Host " if you get stuck."
-    Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
-}
 function readMenu {
     try {
         $choice = readOption -options $([ordered]@{
@@ -153,7 +143,6 @@ function readLog {
             }
             $logFilePath = $logFiles[0].FullName
             writeText -type "header" -text "Reading Log: $($logFiles[0].Name)"
-            writeText -type "plain" -text "----------------------------------------"
         }
         
         # Read last N lines (most useful for logs)
@@ -164,7 +153,6 @@ function readLog {
             writeText -type "plain" -text "`nFollowing log (Ctrl+C to stop)..."
             Get-Content -Path $logFilePath -Wait
         }
-        
     } catch {
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
