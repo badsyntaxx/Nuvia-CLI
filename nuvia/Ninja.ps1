@@ -69,6 +69,8 @@ function removeNinjaRMM {
         if ($installPath -and (Test-Path "$installPath\NinjaRMMAgent.exe")) {
             writeText -type "plain" -text "Disabling uninstall prevention..."
             Start-Process "$installPath\NinjaRMMAgent.exe" -ArgumentList "-disableUninstallPrevention" -Wait -NoNewWindow
+            $exitCode = $LASTEXITCODE
+            Write-Host "Disable uninstall prevention exit code: $exitCode"
         }
 
         writeText -type "plain" -text "Stopping Ninja processes..."
@@ -83,6 +85,8 @@ function removeNinjaRMM {
         }
 
         Start-Process -FilePath "$installPath\uninstall.exe" -ArgumentList "--mode unattended" -Wait -NoNewWindow
+        $exitCode = $LASTEXITCODE
+        Write-Host "NinjaOne Uninstall: $exitCode"
         
         removeNinjaServices -installLocation $installPath
         removeNinjaDirectories -installLocation $installPath
