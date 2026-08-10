@@ -70,20 +70,20 @@ function removeNinjaRMM {
         Start-Process "$installPath\NinjaRMMAgent.exe" -ArgumentList "-disableUninstallPrevention NOUI" -Wait -NoNewWindow
         write-host "disabled"
     }
-    
+    write-host "trying msi uninstall"
     # Run MSI uninstaller
     $UninstallString = getNinjaUninstallString
     if ($UninstallString) {
         write-host "uninstall string found"
-        invokeNinjaMSIUninstall -UninstallString $UninstallString
+        NinjaMSIUninstall -UninstallString $UninstallString
     } else {
         writeText -type "notice" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
     }
     write-host "doing rest"
     # Cleanup operations
     stopNinjaProcess
-    removeNinjaServices -InstallLocation $installPath
-    removeNinjaDirectories -InstallLocation $installPath
+    removeNinjaServices -installLocation $installPath
+    removeNinjaDirectories -installLocation $installPath
     removeNinjaRegistryItems
 }
 function stopNinjaProcess {
@@ -104,7 +104,7 @@ function stopNinjaProcess {
 }
 function removeNinjaServices {
     param (
-        [string]$InstallLocation
+        [string]$installLocation
     )
 
     writeText -type "plain" -text "Removing Ninja services..."
@@ -112,7 +112,7 @@ function removeNinjaServices {
     $Services = @('NinjaRMMAgent', 'nmsmanager', 'lockhart')
     
     foreach ($ServiceName in $Services) {
-        if ($ServiceName -eq 'lockhart' -and !(Test-Path "$InstallLocation\lockhart\bin\lockhart.exe")) {
+        if ($ServiceName -eq 'lockhart' -and !(Test-Path "$installLocation\lockhart\bin\lockhart.exe")) {
             continue
         }
         
@@ -138,13 +138,13 @@ function removeNinjaServices {
 }
 function removeNinjaDirectories {
     param (
-        [string]$InstallLocation
+        [string]$installLocation
     )
 
     writeText -type "plain" -text "Removing Ninja directories..."
     
     $Directories = @(
-        @{Path = $InstallLocation; Name = 'installation directory' },
+        @{Path = $installLocation; Name = 'installation directory' },
         @{Path = "$env:ProgramData\NinjaRMMAgent"; Name = 'data directory' },
         @{Path = "$env:ProgramFiles\WindowsPowerShell\Modules\NJCliPSh"; Name = 'PowerShell module directory' }
         @{Path = "$env:ProgramFiles\NinjaOne"; Name = 'NinjeOne' }
@@ -230,13 +230,14 @@ function removeRegistryKey {
     return $false
 }
 function findNinjaInstallPaths {
+    writeText -type "plain" -text "Searching for Ninja installation path..."
     $RegPaths = getNinjaRegistryPaths
     
     try {
-        $InstallLocation = (Get-ItemPropertyValue $RegPaths.Main -Name Location -ErrorAction Stop).Replace('/', '\')
+        $installLocation = (Get-ItemPropertyValue $RegPaths.Main -Name Location -ErrorAction Stop).Replace('/', '\')
         
-        if (Test-Path "$InstallLocation\NinjaRMMAgent.exe") {
-            return $InstallLocation
+        if (Test-Path "$installLocation\NinjaRMMAgent.exe") {
+            return $installLocation
         } else {
             $ServicePath = ((Get-CimInstance Win32_Service | Where-Object { $_.Name -eq 'NinjaRMMAgent' }).PathName).Trim('"')
             if (Test-Path $ServicePath) {
@@ -261,7 +262,7 @@ function getNinjaUninstallString {
     
     return $null
 }
-function invokeNinjaMSIUninstall {
+function NinjaMSIUninstall {
     param (
         [Parameter(Mandatory = $true)]
         [string]$UninstallString
