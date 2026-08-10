@@ -56,7 +56,7 @@ function installNinja {
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
     }
 }
-function UninstallNinja {
+function uninstallNinja {
     removeNinjaRMM
     removeNinjaRemote
     findMissingProductKeyNames
@@ -121,7 +121,7 @@ function findNinjaInstallPaths {
     return $null
 }
 
-function Get-NinjaUninstallString {
+function getNinjaUninstallString {
     $RegPaths = getNinjaRegistryPaths
     
     $UninstallString = (Get-ItemProperty $RegPaths.Uninstall | 
@@ -428,7 +428,7 @@ function removeNinjaRMM {
     }
     
     # Run MSI uninstaller
-    $UninstallString = Get-NinjaUninstallString
+    $UninstallString = getNinjaUninstallString
     if ($UninstallString) {
         invokeNinjaMSIUninstall -UninstallString $UninstallString
     } else {
@@ -485,9 +485,9 @@ function restartNCStreamer {
     }
 }
 
-function restartNCStreamer {
+function restartRMMAgent {
     try {
-        $serviceName = "ncstreamer"
+        $serviceName = "NinjaRMMAgent"
         $service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
         if ($null -ne $service) {
             Restart-Service -Name $serviceName -Force
@@ -496,6 +496,16 @@ function restartNCStreamer {
         } else {
             writeText -type "notice" -text "Service '$serviceName' not found."
         }
+    } catch {
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
+    }
+}
+function restartNinjaService {
+    try {
+        restartNCStreamer
+        restartRMMAgent
+    
     } catch {
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"

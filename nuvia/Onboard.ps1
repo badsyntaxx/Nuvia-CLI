@@ -433,7 +433,7 @@ function disableTaskbarWidgets {
 function removeTaskbarPins {
     try {
         writeText -type "plain" -text "Removing Taskbar Pins"
-        $appsToUnpin = @("Microsoft Edge", "Microsoft Store", "Dell Optimizer", "Dell Command Update")
+        $appsToUnpin = @("Microsoft Edge", "Microsoft Store", "Dell Optimizer", "Dell Command Update", "Copilot")
         
         # Get all taskbar pins
         $shell = New-Object -Com Shell.Application
