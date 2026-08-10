@@ -56,8 +56,8 @@ function installNinja {
 }
 function uninstallNinja {
     removeNinjaRMM
-    removeNinjaRemote
-    findMissingProductKeyNames
+    # removeNinjaRemote
+    # findMissingProductKeyNames
     writeText -type "success" -text "Ninja Successfully Uninstalled" -lineAfter
 }
 function removeNinjaRMM {
@@ -493,7 +493,6 @@ function restartNCStreamer {
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
-
 function restartRMMAgent {
     try {
         $serviceName = "NinjaRMMAgent"
