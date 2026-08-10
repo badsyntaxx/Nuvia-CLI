@@ -1,7 +1,9 @@
 function initializeShellCLI {
     try {
+        log -msg "Initializing ShellCLI..."
         # Check if user has administrator privileges
         if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]"Administrator")) {
+            log -msg "Terminal is not admin. Self elevating."
             # If not, elevate privileges and restart function with current arguments
             Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" $PSCommandArgs" -WorkingDirectory $pwd -Verb RunAs
             Exit
@@ -9,12 +11,14 @@ function initializeShellCLI {
         
         # Create the main script file
         New-Item -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -ItemType File -Force | Out-Null
+        log -msg "Main script file created at $env:SystemRoot\Temp\SHELLCLI.ps1."
 
         $url = "https://raw.githubusercontent.com/badsyntaxx/Nuvia-CLI/main"
 
         # Download the script
         $download = getScript -Url "$url/Framework.ps1" -Target "$env:SystemRoot\Temp\Framework.ps1"
         if ($download) { 
+            log -msg "Download done. Building framework..."
             # Append the script to the main script
             $rawScript = Get-Content -Path "$env:SystemRoot\Temp\Framework.ps1" -Raw -ErrorAction SilentlyContinue
             Add-Content -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -Value $rawScript
@@ -25,6 +29,7 @@ function initializeShellCLI {
             # Add a final line that will invoke the desired function
             Add-Content -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -Value 'invokeScript -script "readCommand -command `"help`"" -initialize $true'
 
+            log -msg "Starting..."
             # Execute the combined script
             . "$env:SystemRoot\Temp\SHELLCLI.ps1"
         }
