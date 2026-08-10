@@ -472,16 +472,31 @@ function restartNCStreamer {
     try {
         $serviceName = "ncstreamer"
         $service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
+        
         if ($null -ne $service) {
-            Restart-Service -Name $serviceName -Force
-            Start-Sleep 3  # Wait for a moment to allow the service to start
-            writeText -type "plain" -text "Service '$serviceName' is: $($service.Status)"
+            $initialStatus = $service.Status
+            writeText -type "plain" -text "Current service status: $initialStatus"
+            
+            # Attempt restart
+            Restart-Service -Name $serviceName -Force -ErrorAction Stop
+            
+            # Wait and verify
+            Start-Sleep 3
+            $service.Refresh()  # Refresh the service object
+            $newStatus = $service.Status
+            
+            if ($newStatus -eq "Running") {
+                writeText -type "plain" -text "Service '$serviceName' restarted successfully. New status: $newStatus"
+            } else {
+                writeText -type "plain" -text "Service '$serviceName' restart completed but status is: $newStatus"
+            }
         } else {
             writeText -type "notice" -text "Service '$serviceName' not found."
         }
     } catch {
-        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
-        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
+        $errorMsg = "$($MyInvocation.MyCommand.Name)-Line $($_.InvocationInfo.ScriptLineNumber): $($_.Exception.Message)"
+        writeText -type "error" -text $errorMsg
+        log -msg $errorMsg -lvl "ERROR"
     }
 }
 
@@ -489,16 +504,31 @@ function restartRMMAgent {
     try {
         $serviceName = "NinjaRMMAgent"
         $service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
+        
         if ($null -ne $service) {
-            Restart-Service -Name $serviceName -Force
-            Start-Sleep 3  # Wait for a moment to allow the service to start
-            writeText -type "plain" -text "Service '$serviceName' is: $($service.Status)"
+            $initialStatus = $service.Status
+            writeText -type "plain" -text "Current service status: $initialStatus"
+            
+            # Attempt restart
+            Restart-Service -Name $serviceName -Force -ErrorAction Stop
+            
+            # Wait and verify
+            Start-Sleep 3
+            $service.Refresh()  # Refresh the service object
+            $newStatus = $service.Status
+            
+            if ($newStatus -eq "Running") {
+                writeText -type "plain" -text "Service '$serviceName' restarted successfully. New status: $newStatus"
+            } else {
+                writeText -type "plain" -text "Service '$serviceName' restart completed but status is: $newStatus"
+            }
         } else {
             writeText -type "notice" -text "Service '$serviceName' not found."
         }
     } catch {
-        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
-        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
+        $errorMsg = "$($MyInvocation.MyCommand.Name)-Line $($_.InvocationInfo.ScriptLineNumber): $($_.Exception.Message)"
+        writeText -type "error" -text $errorMsg
+        log -msg $errorMsg -lvl "ERROR"
     }
 }
 function restartNinjaService {
