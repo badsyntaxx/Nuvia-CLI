@@ -69,25 +69,24 @@ function removeNinjaRMM {
         if ($installPath -and (Test-Path "$installPath\NinjaRMMAgent.exe")) {
             writeText -type "plain" -text "Disabling uninstall prevention..."
             Start-Process "$installPath\NinjaRMMAgent.exe" -ArgumentList "-disableUninstallPrevention NOUI" -Wait -NoNewWindow
-            write-host "disabled"
         }
-        write-host "trying msi uninstall"
+
         # Run MSI uninstaller
         $UninstallString = getNinjaUninstallString
         if ($UninstallString) {
-            write-host "uninstall string found"
             NinjaMSIUninstall -UninstallString $UninstallString
         } else {
             writeText -type "notice" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
         }
-        write-host "doing rest"
+
         # Cleanup operations
         stopNinjaProcess
         removeNinjaServices -installLocation $installPath
         removeNinjaDirectories -installLocation $installPath
         removeNinjaRegistryItems
     } catch {
-        <#Do this if a terminating exception happens#>
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
     
 }
@@ -242,6 +241,7 @@ function findNinjaInstallPaths {
         $installLocation = (Get-ItemPropertyValue $RegPaths.Main -Name Location -ErrorAction Stop).Replace('/', '\')
         
         if (Test-Path "$installLocation\NinjaRMMAgent.exe") {
+            writeText -type "plain" -text "Ninja installation path found: $installLocation"
             return $installLocation
         } else {
             $ServicePath = ((Get-CimInstance Win32_Service | Where-Object { $_.Name -eq 'NinjaRMMAgent' }).PathName).Trim('"')

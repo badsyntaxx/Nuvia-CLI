@@ -128,7 +128,7 @@ function invokeScript {
             Write-Host " if you get stuck."
             Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
         }
-        write-host "invoking script: $script"
+
         Invoke-Expression $script
     } catch {
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
