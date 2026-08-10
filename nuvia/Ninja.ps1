@@ -68,20 +68,23 @@ function removeNinjaRMM {
         # Disable uninstall prevention if installation found
         if ($installPath -and (Test-Path "$installPath\NinjaRMMAgent.exe")) {
             writeText -type "plain" -text "Disabling uninstall prevention..."
-            Start-Process "$installPath\NinjaRMMAgent.exe" -ArgumentList "-disableUninstallPrevention NOUI" -Wait -NoNewWindow
+            Start-Process "$installPath\NinjaRMMAgent.exe" -ArgumentList "-disableUninstallPrevention" -Wait -NoNewWindow
             write-host "Uninstall prevention disabled."
         }
-        write-host "trying msi uninstall"
-        # Run MSI uninstaller
-        $UninstallString = getNinjaUninstallString
-        if ($UninstallString) {
-            NinjaMSIUninstall -UninstallString $UninstallString
-        } else {
-            writeText -type "notice" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
+
+        writeText -type "plain" -text "Stopping Ninja processes..."
+        $processes = @("NinjaRMMAgent", "NinjaRMMAgentPatcher", "njbar", "NinjaRMMProxyProcess64")
+    
+        foreach ($processName in $processes) {
+            $Process = Get-Process -Name $processName -ErrorAction SilentlyContinue
+            if ($Process) {
+                Stop-Process $Process -Force -ErrorAction Stop
+                writeText -type "success" -text "Successfully stopped process: $processName" -lineAfter
+            }
         }
 
-        # Cleanup operations
-        stopNinjaProcess
+        Start-Process -FilePath "$installPath\uninstall.exe" -ArgumentList "--mode unattended" -Wait -NoNewWindow
+        
         removeNinjaServices -installLocation $installPath
         removeNinjaDirectories -installLocation $installPath
         removeNinjaRegistryItems
