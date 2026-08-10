@@ -69,7 +69,6 @@ function removeNinjaRMM {
         if ($installPath -and (Test-Path "$installPath\NinjaRMMAgent.exe")) {
             writeText -type "plain" -text "Disabling uninstall prevention..."
             Start-Process "$installPath\NinjaRMMAgent.exe" -ArgumentList "-disableUninstallPrevention" -Wait -NoNewWindow
-            write-host "Uninstall prevention disabled."
         }
 
         writeText -type "plain" -text "Stopping Ninja processes..."
