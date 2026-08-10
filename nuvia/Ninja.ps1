@@ -61,30 +61,35 @@ function uninstallNinja {
     writeText -type "success" -text "Ninja Successfully Uninstalled" -lineAfter
 }
 function removeNinjaRMM {
-    writeText -type "plain" -text "Starting Ninja RMM removal..."
-    $installPath = findNinjaInstallPaths
+    try {
+        writeText -type "plain" -text "Starting Ninja RMM removal..."
+        $installPath = findNinjaInstallPaths
     
-    # Disable uninstall prevention if installation found
-    if ($installPath -and (Test-Path "$installPath\NinjaRMMAgent.exe")) {
-        writeText -type "plain" -text "Disabling uninstall prevention..."
-        Start-Process "$installPath\NinjaRMMAgent.exe" -ArgumentList "-disableUninstallPrevention NOUI" -Wait -NoNewWindow
-        write-host "disabled"
+        # Disable uninstall prevention if installation found
+        if ($installPath -and (Test-Path "$installPath\NinjaRMMAgent.exe")) {
+            writeText -type "plain" -text "Disabling uninstall prevention..."
+            Start-Process "$installPath\NinjaRMMAgent.exe" -ArgumentList "-disableUninstallPrevention NOUI" -Wait -NoNewWindow
+            write-host "disabled"
+        }
+        write-host "trying msi uninstall"
+        # Run MSI uninstaller
+        $UninstallString = getNinjaUninstallString
+        if ($UninstallString) {
+            write-host "uninstall string found"
+            NinjaMSIUninstall -UninstallString $UninstallString
+        } else {
+            writeText -type "notice" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
+        }
+        write-host "doing rest"
+        # Cleanup operations
+        stopNinjaProcess
+        removeNinjaServices -installLocation $installPath
+        removeNinjaDirectories -installLocation $installPath
+        removeNinjaRegistryItems
+    } catch {
+        <#Do this if a terminating exception happens#>
     }
-    write-host "trying msi uninstall"
-    # Run MSI uninstaller
-    $UninstallString = getNinjaUninstallString
-    if ($UninstallString) {
-        write-host "uninstall string found"
-        NinjaMSIUninstall -UninstallString $UninstallString
-    } else {
-        writeText -type "notice" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
-    }
-    write-host "doing rest"
-    # Cleanup operations
-    stopNinjaProcess
-    removeNinjaServices -installLocation $installPath
-    removeNinjaDirectories -installLocation $installPath
-    removeNinjaRegistryItems
+    
 }
 function stopNinjaProcess {
     writeText -type "plain" -text "Stopping Ninja processes..."
