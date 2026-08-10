@@ -126,3 +126,47 @@ function getWinDirStat {
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
+function readLog {
+    param (
+        [Parameter(Mandatory = $false)]
+        [int]$lines = 50,  # Show last 50 lines by default
+        [Parameter(Mandatory = $false)]
+        [switch]$tail   # Follow mode (like Linux tail -f)
+    )
+
+    try {
+        $logDirectory = "C:\Nuvia\Logs\ShellCLI"
+        
+        if ($date) {
+            $logFileName = "${date}.log"
+            $logFilePath = Join-Path -Path $logDirectory -ChildPath $logFileName
+            if (-not (Test-Path -Path $logFilePath)) {
+                writeText -type "plain" -text "No log file found for date: $date"
+                readCommand
+            }
+        } else {
+            $logFiles = Get-ChildItem -Path $logDirectory -Filter "*.log" | 
+            Sort-Object -Property LastWriteTime -Descending
+            if ($logFiles.Count -eq 0) {
+                writeText -type "plain" -text "No log files found in $logDirectory"
+                readCommand
+            }
+            $logFilePath = $logFiles[0].FullName
+            writeText -type "header" -text "Reading Log: $($logFiles[0].Name)"
+            writeText -type "plain" -text "----------------------------------------"
+        }
+        
+        # Read last N lines (most useful for logs)
+        Get-Content -Path $logFilePath -Tail $lines
+        
+        # If tail switch is used, follow the log
+        if ($tail) {
+            writeText -type "plain" -text "`nFollowing log (Ctrl+C to stop)..."
+            Get-Content -Path $logFilePath -Wait
+        }
+        
+    } catch {
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
+    }
+}
