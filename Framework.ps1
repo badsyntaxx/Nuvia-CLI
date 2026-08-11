@@ -1055,8 +1055,7 @@ function installViaWinget {
     )
 
     try {
-        $message = "Installing $appName via winget (ID: $wingetId)..."
-        WriteText -Type "plain" -Text $message
+        WriteText -Type "plain" -Text "Installing $appName via winget (ID: $wingetId)..."
 
         if (appInstalled -appName $appName) {
             WriteText -Type "plain" -Text "$appName is already installed."
