@@ -87,6 +87,7 @@ $global:commandMap = [ordered]@{
     "clean drive"                    = @("nuvia", "Clean Drive", "cleanDrive", "Clear up space on drive.")
     "clean vatech"                   = @("nuvia", "Clean Drive", "cleanVatech", "Clear up space on drive.")
     "clean temp"                     = @("nuvia", "Clean Drive", "cleanTemp", "Clear out the temp folders.")
+    "onboard"                        = @("nuvia", "Onboard", "init", "Onboard a Nuvia computer.")
 }
 
 function listAllCommands {
@@ -1047,7 +1048,47 @@ function installMSI {
         return -1  # Return -1 to indicate a failure to start the process
     }
 }
-function installProgram {
+function installViaWinget {
+    param(
+        [string]$appName,
+        [string]$wingetId
+    )
+
+    try {
+        $message = "Installing $appName via winget (ID: $wingetId)..."
+        WriteText -Type "plain" -Text $message
+
+        if (appInstalled -appName $appName) {
+            WriteText -Type "plain" -Text "$appName is already installed."
+        } else {
+            # Update sources
+            $null = Start-Process -FilePath "winget" -ArgumentList "source update" -Wait -WindowStyle Hidden
+
+            $args = @(
+                'install', "--id $wingetId",  # Fixed: $wingetId not $PackageId
+                '--exact', '--silent',
+                '--accept-package-agreements',
+                '--accept-source-agreements',
+                '--disable-interactivity'
+            )
+    
+            $process = Start-Process -FilePath 'winget' -ArgumentList $args -Wait -PassThru -WindowStyle Hidden
+    
+            $success = $process.ExitCode -in @(0, -1978335189)
+            WriteText -Type "plain" -Text "Winget exit code: $($process.ExitCode)"
+    
+            if ($success) {
+                WriteText -Type "success" -Text "$appName installed successfully via winget."
+            } else {
+                WriteText -Type "error" -Text "Failed to install $appName via winget. Exit code: $($process.ExitCode)"
+            }
+        }
+    } catch {
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
+    }    
+}
+function installApp {
     param (
         [parameter(Mandatory = $true)]
         [string]$url,
@@ -1201,6 +1242,70 @@ function uninstallAppXApp {
     }
     if (-not $found) {
         writeText -type "plain" -text "$FriendlyName not found. Skipping"
+    }
+}
+function appInstalled {
+    param([string]$appName)
+    
+    try {
+        # Try to find the app by any means necessary
+        $found = $false
+    
+        # 1. Registry check (most common)
+        $regPaths = @(
+            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*"
+        )
+    
+        foreach ($path in $regPaths) {
+            $apps = Get-ItemProperty $path -ErrorAction SilentlyContinue
+            foreach ($app in $apps) {
+                if ($app.DisplayName -and $app.DisplayName -match $appName) {
+                    $found = $true
+                    break
+                }
+            }
+            if ($found) { break }
+        }
+    
+        if ($found) { return $true }
+    
+        # 2. Windows Store apps
+        if (Get-AppxPackage -Name "*$appName*" -ErrorAction SilentlyContinue) {
+            return $true
+        }
+    
+        # 3. Check if it's a command-line tool
+        if (Get-Command $appName -ErrorAction SilentlyContinue) {
+            return $true
+        }
+    
+        # 4. Check common installation folders (auto-discover)
+        $foldersToCheck = @(
+            "$env:ProgramFiles",
+            "${env:ProgramFiles(x86)}",
+            "$env:LOCALAPPDATA",
+            "$env:LOCALAPPDATA\Programs",
+            "$env:APPDATA",
+            "$env:ProgramData"
+        )
+    
+        foreach ($folder in $foldersToCheck) {
+            if (Test-Path $folder) {
+                $subFolders = Get-ChildItem $folder -Directory -ErrorAction SilentlyContinue
+                foreach ($sub in $subFolders) {
+                    if ($sub.Name -match $appName) {
+                        return $true
+                    }
+                }
+            }
+        }
+    
+        return $false
+    } catch {
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
 function formatSize {

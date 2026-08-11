@@ -55,7 +55,7 @@ function installEpsonET8550Driver {
         )
         $installed = findExisting -Paths $paths -App $appName
         if (!$installed) { 
-            installProgram -url $url -AppName $appName -Args "/silent" 
+            installApp -url $url -AppName $appName -Args "/silent" 
         }
 
         $url = "https://ftp.epson.com/drivers/ET8550_EScan2_67810_NA.exe"
@@ -65,7 +65,7 @@ function installEpsonET8550Driver {
         )
         $installed = findExisting -Paths $paths -App $appName
         if (!$installed) { 
-            installProgram -url $url -AppName $appName -Args "/silent" 
+            installApp -url $url -AppName $appName -Args "/silent" 
         }
     } catch {
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"

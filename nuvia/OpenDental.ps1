@@ -117,7 +117,7 @@ function install24341 {
                     )
                     $installed = findExisting -Paths $paths -App $appName
                     if (!$installed) { 
-                        installProgram -url $url -AppName $appName -Args "/silent"
+                        installApp -url $url -AppName $appName -Args "/silent"
                     }
                         
                     writeText -type "success" -text "OpenDental.exe has been placed in: $tempDir"
