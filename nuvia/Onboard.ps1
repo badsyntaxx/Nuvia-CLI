@@ -400,8 +400,8 @@ function uninstallTeams {
 
         $userProfiles = Get-ChildItem "$env:SystemDrive\Users" -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -notin @("Public", "Default", "Default User", "All Users") }
         
-        foreach ($profile in $userProfiles) {
-            $teamsPath = "$($profile.FullName)\AppData\Local\Microsoft\Teams\Update.exe"
+        foreach ($prof in $userProfiles) {
+            $teamsPath = "$($prof.FullName)\AppData\Local\Microsoft\Teams\Update.exe"
             if (Test-Path $teamsPath) {
                 try {
                     Start-Process -FilePath $teamsPath -ArgumentList "--uninstall /s" -Wait -WindowStyle Hidden
@@ -412,8 +412,8 @@ function uninstallTeams {
                 }
             }
             foreach ($folder in @(
-                    "$($profile.FullName)\AppData\Local\Microsoft\Teams",
-                    "$($profile.FullName)\AppData\Roaming\Microsoft\Teams"
+                    "$($prof.FullName)\AppData\Local\Microsoft\Teams",
+                    "$($prof.FullName)\AppData\Roaming\Microsoft\Teams"
                 )) {
                 if (Test-Path $folder) { Remove-Item -Path $folder -Recurse -Force -ErrorAction SilentlyContinue }
             }
