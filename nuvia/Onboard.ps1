@@ -66,41 +66,6 @@ function debloat {
     uninstallTeams
     uninstallWin32App -AppName "Microsoft Copilot"
     uninstallWin32App -AppName "Copilot"
-    disableTelemetry
-    disableWiFiSense
-    disableAppSuggestions
-    disableLockScreenSpotlight
-    disableFeedback
-    disableAdvertisingID
-    disableCortana     
-    enableErrorReporting 
-    disableAutoLogger
-    disableDiagTrack
-    disableWAPPush
-    disableSMB1
-    setCurrentNetworkPrivate
-    disableUpdateRestart
-    disableRemoteAssistance
-    #disableRemoteDesktop
-    disableAutoplay
-    disableAutorun
-    disableHibernation
-    showShutdownOnLockScreen
-    disableStickyKeys
-    showFileOperationsDetails
-    hideTaskbarSearchBox
-    hideTaskView
-    hideTaskbarPeopleIcon
-    showTrayIcons                
-    showThisPCOnDesktop          
-    showDesktopInThisPC
-    showDesktopInExplorer
-    showDocumentsInThisPC
-    showDocumentsInExplorer
-    showDownloadsInThisPC
-    showDownloadsInExplorer
-    disableXboxFeatures
-    disableSearchAppInStore 
 
     $appxList = @(
         @{ Name = "Family Safety"; Package = "Microsoft.FamilySafety" },
@@ -185,10 +150,46 @@ function debloat {
     foreach ($app in $appxList) { 
         uninstallAppXApp -PackageName $app.Package -FriendlyName $app.Name 
     }
+
+    disableTelemetry
+    disableWiFiSense
+    disableAppSuggestions
+    disableLockScreenSpotlight
+    disableFeedback
+    disableAdvertisingID
+    disableCortana     
+    enableErrorReporting 
+    disableAutoLogger
+    disableDiagTrack
+    disableWAPPush
+    disableSMB1
+    setCurrentNetworkPrivate
+    disableUpdateRestart
+    disableRemoteAssistance
+    #disableRemoteDesktop
+    disableAutoplay
+    disableAutorun
+    disableHibernation
+    showShutdownOnLockScreen
+    disableStickyKeys
+    showFileOperationsDetails
+    hideTaskbarSearchBox
+    hideTaskView
+    hideTaskbarPeopleIcon
+    showTrayIcons                
+    showThisPCOnDesktop          
+    showDesktopInThisPC
+    showDesktopInExplorer
+    showDocumentsInThisPC
+    showDocumentsInExplorer
+    showDownloadsInThisPC
+    showDownloadsInExplorer
+    disableXboxFeatures
+    disableSearchAppInStore 
 }
 function uninstallOneDrive {
     try {
-        writeText -type "plain" -text "Searching for OneDrive"
+        writeText -type "plain" -text "Searching for OneDrive" -lineBefore
 
         # Check if OneDrive is actually installed by checking user folders and registry
         $onedriveInstalled = $false
@@ -229,8 +230,7 @@ function uninstallOneDrive {
         }
 
         if (-not $onedriveInstalled) {
-            writeText -type "plain" -text "OneDrive not found. Skipping."
-            writeText -type "plain" -text "----------------------------------"
+            writeText -type "plain" -text "OneDrive not found."
             return  # <-- ADD THIS LINE TO EXIT THE FUNCTION
         }
 
@@ -808,11 +808,19 @@ function disableSearchAppInStore {
     Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoUseStoreOpenWith" -type DWord -Value 1
 }
 function installApps {
-    installViaWinget -appName "Sonos"         -WingetId "Sonos.Controller"
-    installViaWinget -appName "Adobe Acrobat" -WingetId "Adobe.Acrobat.Reader.64-bit"
-    installViaWinget -appName "Google Chrome" -WingetId "Google.Chrome"
-    installViaWinget -appName "Cliq"     -WingetId "Zoho.Cliq"
-    installViaWinget -appName "Dropbox"       -WingetId "Dropbox.Dropbox"
+    writeText -type "header" -text "Installing Applications..."
+    $sonosUrl = (winget show --id Sonos.Controller | Select-String "Installer Url:").Line.Split(" ")[-1]
+    $adobeUrl = (winget show --id Adobe.Acrobat.Reader.64-bit | Select-String "Installer Url:").Line.Split(" ")[-1]
+    $googleChromeUrl = (winget show --id Google.Chrome | Select-String "Installer Url:").Line.Split(" ")[-1]
+    $cliqUrl = (winget show --id Zoho.Cliq | Select-String "Installer Url:").Line.Split(" ")[-1]
+    $dropboxUrl = (winget show --id Dropbox.Dropbox | Select-String "Installer Url:").Line.Split(" ")[-1]
+
+    installApp -url $sonosUrl -appName "Sonos" -params "/S /v/qn"
+    installApp -url $adobeUrl -appName "Adobe Acrobat" -params "/sAll /rs /msi EULA_ACCEPT=YES ALLUSERS=1"
+    installApp -url $googleChromeUrl -appName "Google Chrome" -params "/qn /norestart"
+    installApp -url $cliqUrl -appName "Cliq" -params "/qn /norestart"
+    installApp -url $dropboxUrl -appName "Dropbox" -params "/S"
+
     #Install-NinjaOne  -InstallerUrl $NinjaInstallerUrl
 }
 function normalizeEnvironment {
