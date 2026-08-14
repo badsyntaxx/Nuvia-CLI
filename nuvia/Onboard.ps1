@@ -809,6 +809,27 @@ function disableSearchAppInStore {
 }
 function installApps {
     writeText -type "header" -text "Installing Applications..."
+
+    $wingetPath = Get-Command winget -ErrorAction SilentlyContinue
+    if (-not $wingetPath) {
+        WriteText -Type "plain" -Text "winget not found. Installing winget..."
+            
+        Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted -ErrorAction Stop | Out-Null
+        Install-Script -Name winget-install -Force -ErrorAction Stop | Out-Null
+                
+        winget-install 2>&1 | Out-Null
+                
+        $wingetPath = Get-Command winget -ErrorAction SilentlyContinue
+        if (-not $wingetPath) {
+            writeText -Type "error" -text "winget installation failed. Please install winget manually from https://github.com/microsoft/winget-cli"
+        }
+                
+        WriteText -Type "success" -Text "winget installed successfully."
+                
+        # Need to refresh environment variables to see the new winget path
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")   
+    }
+        
     $sonosUrl = (winget show --id Sonos.Controller | Select-String "Installer Url:").Line.Split(" ")[-1]
     $adobeUrl = (winget show --id Adobe.Acrobat.Reader.64-bit | Select-String "Installer Url:").Line.Split(" ")[-1]
     $googleChromeUrl = (winget show --id Google.Chrome | Select-String "Installer Url:").Line.Split(" ")[-1]
