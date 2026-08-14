@@ -122,13 +122,9 @@ function invokeScript {
         if ($initialize) {
             Clear-Host
             Write-Host
-            Write-Host " $([char]0x250C)" -NoNewline -ForegroundColor "Gray"
-            Write-Host " Try" -NoNewline
-            Write-Host " help" -ForegroundColor "Cyan" -NoNewline
-            Write-Host " or" -NoNewline
-            Write-Host " menu" -NoNewline -ForegroundColor "Cyan"
-            Write-Host " if you get stuck."
-            Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
+            Write-Host " $([char]0x250C)" -NoNewline -ForegroundColor "Cyan"
+            Write-Host " Shell CLI" -ForegroundColor "Cyan"
+            Write-Host " $([char]0x2502)" -ForegroundColor "Cyan"
         }
 
         Invoke-Expression $script
@@ -146,11 +142,11 @@ function readCommand {
     try {
         if ($command -eq "") { 
             # Draw the prompt lines once
-            Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
+            Write-Host " $([char]0x2502)" -ForegroundColor "Cyan"
             
             # Keep the cursor on this line for the prompt
-            Write-Host " $([char]0x251C)" -NoNewline -ForegroundColor "Gray"
-            Write-Host " $([char]0x203A) " -NoNewline -ForegroundColor "Cyan"
+            Write-Host " $([char]0x251C)" -NoNewline -ForegroundColor "Cyan"
+            Write-Host " $([char]0x203A) " -NoNewline -ForegroundColor "White"
             
             # Read the input - this will stay on the same line
             $command = Read-Host
@@ -166,8 +162,8 @@ function readCommand {
                 [System.Console]::SetCursorPosition(0, $cursorPos)
                 
                 # Redraw the prompt on the same line
-                Write-Host " $([char]0x251C)" -NoNewline -ForegroundColor "Gray"
-                Write-Host " $([char]0x203A) " -NoNewline -ForegroundColor "Cyan"
+                Write-Host " $([char]0x251C)" -NoNewline -ForegroundColor "Cyan"
+                Write-Host " $([char]0x203A) " -NoNewline -ForegroundColor "White"
                 
                 # Read again
                 $command = Read-Host
@@ -177,12 +173,12 @@ function readCommand {
                     [System.Console]::SetCursorPosition(0, $cursorPos)
                     Write-Host (" " * [System.Console]::WindowWidth) -NoNewline
                     [System.Console]::SetCursorPosition(0, $cursorPos)
-                    Write-Host " $([char]0x251C)" -NoNewline -ForegroundColor "Gray"
+                    Write-Host " $([char]0x251C)" -NoNewline -ForegroundColor "Cyan"
                     Write-Host " $([char]0x203A) " -NoNewline -ForegroundColor "Cyan"
                     $command = Read-Host
                 }
             }
-            Write-Host " $([char]0x2502)" -ForegroundColor "Gray"
+            Write-Host " $([char]0x2502)" -ForegroundColor "Cyan"
         }
 
         $command = $command.ToLower()
