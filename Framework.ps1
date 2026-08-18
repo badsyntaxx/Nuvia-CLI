@@ -116,7 +116,7 @@ function invokeScript {
         # Customize console appearance
         $console = $host.UI.RawUI
         $console.BackgroundColor = "Black"
-        $console.ForegroundColor = "DarkGray"
+        $console.ForegroundColor = "White"
         $console.WindowTitle = "Shell CLI"
 
         if ($initialize) {
