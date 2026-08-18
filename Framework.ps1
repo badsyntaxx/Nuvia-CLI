@@ -89,6 +89,7 @@ $global:commandMap = [ordered]@{
     "clean vatech"                   = @("nuvia", "Clean Drive", "cleanVatech", "Clear up space on drive.")
     "clean temp"                     = @("nuvia", "Clean Drive", "cleanTemp", "Clear out the temp folders.")
     "onboard"                        = @("nuvia", "Onboard", "init", "Onboard a Nuvia computer.")
+    "nuvia apps"                     = @("nuvia", "Apps", "getApps", "Install applications.")
 }
 
 function listAllCommands {
