@@ -132,7 +132,7 @@ function getNuviaApps {
 }
 function getSonos {
     try {
-        $url = (winget show --id Sonos.Sonos | Select-String "Installer Url:").Line.Split(" ")[-1]
+        $url = (winget show --id Sonos.Controller | Select-String "Installer Url:").Line.Split(" ")[-1]
         installApp -url $url -appName "Sonos" -params "/S /v/qn"
     } catch {
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
