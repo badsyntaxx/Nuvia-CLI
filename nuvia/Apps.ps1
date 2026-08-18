@@ -43,26 +43,6 @@ function getApps {
 
 function getStandardApps {
     try {
-        $wingetPath = Get-Command winget -ErrorAction SilentlyContinue
-        if (-not $wingetPath) {
-            WriteText -Type "plain" -Text "winget not found. Installing winget..."
-            
-            Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted -ErrorAction Stop | Out-Null
-            Install-Script -Name winget-install -Force -ErrorAction Stop | Out-Null
-                
-            winget-install 2>&1 | Out-Null
-                
-            $wingetPath = Get-Command winget -ErrorAction SilentlyContinue
-            if (-not $wingetPath) {
-                writeText -Type "error" -text "winget installation failed. Please install winget manually from https://github.com/microsoft/winget-cli"
-            }
-                
-            WriteText -Type "success" -Text "winget installed successfully."
-                
-            # Need to refresh environment variables to see the new winget path
-            $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")   
-        }
-
         $installChoice = readOption -options $([ordered]@{
                 "Browsers"      = "Get a list of internet browser software."
                 "Diagnostic"    = "Get a list of diagnostic software."
@@ -94,26 +74,6 @@ function getStandardApps {
 
 function getNuviaApps {
     try {
-        $wingetPath = Get-Command winget -ErrorAction SilentlyContinue
-        if (-not $wingetPath) {
-            WriteText -Type "plain" -Text "winget not found. Installing winget..."
-            
-            Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted -ErrorAction Stop | Out-Null
-            Install-Script -Name winget-install -Force -ErrorAction Stop | Out-Null
-                
-            winget-install 2>&1 | Out-Null
-                
-            $wingetPath = Get-Command winget -ErrorAction SilentlyContinue
-            if (-not $wingetPath) {
-                writeText -Type "error" -text "winget installation failed. Please install winget manually from https://github.com/microsoft/winget-cli"
-            }
-                
-            WriteText -Type "success" -Text "winget installed successfully."
-                
-            # Need to refresh environment variables to see the new winget path
-            $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")   
-        }
-
         $installChoice = readOption -options $([ordered]@{
                 "Sonos" = "Get Sonos."
                 "Exit"  = "Exit this script and go back to main command line."
