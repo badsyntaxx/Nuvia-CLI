@@ -66,6 +66,7 @@ function debloat {
     uninstallTeams
     uninstallWin32App -AppName "Microsoft Copilot"
     uninstallWin32App -AppName "Copilot"
+    uninstallWin32App -AppName "Microsoft 365 Copilot"
 
     $appxList = @(
         @{ Name = "Family Safety"; Package = "Microsoft.FamilySafety" },
