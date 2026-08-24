@@ -84,6 +84,7 @@ function debloat {
         @{ Name = "Microsoft Bing News"; Package = "Microsoft.BingNews" },
         @{ Name = "Microsoft Bing Sports"; Package = "Microsoft.BingSports" },
         @{ Name = "Microsoft Bing Weather"; Package = "Microsoft.BingWeather" },
+        @{ Name = "Microsoft Clipchamp"; Package = "Microsoft.Clipchamp" },
         @{ Name = "Microsoft Get Started"; Package = "Microsoft.Getstarted" },
         @{ Name = "Microsoft Office Hub"; Package = "Microsoft.MicrosoftOfficeHub" },
         @{ Name = "Microsoft Solitaire Collection"; Package = "Microsoft.MicrosoftOfficeHub" },
@@ -467,13 +468,13 @@ function disableTaskbarWidgets {
         if (-not (Test-Path $widgetsPolicyPath)) { 
             New-Item -Path $widgetsPolicyPath -Force | Out-Null 
         }
-        Set-ItemProperty -Path $widgetsPolicyPath -Name "AllowNewsAndInterests" -Value 0 -Type DWord -Force
+        Set-ItemProperty -Path $widgetsPolicyPath -Name "AllowNewsAndInterests" -Value 0 -Type DWord -Force | Out-Null 
 
         $widgetsW11Path = "HKLM:\SOFTWARE\Microsoft\PolicyManager\default\NewsAndInterests\AllowNewsAndInterests"
         if (-not (Test-Path $widgetsW11Path)) { 
             New-Item -Path $widgetsW11Path -Force | Out-Null 
         }
-        Set-ItemProperty -Path $widgetsW11Path -Name "value" -Value 0 -Type DWord -Force
+        Set-ItemProperty -Path $widgetsW11Path -Name "value" -Value 0 -Type DWord -Force | Out-Null
         
         writeText -type "success" -text "Taskbar widgets removed."
         
