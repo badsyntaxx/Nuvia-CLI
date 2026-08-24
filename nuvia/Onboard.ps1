@@ -832,11 +832,11 @@ function installApps {
         $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")   
     }
         
-    $sonosUrl = (winget show --id Sonos.Controller | Select-String "Installer Url:").Line.Split(" ")[-1]
-    $adobeUrl = (winget show --id Adobe.Acrobat.Reader.64-bit | Select-String "Installer Url:").Line.Split(" ")[-1]
-    $googleChromeUrl = (winget show --id Google.Chrome | Select-String "Installer Url:").Line.Split(" ")[-1]
-    $cliqUrl = (winget show --id Zoho.Cliq | Select-String "Installer Url:").Line.Split(" ")[-1]
-    $dropboxUrl = (winget show --id Dropbox.Dropbox | Select-String "Installer Url:").Line.Split(" ")[-1]
+    $sonosUrl = (winget show --id Sonos.Controller --accept-source-agreements --accept-package-agreements | Select-String "Installer Url:").Line.Split(" ")[-1]
+    $adobeUrl = (winget show --id Adobe.Acrobat.Reader.64-bit --accept-source-agreements --accept-package-agreements | Select-String "Installer Url:").Line.Split(" ")[-1]
+    $googleChromeUrl = (winget show --id Google.Chrome --accept-source-agreements --accept-package-agreements | Select-String "Installer Url:").Line.Split(" ")[-1]
+    $cliqUrl = (winget show --id Zoho.Cliq --accept-source-agreements --accept-package-agreements | Select-String "Installer Url:").Line.Split(" ")[-1]
+    $dropboxUrl = (winget show --id Dropbox.Dropbox --accept-source-agreements --accept-package-agreements | Select-String "Installer Url:").Line.Split(" ")[-1]
 
     installApp -url $sonosUrl -appName "Sonos" -params "/S /v/qn"
     installApp -url $adobeUrl -appName "Adobe Acrobat" -params "/sAll /rs /msi EULA_ACCEPT=YES ALLUSERS=1"
