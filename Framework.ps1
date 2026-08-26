@@ -3,7 +3,7 @@ $global:commandMap = [ordered]@{
     "help"                           = @("main", "Core", "writeHelp", "List some help info.")
     "menu"                           = @("main", "Core", "readMenu", "Display the main menu.")
     "commands"                       = @("main", "Core", "listAllCommands", "List all available commands.")
-    "read log"                       = @("nuvia", "Core", "readLog", "Output the last 50 lines of the log file.")
+    "logs"                           = @("main", "Core", "readLog", "Output the last 50 lines of the log file.")
     #-- CUSTOMIZATION COMMANDS --#
     "toggle context menu"            = @("main", "Common", "toggleContextMenu", "Toggle the context menu.")
     "enable context menu"            = @("main", "Common", "enableContextMenu", "Enable the context menu.")
@@ -40,7 +40,7 @@ $global:commandMap = [ordered]@{
     "techmode 1"                     = @("main", "Common", "techMode", "Enable tech mode.")
     "techmode 0"                     = @("main", "Common", "userMode", "Enable user mode.")
     "fix icons"                      = @("main", "Common", "fixIcons", "Fix desktop icons.")
-    "disable hybernate file"         = @("main", "Common", "disableHybernateFile", "Disable the hybernate file.")
+    "disable hibernate file"         = @("main", "Common", "disableHibernateFile", "Disable the hibernate file.")
     "services"                       = @("main", "Services", "listServices", "Display the services.")
     "stop service"                   = @("main", "Services", "stopService", "Stop a service.")
     "start service"                  = @("main", "Services", "startService", "Start a service.")
