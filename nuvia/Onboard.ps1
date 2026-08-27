@@ -39,15 +39,15 @@ function clinicalOnboarding {
             "OTHER" = "All other types (Dental Implant Center wallpaper)"
         }) -prompt "Select a location type:" -returnKey -lineAfter
 
-    debloat
-    declutter
+    # debloat
+    # declutter
     installApps
     # normalizeEnvironment -locationType $locationType
 
     # Add this at the end of your function after setting registry values
-    Stop-Process -Name explorer -Force
-    Start-Sleep -Seconds 2
-    Start-Process explorer
+    # Stop-Process -Name explorer -Force
+    # Start-Sleep -Seconds 2
+    # Start-Process explorer
 }
 function salesOnboarding {
     writeText -type "notice" -text "Sales are currently on Macs. No onboarding actions are available."
@@ -815,34 +815,69 @@ function installApps {
     $wingetPath = Get-Command winget -ErrorAction SilentlyContinue
     if (-not $wingetPath) {
         WriteText -Type "plain" -Text "winget not found. Installing winget..."
-            
-        Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted -ErrorAction Stop | Out-Null
-        Install-Script -Name winget-install -Force -ErrorAction Stop | Out-Null
-                
+
+        try {
+            Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted -ErrorAction Stop | Out-Null
+            Install-Script -Name winget-install -Force -ErrorAction Stop | Out-Null
+        } catch {
+            writeText -Type "error" -text "Failed to install winget-install script: $($_.Exception.Message)"
+            return
+        }
+
+        # Refresh environment variables BEFORE invoking winget-install,
+        # in case Install-Script dropped it somewhere not yet on PATH in this session
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+
         winget-install 2>&1 | Out-Null
-                
+
+        # Refresh again in case winget-install itself modified PATH
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+
         $wingetPath = Get-Command winget -ErrorAction SilentlyContinue
         if (-not $wingetPath) {
             writeText -Type "error" -text "winget installation failed. Please install winget manually from https://github.com/microsoft/winget-cli"
+            return
         }
-                
-        WriteText -Type "success" -Text "winget installed successfully."
-                
-        # Need to refresh environment variables to see the new winget path
-        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")   
-    }
-        
-    $sonosUrl = (winget show --id Sonos.Controller --accept-source-agreements --accept-package-agreements | Select-String "Installer Url:").Line.Split(" ")[-1]
-    $adobeUrl = (winget show --id Adobe.Acrobat.Reader.64-bit --accept-source-agreements --accept-package-agreements | Select-String "Installer Url:").Line.Split(" ")[-1]
-    $googleChromeUrl = (winget show --id Google.Chrome --accept-source-agreements --accept-package-agreements | Select-String "Installer Url:").Line.Split(" ")[-1]
-    $cliqUrl = (winget show --id Zoho.Cliq --accept-source-agreements --accept-package-agreements | Select-String "Installer Url:").Line.Split(" ")[-1]
-    $dropboxUrl = (winget show --id Dropbox.Dropbox --accept-source-agreements --accept-package-agreements | Select-String "Installer Url:").Line.Split(" ")[-1]
 
-    installApp -url $sonosUrl -appName "Sonos" -params "/S /v/qn"
-    installApp -url $adobeUrl -appName "Adobe Acrobat" -params "/sAll /rs /msi EULA_ACCEPT=YES ALLUSERS=1"
-    installApp -url $googleChromeUrl -appName "Google Chrome" -params "/qn /norestart"
-    installApp -url $cliqUrl -appName "Cliq" -params "/qn /norestart"
-    installApp -url $dropboxUrl -appName "Dropbox" -params "/S"
+        WriteText -Type "success" -Text "winget installed successfully."
+    }
+
+    function Get-WingetInstallerUrl {
+        param(
+            [string]$Id
+        )
+
+        $output = winget show --id $Id --accept-source-agreements --disable-interactivity 2>&1
+        $match = $output | Select-String "Installer Url:\s*(\S+)" | Select-Object -First 1
+
+        if (-not $match) {
+            return $null
+        }
+
+        return $match.Matches[0].Groups[1].Value
+    }
+
+    $sonosUrl = Get-WingetInstallerUrl -Id "Sonos.Controller"
+    $adobeUrl = Get-WingetInstallerUrl -Id "Adobe.Acrobat.Reader.64-bit"
+    $googleChromeUrl = Get-WingetInstallerUrl -Id "Google.Chrome"
+    $cliqUrl = Get-WingetInstallerUrl -Id "Zoho.Cliq"
+    $dropboxUrl = Get-WingetInstallerUrl -Id "Dropbox.Dropbox"
+
+    $appsToInstall = @(
+        @{ Url = $sonosUrl; Name = "Sonos"; Params = "/S /v/qn" }
+        @{ Url = $adobeUrl; Name = "Adobe Acrobat"; Params = "/sAll /rs /msi EULA_ACCEPT=YES ALLUSERS=1" }
+        @{ Url = $googleChromeUrl; Name = "Google Chrome"; Params = "/qn /norestart" }
+        @{ Url = $cliqUrl; Name = "Cliq"; Params = "/qn /norestart" }
+        @{ Url = $dropboxUrl; Name = "Dropbox"; Params = "/qn /norestart" }
+    )
+
+    foreach ($app in $appsToInstall) {
+        if (-not $app.Url) {
+            writeText -Type "error" -text "Could not resolve installer URL for $($app.Name). Skipping."
+            continue
+        }
+        installApp -url $app.Url -appName $app.Name -params $app.Params
+    }
 
     #Install-NinjaOne  -InstallerUrl $NinjaInstallerUrl
 }
