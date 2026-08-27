@@ -39,8 +39,8 @@ function clinicalOnboarding {
             "OTHER" = "All other types (Dental Implant Center wallpaper)"
         }) -prompt "Select a location type:" -returnKey -lineAfter
 
-    # debloat
-    # declutter
+    debloat
+    declutter
     installApps
     # normalizeEnvironment -locationType $locationType
 
