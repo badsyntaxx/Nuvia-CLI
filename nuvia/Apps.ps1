@@ -40,7 +40,6 @@ function getApps {
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
-
 function getStandardApps {
     try {
         $installChoice = readOption -options $([ordered]@{
@@ -71,7 +70,6 @@ function getStandardApps {
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
-
 function getNuviaApps {
     try {
         $installChoice = readOption -options $([ordered]@{

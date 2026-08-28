@@ -1,10 +1,3 @@
-$LogDir = "C:\Nuvia\Logs"
-$LogFile = "$LogDir\Onboard_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
-$NuviaDir = "C:\Nuvia"
-$WallpaperDir = "$NuviaDir\Assets\Wallpapers"
-$BGInfoDir = "$NuviaDir\Apps\BGInfo"
-$BGInfoExe = "$BGInfoDir\Apps\Bginfo64.exe"
-
 function init {
     writeText -type "header" -text "Initializing Nuvia Onboarding Script"
     writeText -type "plain" -text "Hostname : $env:COMPUTERNAME"
@@ -42,12 +35,12 @@ function clinicalOnboarding {
     debloat
     declutter
     installApps
-    # normalizeEnvironment -locationType $locationType
+    normalizeEnvironment -locationType $locationType
 
-    # Add this at the end of your function after setting registry values
-    # Stop-Process -Name explorer -Force
-    # Start-Sleep -Seconds 2
-    # Start-Process explorer
+    # Restart explorer to see GUI changes and other stuff
+    Stop-Process -Name explorer -Force
+    Start-Sleep -Seconds 2
+    Start-Process explorer
 }
 function salesOnboarding {
     writeText -type "notice" -text "Sales are currently on Macs. No onboarding actions are available."
@@ -879,172 +872,11 @@ function installApps {
         installApp -url $app.Url -appName $app.Name -params $app.Params
     }
 
+    pinAppsToTaskbar
+
     #Install-NinjaOne  -InstallerUrl $NinjaInstallerUrl
 }
-function normalizeEnvironment {
-    param (
-        [Parameter(Mandatory = $true)]
-        [string]$locationType
-    )
-
-    Write-Section "Setting Up Nuvia Directory and Wallpapers"
-    foreach ($dir in @($NuviaDir, $WallpaperDir, $BGInfoDir, $LogDir)) {
-        if (-not (Test-Path $dir)) {
-            New-Item -ItemType Directory -Path $dir -Force | Out-Null
-            Write-Log "Created: $dir" "SUCCESS"
-        } else {
-            Write-Log "Exists: $dir" "SKIP"
-        }
-    }
-
-    Write-Log "Script directory: $ScriptDir"
-    Add-Type -AssemblyName System.Drawing
-
-    $wallpapers = @(
-        @{ PngName = "Nuvia_Advanced_Dentistry_Wallpaper.png"; JpgName = "Nuvia_Advanced_Dentistry_Wallpaper.jpg"; Name = "Advanced Dentistry" },
-        @{ PngName = "Nuvia_Impant_Center_Wallpaper.png"; JpgName = "Nuvia_Impant_Center_Wallpaper.jpg"; Name = "Dental Implant Center" }
-    )
-    foreach ($wp in $wallpapers) {
-        $srcPng = Join-Path $ScriptDir $wp.PngName
-        $dstPng = Join-Path $WallpaperDir $wp.PngName
-        $dstJpg = Join-Path $WallpaperDir $wp.JpgName
-        if (-not (Test-Path $dstPng)) {
-            if (Test-Path $srcPng) { Copy-Item -Path $srcPng -Destination $dstPng -Force; Write-Log "Copied PNG: $($wp.Name)" "SUCCESS" }
-            else { Write-Log "PNG source not found: $srcPng" "WARNING" }
-        }
-        if (-not (Test-Path $dstJpg)) {
-            if (Test-Path $dstPng) {
-                try {
-                    $img = [System.Drawing.Image]::FromFile($dstPng)
-                    $enc = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -eq "image/jpeg" }
-                    $params = New-Object System.Drawing.Imaging.EncoderParameters(1)
-                    $params.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter([System.Drawing.Imaging.Encoder]::Quality, 95L)
-                    $img.Save($dstJpg, $enc, $params)
-                    $img.Dispose()
-                    Write-Log "JPG created: $($wp.Name)" "SUCCESS"
-                } catch { Write-Log "JPG conversion failed: $($_.Exception.Message)" "ERROR" }
-            }
-        } else { Write-Log "JPG already exists: $($wp.Name)" "SKIP" }
-    }
-
-    foreach ($bgi in @("Nuvia_CLI.bgi", "Nuvia_ADV.bgi")) {
-        $src = Join-Path $ScriptDir $bgi
-        $dst = Join-Path $BGInfoDir $bgi
-        if ((Test-Path $src) -and (-not (Test-Path $dst))) {
-            Copy-Item -Path $src -Destination $dst -Force
-            Write-Log "Copied BGI config: $bgi" "SUCCESS"
-        }
-    }
-
-    Write-Section "Installing BGInfo"
-    if (-not (Test-Path $BGInfoExe)) {
-        Write-Log "Downloading BGInfo from Sysinternals..."
-        try {
-            $zip = "$env:TEMP\BGInfo.zip"
-            Invoke-WebRequest -Uri "https://download.sysinternals.com/files/BGInfo.zip" -OutFile $zip -UseBasicParsing
-            Expand-Archive -Path $zip -DestinationPath $BGInfoDir -Force
-            Remove-Item $zip -Force -ErrorAction SilentlyContinue
-            Write-Log "BGInfo downloaded and extracted" "SUCCESS"
-        } catch { Write-Log "BGInfo download failed: $($_.Exception.Message)" "ERROR" }
-    } else { Write-Log "BGInfo already present" "SKIP" }
-
-    Write-Section "Configuring BGInfo"
-
-    if ($Script:LocationType -eq "ADV") {
-        $BGInfoCfg = Join-Path $BGInfoDir "Nuvia_ADV.bgi"
-        $WallpaperJpg = Join-Path $WallpaperDir "Nuvia_Advanced_Dentistry_Wallpaper.jpg"
-    } else {
-        $BGInfoCfg = Join-Path $BGInfoDir "Nuvia_CLI.bgi"
-        $WallpaperJpg = Join-Path $WallpaperDir "Nuvia_Impant_Center_Wallpaper.jpg"
-    }
-    Write-Log "BGInfo config: $BGInfoCfg"
-    Write-Log "Wallpaper JPG: $WallpaperJpg"
-
-    if (Test-Path $BGInfoExe) {
-        if (-not (Test-Path $BGInfoCfg)) {
-            Write-Host ""
-            Write-Host "  ============================================" -ForegroundColor Yellow
-            Write-Host "  ONE-TIME BGINFO SETUP REQUIRED" -ForegroundColor Yellow
-            Write-Host "  ============================================" -ForegroundColor Yellow
-            Write-Host "  BGInfo will open. Follow these exact steps:" -ForegroundColor White
-            Write-Host ""
-            Write-Host "  1. Click [Background...] button" -ForegroundColor Cyan
-            Write-Host "       Select: Use these settings" -ForegroundColor White
-            Write-Host "       Wallpaper Bitmap: $WallpaperJpg" -ForegroundColor Yellow
-            Write-Host "       Wallpaper Position: Fill" -ForegroundColor White
-            Write-Host "       CHECK: Make wallpaper visible behind text" -ForegroundColor White
-            Write-Host "       Click [Desktops...] inside Background:" -ForegroundColor White
-            Write-Host "         User Desktop = Update the wallpaper" -ForegroundColor Yellow
-            Write-Host "       Click OK" -ForegroundColor White
-            Write-Host ""
-            Write-Host "  2. Click [Position...] button" -ForegroundColor Cyan
-            Write-Host "       Click the UPPER RIGHT dot in the 3x3 grid" -ForegroundColor Yellow
-            Write-Host "       Click OK" -ForegroundColor White
-            Write-Host ""
-            Write-Host "  3. Set text color to white:" -ForegroundColor Cyan
-            Write-Host "       Click a field > Ctrl+A (select all fields)" -ForegroundColor White
-            Write-Host "       Click [Font...] > Set color to White > OK" -ForegroundColor Yellow
-            Write-Host ""
-            Write-Host "  4. Click [Apply] to preview on desktop" -ForegroundColor Cyan
-            Write-Host ""
-            Write-Host "  5. File > Save As" -ForegroundColor Cyan
-            Write-Host "       Navigate to: $BGInfoDir" -ForegroundColor Yellow
-            Write-Host "       Filename: $(Split-Path $BGInfoCfg -Leaf)" -ForegroundColor Yellow
-            Write-Host "       Click Save" -ForegroundColor White
-            Write-Host ""
-            Write-Host "  6. Close BGInfo - script will continue" -ForegroundColor Cyan
-            Write-Host "  ============================================" -ForegroundColor Yellow
-            Write-Host ""
-            Read-Host "  Press ENTER to open BGInfo now"
-
-            $proc = Start-Process -FilePath $BGInfoExe -ArgumentList "/accepteula" -PassThru
-            Write-Host "  BGInfo is open. Save to $BGInfoCfg then close it." -ForegroundColor Yellow
-            $proc.WaitForExit()
-            Write-Log "BGInfo closed by user"
-        } else {
-            Write-Log "BGInfo config already exists - skipping one-time setup" "SKIP"
-        }
-
-        if (Test-Path $BGInfoCfg) {
-            $runKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
-            $runValue = "`"$BGInfoExe`" `"$BGInfoCfg`" /timer:0 /silent /nolicprompt /accepteula"
-            Set-ItemProperty -Path $runKey -Name "NuviaBGInfo" -Value $runValue -Force
-            Write-Log "BGInfo added to HKLM Run key" "SUCCESS"
-
-            $taskName = "NuviaBGInfo"
-            $taskAction = New-ScheduledTaskAction -Execute $BGInfoExe `
-                -Argument "`"$BGInfoCfg`" /timer:0 /silent /nolicprompt /accepteula"
-            $taskTrigger = New-ScheduledTaskTrigger -AtLogOn
-            $taskPrincipal = New-ScheduledTaskPrincipal -GroupId "BUILTIN\Users" -RunLevel Limited
-            $taskSettings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 1)
-            Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
-            Register-ScheduledTask -TaskName $taskName `
-                -Action $taskAction -Trigger $taskTrigger `
-                -Principal $taskPrincipal -Settings $taskSettings -Force | Out-Null
-            Write-Log "BGInfo scheduled task registered (all users, every logon)" "SUCCESS"
-
-            Write-Log "Applying BGInfo to current desktop..."
-            $proc = Start-Process -FilePath $BGInfoExe `
-                -ArgumentList "`"$BGInfoCfg`" /timer:0 /silent /nolicprompt /accepteula" `
-                -PassThru -WindowStyle Hidden
-            $proc.WaitForExit(15000) | Out-Null
-            if (-not $proc.HasExited) {
-                $proc.Kill() | Out-Null
-                Write-Log "BGInfo timed out - will apply at next logon" "WARNING"
-            } else {
-                Write-Log "BGInfo applied to desktop (exit: $($proc.ExitCode))" "SUCCESS"
-            }
-        } else {
-            Write-Log "No .bgi config found after setup - re-run to complete BGInfo" "WARNING"
-        }
-    } else {
-        Write-Log "BGInfo not found - skipping" "WARNING"
-    }
-
-    # ═════════════════════════════════════════════════════════════
-    # PART 5: PIN FILE EXPLORER AND CHROME TO TASKBAR
-    # ═════════════════════════════════════════════════════════════
-    Write-Section "Pinning Apps to Taskbar"
+function pinAppsToTaskbar {
     try {
         $chromeExe = "C:\Program Files\Google\Chrome\Application\chrome.exe"
         if (-not (Test-Path $chromeExe)) {
@@ -1072,11 +904,73 @@ function normalizeEnvironment {
 
         $layoutPath = "$env:LOCALAPPDATA\Microsoft\Windows\Shell\LayoutModification.xml"
         $layoutXml | Out-File -FilePath $layoutPath -Encoding UTF8 -Force
-        Write-Log "Taskbar layout written - pinned: File Explorer, Google Chrome" "SUCCESS"
     } catch {
-        Write-Log "Taskbar pin failed: $($_.Exception.Message)" "ERROR"
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
+}
+function normalizeEnvironment {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$locationType
+    )
 
+    getBGInfo
+}
+function getBGInfo {
+    try {
+        $url = "https://drive.google.com/uc?export=download&id=1XAP5hAgu3k9067NvoZb2YU6TiPr9I68H"
+
+        # Set the wallpaper properties
+        Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name WallPaper -Value "" 
+        Set-ItemProperty -Path "HKCU:\Control Panel\Colors" -Name Background -Value "0 0 0" 
+
+        $download = getDownload -url $url -target "C:\Nuvia\Temp\BGInfo.zip"
+
+        if ($download -eq $true) { 
+            Expand-Archive -LiteralPath "C:\Nuvia\Temp\BGInfo.zip" -DestinationPath "C:\Nuvia\Temp\"
+
+            # Test if the extracted folder exists
+            if (Test-Path "C:\Nuvia\Temp\BGInfo") {
+                writeText -type "plain" -text "BGInfo unpacked."
+            } else {
+                writeText -type "error" -text "Failed to unpack BGInfo."
+            }
+
+            ROBOCOPY "C:\Nuvia\Temp\BGInfo" "C:\Nuvia\Apps\BGInfo" /E /NFL /NDL /NJH /NJS /nc /ns | Out-Null
+            ROBOCOPY "C:\Nuvia\Temp\BGInfo" "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup" "Start BGInfo.bat" /NFL /NDL /NJH /NJS /nc /ns | Out-Null
+
+            if (Test-Path "C:\Nuvia\Apps\BGInfo") {
+                writeText -type "plain" -text "BGInfo installed."
+            } else {
+                writeText -type "error" -text "Failed to install BGInfo."
+            }
+
+            Remove-Item -Path "C:\Nuvia\Temp\BGInfo.zip" -Recurse
+            Remove-Item -Path "C:\Nuvia\Temp\BGInfo" -Recurse 
+
+            $filesDeleted = $true
+            if (Test-Path "C:\Nuvia\Temp\BGInfo.zip") { 
+                $filesDeleted = $false 
+            }
+            if (Test-Path "C:\Nuvia\Temp\BGInfo") { 
+                $filesDeleted = $false 
+            } 
+            if (!$filesDeleted) {
+                writeText -type "error" -text "Some temp files were not deleted. This is harmless."
+            }
+
+            Start-Process -FilePath "cmd.exe" `
+                -ArgumentList '/c ""C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\Start BGInfo.bat""' `
+                -WorkingDirectory "C:\Nuvia\Apps\BGInfo" `
+                -WindowStyle Hidden
+
+            writeText -type "success" -text "BGInfo installed and should be applied."
+        }
+    } catch {
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
+    }
 }
 function Write-Summary {
     Write-Host ""
