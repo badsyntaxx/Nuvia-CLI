@@ -32,9 +32,14 @@ function clinicalOnboarding {
             "OTHER" = "All other types (Dental Implant Center wallpaper)"
         }) -prompt "Select a location type:" -returnKey -lineAfter
 
+    $validSet = @("FD1", "FD2", "FD3", "OM", "HAL", "EX1", "EX2", "EX3", "EX4", "EX5", "CN1", "CN2", "CN3", "IOS", "MM", "MM1", "MM2", "SED1", "SED2", "SED3", "SUR1", "SUR2", "SUR3", "SUR4", "TRN")
+
+    writeText -type "prompt" -text "What type of computer is this? Example: DR1, FD1, EX2"
+    $computerType = readInput -prompt "Computer type:" -validSet $validSet
+
     debloat
     declutter
-    installApps
+    installApps -computerType $computerType
     normalizeEnvironment -locationType $locationType
 
     # Restart explorer to see GUI changes and other stuff
@@ -803,6 +808,11 @@ function disableSearchAppInStore {
     Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoUseStoreOpenWith" -type DWord -Value 1
 }
 function installApps {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$computerType
+    )
+
     writeText -type "header" -text "Installing Applications..."
 
     $wingetPath = Get-Command winget -ErrorAction SilentlyContinue
@@ -850,7 +860,9 @@ function installApps {
         return $match.Matches[0].Groups[1].Value
     }
 
-    $sonosUrl = Get-WingetInstallerUrl -Id "Sonos.Controller"
+    if ($locationType -eq "CLI") {
+        $sonosUrl = Get-WingetInstallerUrl -Id "Sonos.Controller"
+    }
     $adobeUrl = Get-WingetInstallerUrl -Id "Adobe.Acrobat.Reader.64-bit"
     $googleChromeUrl = Get-WingetInstallerUrl -Id "Google.Chrome"
     $cliqUrl = Get-WingetInstallerUrl -Id "Zoho.Cliq"
