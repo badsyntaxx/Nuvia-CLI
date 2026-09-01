@@ -166,7 +166,7 @@ function debloat {
     setCurrentNetworkPrivate
     disableUpdateRestart
     disableRemoteAssistance
-    #disableRemoteDesktop
+    disableRemoteDesktop
     disableAutoplay
     disableAutorun
     disableHibernation
