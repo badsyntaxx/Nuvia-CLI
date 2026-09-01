@@ -860,7 +860,7 @@ function installApps {
         return $match.Matches[0].Groups[1].Value
     }
 
-    if ($locationType -eq "CLI") {
+    if ($computerType -eq "FD1" -or $computerType -eq "FD2" -or $computerType -eq "FD3" -or $computerType -eq "OM") {
         $sonosUrl = Get-WingetInstallerUrl -Id "Sonos.Controller"
     }
     $adobeUrl = Get-WingetInstallerUrl -Id "Adobe.Acrobat.Reader.64-bit"
