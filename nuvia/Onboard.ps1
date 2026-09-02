@@ -32,7 +32,7 @@ function clinicalOnboarding {
             "OTHER" = "All other types (Dental Implant Center wallpaper)"
         }) -prompt "Select a location type:" -returnKey -lineAfter
 
-    $validSet = @("FD1", "FD2", "FD3", "OM", "HAL", "EX1", "EX2", "EX3", "EX4", "EX5", "CN1", "CN2", "CN3", "IOS", "MM", "MM1", "MM2", "SED1", "SED2", "SED3", "SUR1", "SUR2", "SUR3", "SUR4", "TRN")
+    $validSet = @("FD1", "FD2", "FD3", "OM", "HAL", "EX1", "EX2", "EX3", "EX4", "EX5", "CN1", "CN2", "CN3", "IOS", "MM", "MM1", "MM2", "SED1", "SED2", "SED3", "SUR1", "SUR2", "SUR3", "SUR4", "TRN", "DR1", "DR2", "DR3", "DR4")
 
     writeText -type "prompt" -text "What type of computer is this? Example: DR1, FD1, EX2"
     $computerType = readInput -prompt "Computer type:" -validSet $validSet
