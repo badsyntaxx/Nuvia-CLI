@@ -860,21 +860,22 @@ function installApps {
         return $match.Matches[0].Groups[1].Value
     }
 
-    if ($computerType -eq "FD1" -or $computerType -eq "FD2" -or $computerType -eq "FD3" -or $computerType -eq "OM") {
-        $sonosUrl = Get-WingetInstallerUrl -Id "Sonos.Controller"
-    }
+    $sonosUrl = Get-WingetInstallerUrl -Id "Sonos.Controller"
     $adobeUrl = Get-WingetInstallerUrl -Id "Adobe.Acrobat.Reader.64-bit"
     $googleChromeUrl = Get-WingetInstallerUrl -Id "Google.Chrome"
     $cliqUrl = Get-WingetInstallerUrl -Id "Zoho.Cliq"
     $dropboxUrl = Get-WingetInstallerUrl -Id "Dropbox.Dropbox"
 
     $appsToInstall = @(
-        @{ Url = $sonosUrl; Name = "Sonos"; Params = "/S /v/qn" }
         @{ Url = $adobeUrl; Name = "Adobe Acrobat"; Params = "/sAll /rs /msi EULA_ACCEPT=YES ALLUSERS=1" }
         @{ Url = $googleChromeUrl; Name = "Google Chrome"; Params = "/qn /norestart" }
         @{ Url = $cliqUrl; Name = "Cliq"; Params = "/qn /norestart" }
         @{ Url = $dropboxUrl; Name = "Dropbox"; Params = "/qn /norestart" }
     )
+
+    if ($computerType -eq "FD1" -or $computerType -eq "FD2" -or $computerType -eq "FD3" -or $computerType -eq "OM") {
+        $appsToInstall += @{ Url = $sonosUrl; Name = "Sonos"; Params = "/S /v/qn" }
+    }
 
     foreach ($app in $appsToInstall) {
         if (-not $app.Url) {
@@ -931,6 +932,8 @@ function normalizeEnvironment {
 }
 function getBGInfo {
     try {
+        writeText -type "plain" -text "Installing BGInfo..." -lineBefore
+
         $url = "https://drive.google.com/uc?export=download&id=1XAP5hAgu3k9067NvoZb2YU6TiPr9I68H"
 
         # Set the wallpaper properties
