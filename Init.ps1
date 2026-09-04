@@ -101,7 +101,7 @@ function log {
 
     try {      
         # Define log directory
-        $logDirectory = "C:\Nuvia\Logs\ShellCLI"
+        $logDirectory = "C:\Nuvia\logs\ShellCLI"
         
         # Create log directory if it doesn't exist
         if (-not (Test-Path -Path $logDirectory)) {

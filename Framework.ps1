@@ -30,12 +30,12 @@ $global:commandMap = [ordered]@{
     "edit net adapter"               = @("main", "Network", "editNetAdapter", "Edit the network adapter.")
     "wifi"                           = @("main", "Network", "getWifiCreds", "Get WiFi credentials.")
     #-- APPS COMMANDS --#
-    "get apps"                       = @("main", "Apps", "getApps", "Display a menu of available apps.")
-    "get app"                        = @("main", "Apps", "getApp", "Get an app by providing install details.")
-    "get browser apps"               = @("main", "Apps", "getBrowserApps", "Display a menu of web browsers.")
-    "get diagnostic apps"            = @("main", "Apps", "getDiagnosticApps", "Display a menu of PC diagnostic software.")
-    "get productivity apps"          = @("main", "Apps", "getProductivityApps", "Display a menu of productivity apps.")
-    "get customization apps"         = @("main", "Apps", "getCustomizationApps", "Display a menu of customization apps.")
+    "get apps"                       = @("nuvia", "Apps", "getApps", "Display a menu of available apps.")
+    "get app"                        = @("nuvia", "Apps", "getApp", "Get an app by providing install details.")
+    "get browser apps"               = @("nuvia", "Apps", "getBrowserApps", "Display a menu of web browsers.")
+    "get diagnostic apps"            = @("nuvia", "Apps", "getDiagnosticApps", "Display a menu of PC diagnostic software.")
+    "get productivity apps"          = @("nuvia", "Apps", "getProductivityApps", "Display a menu of productivity apps.")
+    "get customization apps"         = @("nuvia", "Apps", "getCustomizationApps", "Display a menu of customization apps.")
     #-- SYSTEM COMMANDS --#
     "techmode 1"                     = @("main", "Common", "techMode", "Enable tech mode.")
     "techmode 0"                     = @("main", "Common", "userMode", "Enable user mode.")
@@ -293,7 +293,7 @@ function log {
 
     try {      
         # Define log directory
-        $logDirectory = "C:\Nuvia\Logs\ShellCLI"
+        $logDirectory = "C:\Nuvia\logs\ShellCLI"
         
         # Create log directory if it doesn't exist
         if (-not (Test-Path -Path $logDirectory)) {

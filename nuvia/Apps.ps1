@@ -184,14 +184,14 @@ function getWinDirStat {
         $url = "https://github.com/windirstat/windirstat/releases/latest/download/WinDirStat.zip"
 
         # Define paths
-        $tempDir = "C:\Temp"
-        $zipPath = Join-Path -Path $tempDir -ChildPath "WinDirStat.zip"  # FULL path with filename
-        $exePath = Join-Path -Path $tempDir -ChildPath "WinDirStat.exe"
+        $path = "C:\Nuvia\tools"
+        $zipPath = Join-Path -Path $path -ChildPath "WinDirStat.zip"  # FULL path with filename
+        $exePath = Join-Path -Path $path -ChildPath "WinDirStat.exe"
 
         # Create directory if it doesn't exist
-        if (!(Test-Path $tempDir)) {
-            New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
-            writeText -type "notice" -text "Created directory: $tempDir"
+        if (!(Test-Path $path)) {
+            New-Item -ItemType Directory -Path $path -Force | Out-Null
+            writeText -type "notice" -text "Created directory: $path"
         }          
 
         # Check if WinDirStat.exe already exists
@@ -201,16 +201,16 @@ function getWinDirStat {
                 # Verify the zip file was downloaded
                 if (Test-Path $zipPath) {
                     # Extract the zip file
-                    Expand-Archive -Path $zipPath -DestinationPath $tempDir -Force
+                    Expand-Archive -Path $zipPath -DestinationPath $path -Force
                         
                     # Move WinDirStat.exe from x64 subfolder to root
-                    $extractedExe = Join-Path -Path $tempDir -ChildPath "x64\WinDirStat.exe"
+                    $extractedExe = Join-Path -Path $path -ChildPath "x64\WinDirStat.exe"
                     if (Test-Path $extractedExe) {
                         Move-Item -Path $extractedExe -Destination $exePath -Force
                         # Clean up the x64 folder
-                        Remove-Item -Path (Join-Path -Path $tempDir -ChildPath "x64") -Recurse -Force -ErrorAction SilentlyContinue
-                        Remove-Item -Path (Join-Path -Path $tempDir -ChildPath "x86") -Recurse -Force -ErrorAction SilentlyContinue
-                        Remove-Item -Path (Join-Path -Path $tempDir -ChildPath "Arm64") -Recurse -Force -ErrorAction SilentlyContinue
+                        Remove-Item -Path (Join-Path -Path $path -ChildPath "x64") -Recurse -Force -ErrorAction SilentlyContinue
+                        Remove-Item -Path (Join-Path -Path $path -ChildPath "x86") -Recurse -Force -ErrorAction SilentlyContinue
+                        Remove-Item -Path (Join-Path -Path $path -ChildPath "Arm64") -Recurse -Force -ErrorAction SilentlyContinue
                     } else {
                         writeText -type "notice" -text "WinDirStat.exe not found in the expected x64 subfolder"
                     }
@@ -218,7 +218,7 @@ function getWinDirStat {
                     # Clean up the zip file
                     Remove-Item -Path $zipPath -Force -ErrorAction SilentlyContinue
                         
-                    writeText -type "success" -text "WinDirStat.exe has been placed in: $tempDir"
+                    writeText -type "success" -text "WinDirStat.exe has been placed in: $path"
                 } else {
                     writeText -type "error" -text "Download failed or zip file not found at: $zipPath"
                 }
@@ -226,7 +226,7 @@ function getWinDirStat {
                 writeText -type "error" -text "Failed to download WinDirStat.zip"
             }
         } else {
-            writeText -type "notice" -text "WinDirStat.exe already exists in: $tempDir. Skipping download and extraction."
+            writeText -type "notice" -text "WinDirStat.exe already exists in: $path. Skipping download and extraction."
         }
     } catch {
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
@@ -283,8 +283,12 @@ function getBGInfo {
 }
 function getHWInfo {
     try {
-        $url = (winget show --id  REALiX.HWiNFO | Select-String "Installer Url:").Line.Split(" ")[-1]
-        installApp -url $url -appName "HWiNFO" -params "--install --silent --system-level"
+        $url = "https://www.hwinfo.com/files/hwi64_852.exe"
+        if ([string]::IsNullOrWhiteSpace($url) -or $url -notmatch '^https?://') {
+            Write-Error "Failed to retrieve a valid installer URL. Aborting install."
+        } else {
+            installApp -url $url -appName "HWiNFO" -params "--install --silent --system-level"
+        }
     } catch {
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
