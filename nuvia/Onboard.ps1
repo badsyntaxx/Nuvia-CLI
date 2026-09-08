@@ -1,8 +1,11 @@
 function init {
+    $script:scriptStarted = $(Get-Date)
+    $script:logPath = "C:\Nuvia\logs\ShellCLI\$script:scriptStarted.log"
+
     writeText -type "header" -text "Initializing Nuvia Onboarding Script"
     writeText -type "plain" -text "Hostname : $env:COMPUTERNAME"
-    writeText -type "plain" -text "Started  : $(Get-Date)"
-    writeText -type "plain" -text "Log      : $LogFile" -lineAfter
+    writeText -type "plain" -text "Started  : $script:scriptStarted"
+    writeText -type "plain" -text "Log      : $script:logPath" -lineAfter
 
     $type = readOption -options $([ordered]@{
             "Clinical" = "Clinical"
@@ -25,6 +28,12 @@ function init {
 function clinicalOnboarding {
     writeText -type "header" -text "Initializing Clinical Onboarding"
 
+    writeText -type "prompt" -text "What is the location of this computer? Example: ALX, DAL, IND" -lineBefore
+    $location = readInput -prompt "Location:"
+    $location = $location.ToUpper()
+
+    writeText -type "notice" -text "$location-XXX-XXX"
+
     $locationType = readOption -options $([ordered]@{
             "ADV"   = "Advanced Dentistry"
             "CLI"   = "Clinic"
@@ -32,20 +41,67 @@ function clinicalOnboarding {
             "OTHER" = "All other types (Dental Implant Center wallpaper)"
         }) -prompt "Select a location type:" -returnKey -lineAfter
 
+    writeText -type "notice" -text "$location-$locationType-XXX"
+
     $validSet = @("FD1", "FD2", "FD3", "OM", "HAL", "EX1", "EX2", "EX3", "EX4", "EX5", "CN1", "CN2", "CN3", "IOS", "MM", "MM1", "MM2", "SED1", "SED2", "SED3", "SUR1", "SUR2", "SUR3", "SUR4", "TRN", "DR1", "DR2", "DR3", "DR4")
 
     writeText -type "prompt" -text "What type of computer is this? Example: DR1, FD1, EX2"
     $computerType = readInput -prompt "Computer type:" -validSet $validSet
 
+    $computerType = $computerType.ToUpper()
+
+    writeText -type "notice" -text "$location-$locationType-$computerType"
+
+    createNuviaFolders
     debloat
     declutter
     installApps -computerType $computerType
-    normalizeEnvironment -locationType $locationType
+    normalizeEnvironment -location $location -locationType $locationType -computerType $computerType
+    writeSummary
 
     # Restart explorer to see GUI changes and other stuff
     Stop-Process -Name explorer -Force
     Start-Sleep -Seconds 2
     Start-Process explorer
+}
+function createNuviaFolders {
+    $rootPath = "C:\Nuvia"
+
+    # --- Create root + subfolders ---
+    $subFolders = @("temp", "tools", "backups", "logs", "state")
+
+    if (-not (Test-Path $rootPath)) {
+        New-Item -Path $rootPath -ItemType Directory | Out-Null
+        Write-Host "Created $rootPath"
+    }
+
+    foreach ($folder in $subFolders) {
+        $fullPath = Join-Path $rootPath $folder
+        if (-not (Test-Path $fullPath)) {
+            New-Item -Path $fullPath -ItemType Directory | Out-Null
+            Write-Host "Created $fullPath"
+        }
+    }
+
+    # --- Hide the root folder ---
+    $item = Get-Item $rootPath -Force
+    $item.Attributes = $item.Attributes -bor [System.IO.FileAttributes]::Hidden
+
+    # --- Restrict access to Administrators only ---
+    # Disable inheritance and grant full control only to Administrators + SYSTEM
+    icacls $rootPath /inheritance:r | Out-Null
+    icacls $rootPath /grant:r "Administrators:(OI)(CI)F" | Out-Null
+    icacls $rootPath /grant:r "SYSTEM:(OI)(CI)F" | Out-Null
+    # (Optional) remove other default grants like Users/Authenticated Users if present
+    icacls $rootPath /remove "Users" "Authenticated Users" "Everyone" 2>$null | Out-Null
+
+    Write-Host "Restricted $rootPath to Administrators/SYSTEM only."
+
+    # --- Set machine-level environment variable %n% ---
+    [Environment]::SetEnvironmentVariable("n", $rootPath, "Machine")
+    $env:n = $rootPath  # make it available in current session too
+
+    Write-Host "Environment variable 'n' set to $rootPath (restart other shells to pick it up)."
 }
 function salesOnboarding {
     writeText -type "notice" -text "Sales are currently on Macs. No onboarding actions are available."
@@ -166,7 +222,7 @@ function debloat {
     setCurrentNetworkPrivate
     disableUpdateRestart
     disableRemoteAssistance
-    disableRemoteDesktop
+    # disableRemoteDesktop
     disableAutoplay
     disableAutorun
     disableHibernation
@@ -925,14 +981,67 @@ function pinAppsToTaskbar {
 function normalizeEnvironment {
     param (
         [Parameter(Mandatory = $true)]
-        [string]$locationType
+        [string]$location,
+        [Parameter(Mandatory = $true)]
+        [string]$locationType,
+        [Parameter(Mandatory = $true)]
+        [string]$computerType
     )
 
+    editHostname
     getBGInfo
+}
+function editHostname {
+    try {
+        writeText -type "header" -text "Editing Hostname" -lineBefore
+
+        $currentHostname = $env:COMPUTERNAME
+        writeText -type "plain" -text "Current Hostname: $currentHostname"
+
+        $hostname = "$($location)-$($locationType)-$($computerType)"
+        writeText -type "plain" -text "New Hostname:     $hostname"
+        return
+        if ($hostname -eq "") { 
+            $hostname = $currentHostname 
+        } 
+
+        if ($hostname -ne "") {
+            Remove-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -name "Hostname" 
+            Remove-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -name "NV Hostname" 
+            Set-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Control\Computername\Computername" -name "Computername" -value $hostname
+            Set-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Control\Computername\ActiveComputername" -name "Computername" -value $hostname
+            Set-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -name "Hostname" -value $hostname
+            Set-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -name "NV Hostname" -value  $hostname
+            Set-ItemProperty -path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -name "AltDefaultDomainName" -value $hostname
+            Set-ItemProperty -path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -name "DefaultDomainName" -value $hostname
+            $env:COMPUTERNAME = $hostname
+        } 
+
+        $hostnameChanged = $currentHostname -ne $env:COMPUTERNAME
+
+        if ($hostnameChanged) {
+            writeText -type "success" -text "Hostname changed."
+        } else {
+            writeText -type "success" -text "Hostname unchanged."
+        }
+
+        $choice = readOption -options $([ordered]@{
+                "Yes" = "Change the description of the PC."
+                "No"  = "Do not change the description of the PC."
+            }) -prompt "Do you also want to change the description for the target PC?" -lineAfter
+
+        switch ($choice) {
+            0 { editDescription }
+            1 { readCommand }
+        }
+    } catch {
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
+    }
 }
 function getBGInfo {
     try {
-        writeText -type "plain" -text "Installing BGInfo..." -lineBefore
+        writeText -type "header" -text "Adding Nuvia Background" -lineBefore
 
         $url = "https://drive.google.com/uc?export=download&id=1XAP5hAgu3k9067NvoZb2YU6TiPr9I68H"
 
@@ -987,43 +1096,10 @@ function getBGInfo {
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
-function Write-Summary {
-    Write-Host ""
-    Write-Host "============================================" -ForegroundColor Cyan
-    Write-Host "  MASTER SETUP SUMMARY" -ForegroundColor Cyan
-    Write-Host "============================================" -ForegroundColor Cyan
-    Write-Host "  Computer     : $env:COMPUTERNAME" -ForegroundColor White
-    Write-Host "  Location Type: $Script:LocationType" -ForegroundColor White
-    Write-Host "  Completed    : $(Get-Date)" -ForegroundColor White
-    Write-Host "  Log          : $LogFile" -ForegroundColor White
-    Write-Host ""
-    Write-Host "  REMOVALS: Removed=$($Script:RemovedCount) Skipped=$($Script:SkippedRemCount) Failed=$($Script:FailedRemCount)" -ForegroundColor $(if ($Script:FailedRemCount -gt 0) { "Yellow" } else { "Green" })
-    Write-Host "  INSTALLS: Installed=$($Script:InstalledCount) Skipped=$($Script:SkippedInstCount) Failed=$($Script:FailedInstCount)" -ForegroundColor $(if ($Script:FailedInstCount -gt 0) { "Yellow" } else { "Green" })
-
-    $removed = $Script:RemoveResults  | Where-Object { $_.Status -eq "REMOVED" }
-    $remFailed = $Script:RemoveResults  | Where-Object { $_.Status -eq "FAILED" }
-    $instOk = $Script:InstallResults | Where-Object { $_.Status -eq "INSTALLED" }
-    $instFail = $Script:InstallResults | Where-Object { $_.Status -eq "FAILED" }
-
-    if ($removed) {
-        Write-Host ""
-        Write-Host "  REMOVED:" -ForegroundColor Green
-        $removed | ForEach-Object { Write-Host "    [OK] $($_.App)" -ForegroundColor Green }
-    }
-    if ($instOk) {
-        Write-Host ""
-        Write-Host "  INSTALLED:" -ForegroundColor Green
-        $instOk | ForEach-Object { Write-Host "    [OK] $($_.App) - $($_.Detail)" -ForegroundColor Green }
-    }
-    if ($remFailed) {
-        Write-Host ""
-        Write-Host "  REMOVAL FAILURES:" -ForegroundColor Red
-        $remFailed | ForEach-Object { Write-Host "    [!!] $($_.App) - $($_.Detail)" -ForegroundColor Red }
-    }
-    if ($instFail) {
-        Write-Host ""
-        Write-Host "  INSTALL FAILURES:" -ForegroundColor Red
-        $instFail | ForEach-Object { Write-Host "    [!!] $($_.App) - $($_.Detail)" -ForegroundColor Red }
-    }
-    Write-Host "============================================" -ForegroundColor Cyan
+function writeSummary {
+    writeText -type "header" -text "Summary"
+    writeText -type "plain" -text "Computer     : $env:COMPUTERNAME"
+    writeText -type "plain" -text "started      : $script:scriptStarted"
+    writeText -type "plain" -text "completed    : $(Get-Date)"
+    writeText -type "plain" -text "Log          : $script:logPath"
 }

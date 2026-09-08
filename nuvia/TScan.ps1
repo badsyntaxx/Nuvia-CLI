@@ -47,7 +47,7 @@ function installTscan {
                 Set-NetFirewallRule -DisplayGroup "Network Discovery" -Enabled True
                 Set-NetFirewallRule -DisplayGroup "File and Printer Sharing" -Enabled True
 
-                robocopy "$networkPath" "$nuviaPath\Temp\tscan" /E /IS /COPY:DAT > "$nuviaPath\Logs\shellcli_tscan_robocopy.txt" 2>&1
+                robocopy "$networkPath" "$nuviaPath\Temp\tscan" /E /IS /COPY:DAT > "$nuviaPath\logs\shellcli_tscan_robocopy.txt" 2>&1
                 
                 if ($LASTEXITCODE -le 7) {
                     writeText -type "plain" -text "Installing T-Scan..."
