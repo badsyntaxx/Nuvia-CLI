@@ -137,14 +137,14 @@ function createNuviaFolders {
 
     if (-not (Test-Path $rootPath)) {
         New-Item -Path $rootPath -ItemType Directory | Out-Null
-        writeText -type "plain" -text "Created $rootPath"
+        log -msg "Created $rootPath"
     }
 
     foreach ($folder in $subFolders) {
         $fullPath = Join-Path $rootPath $folder
         if (-not (Test-Path $fullPath)) {
             New-Item -Path $fullPath -ItemType Directory | Out-Null
-            writeText -type "plain" -text "Created $fullPath"
+            log -msg "Created $fullPath"
         }
     }
 
@@ -160,7 +160,7 @@ function createNuviaFolders {
     # (Optional) remove other default grants like Users/Authenticated Users if present
     icacls $rootPath /remove "Users" "Authenticated Users" "Everyone" 2>$null | Out-Null
 
-    writeText -type "plain" -text "Restricted $rootPath to Administrators/SYSTEM only."
+    log -msg "Restricted $rootPath to Administrators/SYSTEM only."
 
     # --- Set machine-level environment variable %n% ---
     [Environment]::SetEnvironmentVariable("n", $rootPath, "Machine")
