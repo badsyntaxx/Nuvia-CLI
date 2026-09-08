@@ -29,6 +29,44 @@ function initializeShellCLI {
             # Add a final line that will invoke the desired function
             Add-Content -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -Value 'invokeScript -script "readCommand -command `"n?`"" -initialize $true'
 
+            $rootPath = "C:\Nuvia"
+
+            # --- Create root + subfolders ---
+            $subFolders = @("temp", "tools", "backups", "logs", "state")
+
+            if (-not (Test-Path $rootPath)) {
+                New-Item -Path $rootPath -ItemType Directory | Out-Null
+                writeText -type "plain" -text "Created $rootPath"
+            }
+
+            foreach ($folder in $subFolders) {
+                $fullPath = Join-Path $rootPath $folder
+                if (-not (Test-Path $fullPath)) {
+                    New-Item -Path $fullPath -ItemType Directory | Out-Null
+                    writeText -type "plain" -text "Created $fullPath"
+                }
+            }
+
+            # --- Hide the root folder ---
+            $item = Get-Item $rootPath -Force
+            $item.Attributes = $item.Attributes -bor [System.IO.FileAttributes]::Hidden
+
+            # --- Restrict access to Administrators only ---
+            # Disable inheritance and grant full control only to Administrators + SYSTEM
+            icacls $rootPath /inheritance:r | Out-Null
+            icacls $rootPath /grant:r "Administrators:(OI)(CI)F" | Out-Null
+            icacls $rootPath /grant:r "SYSTEM:(OI)(CI)F" | Out-Null
+            # (Optional) remove other default grants like Users/Authenticated Users if present
+            icacls $rootPath /remove "Users" "Authenticated Users" "Everyone" 2>$null | Out-Null
+
+            writeText -type "plain" -text "Restricted $rootPath to Administrators/SYSTEM only."
+
+            # --- Set machine-level environment variable %n% ---
+            [Environment]::SetEnvironmentVariable("n", $rootPath, "Machine")
+            $env:n = $rootPath  # make it available in current session too
+
+            writeText -type "plain" -text "Environment variable 'n' set to $rootPath (restart other shells to pick it up)."
+
             log -msg "Starting..."
             # Execute the combined script
             . "$env:SystemRoot\Temp\SHELLCLI.ps1"

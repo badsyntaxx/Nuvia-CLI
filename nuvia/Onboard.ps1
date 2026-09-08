@@ -72,14 +72,14 @@ function createNuviaFolders {
 
     if (-not (Test-Path $rootPath)) {
         New-Item -Path $rootPath -ItemType Directory | Out-Null
-        Write-Host "Created $rootPath"
+        writeText -type "plain" -text "Created $rootPath"
     }
 
     foreach ($folder in $subFolders) {
         $fullPath = Join-Path $rootPath $folder
         if (-not (Test-Path $fullPath)) {
             New-Item -Path $fullPath -ItemType Directory | Out-Null
-            Write-Host "Created $fullPath"
+            writeText -type "plain" -text "Created $fullPath"
         }
     }
 
@@ -95,13 +95,13 @@ function createNuviaFolders {
     # (Optional) remove other default grants like Users/Authenticated Users if present
     icacls $rootPath /remove "Users" "Authenticated Users" "Everyone" 2>$null | Out-Null
 
-    Write-Host "Restricted $rootPath to Administrators/SYSTEM only."
+    writeText -type "plain" -text "Restricted $rootPath to Administrators/SYSTEM only."
 
     # --- Set machine-level environment variable %n% ---
     [Environment]::SetEnvironmentVariable("n", $rootPath, "Machine")
     $env:n = $rootPath  # make it available in current session too
 
-    Write-Host "Environment variable 'n' set to $rootPath (restart other shells to pick it up)."
+    writeText -type "plain" -text "Environment variable 'n' set to $rootPath (restart other shells to pick it up)."
 }
 function salesOnboarding {
     writeText -type "notice" -text "Sales are currently on Macs. No onboarding actions are available."
