@@ -235,46 +235,55 @@ function getWinDirStat {
 }
 function getBGInfo {
     try {
-        $url = "https://drive.google.com/uc?export=download&id=1gBFuz6WqrgPvIqYjrcRCYZeC_x9XsUbC"
+        writeText -type "header" -text "Adding Nuvia Background" -lineBefore
 
-        $download = getDownload -url $url -target "$env:SystemRoot\Temp\BGInfo.zip"
+        $url = "https://drive.google.com/uc?export=download&id=1XAP5hAgu3k9067NvoZb2YU6TiPr9I68H"
+
+        # Set the wallpaper properties
+        Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name WallPaper -Value "" 
+        Set-ItemProperty -Path "HKCU:\Control Panel\Colors" -Name Background -Value "0 0 0" 
+
+        $download = getDownload -url $url -target "C:\Nuvia\temp\BGInfo.zip"
 
         if ($download -eq $true) { 
-            Expand-Archive -LiteralPath "$env:SystemRoot\Temp\BGInfo.zip" -DestinationPath "$env:SystemRoot\Temp\"
+            Expand-Archive -LiteralPath "C:\Nuvia\temp\BGInfo.zip" -DestinationPath "C:\Nuvia\temp\"
 
             # Test if the extracted folder exists
-            if (Test-Path "$env:SystemRoot\Temp\BGInfo") {
+            if (Test-Path "C:\Nuvia\temp\BGInfo") {
                 writeText -type "plain" -text "BGInfo unpacked."
             } else {
                 writeText -type "error" -text "Failed to unpack BGInfo."
             }
 
-            ROBOCOPY "$env:SystemRoot\Temp\BGInfo" "C:\Program Files\BGInfo" /E /NFL /NDL /NJH /NJS /nc /ns | Out-Null
-            ROBOCOPY "$env:SystemRoot\Temp\BGInfo" "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup" "Start BGInfo.bat" /NFL /NDL /NJH /NJS /nc /ns | Out-Null
+            ROBOCOPY "C:\Nuvia\temp\BGInfo" "C:\Nuvia\tools\BGInfo" /E /NFL /NDL /NJH /NJS /nc /ns | Out-Null
+            ROBOCOPY "C:\Nuvia\temp\BGInfo" "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup" "Start BGInfo.bat" /NFL /NDL /NJH /NJS /nc /ns | Out-Null
 
-            if (Test-Path "C:\Program Files\BGInfo") {
+            if (Test-Path "C:\Nuvia\tools\BGInfo") {
                 writeText -type "plain" -text "BGInfo installed."
             } else {
                 writeText -type "error" -text "Failed to install BGInfo."
             }
 
-            Remove-Item -Path "$env:SystemRoot\Temp\BGInfo.zip" -Recurse
-            Remove-Item -Path "$env:SystemRoot\Temp\BGInfo" -Recurse 
+            Remove-Item -Path "C:\Nuvia\temp\BGInfo.zip" -Recurse
+            Remove-Item -Path "C:\Nuvia\temp\BGInfo" -Recurse 
 
             $filesDeleted = $true
-            if (Test-Path "$env:SystemRoot\Temp\BGInfo.zip") { 
+            if (Test-Path "C:\Nuvia\temp\BGInfo.zip") { 
                 $filesDeleted = $false 
             }
-            if (Test-Path "$env:SystemRoot\Temp\BGInfo") { 
+            if (Test-Path "C:\Nuvia\temp\BGInfo") { 
                 $filesDeleted = $false 
             } 
             if (!$filesDeleted) {
                 writeText -type "error" -text "Some temp files were not deleted. This is harmless."
             }
 
-            Start-Process -FilePath "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\Start BGInfo.bat" -WindowStyle Hidden
+            Start-Process -FilePath "cmd.exe" `
+                -ArgumentList '/c ""C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\Start BGInfo.bat""' `
+                -WorkingDirectory "C:\Nuvia\tools\BGInfo" `
+                -WindowStyle Hidden
 
-            writeText -type "success" -text "BGInfo installed and applied."
+            writeText -type "success" -text "BGInfo installed and should be applied."
         }
     } catch {
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
