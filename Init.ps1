@@ -166,7 +166,7 @@ function createNuviaFolders {
     [Environment]::SetEnvironmentVariable("n", $rootPath, "Machine")
     $env:n = $rootPath  # make it available in current session too
 
-    writeText -type "plain" -text "Environment variable 'n' set to $rootPath (restart other shells to pick it up)."
+    log -msg "Environment variable 'n' set to $rootPath (restart other shells to pick it up)."
 }
 
 # Invoke the root of Shell CLI
