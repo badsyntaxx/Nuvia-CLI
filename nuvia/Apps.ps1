@@ -142,22 +142,37 @@ function getBrowserApps {
 function getDiagnosticApps {
     try {
         $installChoice = readOption -options $([ordered]@{
-                "Revo Uninstaller" = "Install Revo Uninstaller."
-                "WinDirStat"       = "Install WinDirStat."
-                "BGInfo"           = "Install BGInfo."
-                "HWiNFO"           = "Install HWiNFO."
-                "AIPS"             = "Install Advanced IP Scanner."
-                "Exit"             = "Exit this script and go back to main command line."
+                "Bulk Crap Uninstaller" = "Install Bulk Crap Uninstaller."
+                "Revo Uninstaller"      = "Install Revo Uninstaller."
+                "WinDirStat"            = "Install WinDirStat."
+                "BGInfo"                = "Install BGInfo."
+                "HWiNFO"                = "Install HWiNFO."
+                "AIPS"                  = "Install Advanced IP Scanner."
+                "Exit"                  = "Exit this script and go back to main command line."
             }) -prompt "Select which diagnostic tool to install:" -lineAfter
 
         switch ($installChoice) {
-            0 { getRevoUninstaller }
-            1 { getWinDirStat }
-            2 { getBGInfo }
-            3 { getHWInfo }
-            4 { getAIPS }
-            5 { readCommand }
+            0 { getBulkCrapUninstaller }
+            1 { getRevoUninstaller }
+            2 { getWinDirStat }
+            3 { getBGInfo }
+            4 { getHWInfo }
+            5 { getAIPS }
+            6 { readCommand }
         } 
+    } catch {
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
+    }
+}
+function getBulkCrapUninstaller {
+    try {
+        $url = (winget show --id Klocman.BulkCrapUninstaller --accept-source-agreements --disable-interactivity | Select-String "Installer Url:").Line.Split(" ")[-1]
+        if ([string]::IsNullOrWhiteSpace($url) -or $url -notmatch '^https?://') {
+            Write-Error "Failed to retrieve a valid installer URL. Aborting install."
+        } else {
+            installApp -url $url -appName "BulkCrapUninstaller" -params "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART"
+        }
     } catch {
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
