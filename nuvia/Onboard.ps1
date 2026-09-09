@@ -857,8 +857,7 @@ function disableSearchAppInStore {
 }
 function installApps {
     param (
-        [Parameter(Mandatory = $true)]
-        [string]$computerType
+        [Parameter(Mandatory = $true)][string]$computerType
     )
 
     writeText -type "header" -text "Installing Applications..."

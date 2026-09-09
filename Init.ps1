@@ -1,6 +1,5 @@
 function initializeShellCLI {
     try {
-        createNuviaFolders
         log -msg "Initializing ShellCLI..."
         # Check if user has administrator privileges
         if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]"Administrator")) {
@@ -9,6 +8,8 @@ function initializeShellCLI {
             Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" $PSCommandArgs" -WorkingDirectory $pwd -Verb RunAs
             Exit
         }
+
+        createNuviaFolders
         
         # Create the main script file
         New-Item -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -ItemType File -Force | Out-Null
