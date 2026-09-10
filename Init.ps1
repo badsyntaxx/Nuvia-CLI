@@ -8,30 +8,32 @@ function initializeShellCLI {
             Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" $PSCommandArgs" -WorkingDirectory $pwd -Verb RunAs
             Exit
         }
+
+        createNuviaFolders
         
         # Create the main script file
-        New-Item -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -ItemType File -Force | Out-Null
-        log -msg "Main script file created at $env:SystemRoot\Temp\SHELLCLI.ps1."
+        New-Item -Path "C:\Nuvia\tools\shellcli\SHELLCLI.ps1" -ItemType File -Force | Out-Null
+        log -msg "Main script file created at C:\Nuvia\tools\shellcli\SHELLCLI.ps1."
 
         $url = "https://raw.githubusercontent.com/badsyntaxx/Nuvia-CLI/main"
 
         # Download the script
-        $download = getScript -Url "$url/Framework.ps1" -Target "$env:SystemRoot\Temp\Framework.ps1"
+        $download = getScript -Url "$url/Framework.ps1" -Target "C:\Nuvia\tools\shellcli\Framework.ps1"
         if ($download) { 
             log -msg "Download done. Building framework..."
             # Append the script to the main script
-            $rawScript = Get-Content -Path "$env:SystemRoot\Temp\Framework.ps1" -Raw -ErrorAction SilentlyContinue
-            Add-Content -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -Value $rawScript
+            $rawScript = Get-Content -Path "C:\Nuvia\tools\shellcli\Framework.ps1" -Raw -ErrorAction SilentlyContinue
+            Add-Content -Path "C:\Nuvia\tools\shellcli\SHELLCLI.ps1" -Value $rawScript
 
             # Remove the script file
-            Get-Item -ErrorAction SilentlyContinue "$env:SystemRoot\Temp\Framework.ps1" | Remove-Item -ErrorAction SilentlyContinue
+            Get-Item -ErrorAction SilentlyContinue "C:\Nuvia\tools\shellcli\Framework.ps1" | Remove-Item -ErrorAction SilentlyContinue
 
             # Add a final line that will invoke the desired function
-            Add-Content -Path "$env:SystemRoot\Temp\SHELLCLI.ps1" -Value 'invokeScript -script "readCommand -command `"n?`"" -initialize $true'
+            Add-Content -Path "C:\Nuvia\tools\shellcli\SHELLCLI.ps1" -Value 'invokeScript -script "readCommand -command `"n?`"" -initialize $true'
 
             log -msg "Starting..."
             # Execute the combined script
-            . "$env:SystemRoot\Temp\SHELLCLI.ps1"
+            . "C:\Nuvia\tools\shellcli\SHELLCLI.ps1"
         }
     } catch {
         Write-Host "  $($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)" -ForegroundColor "Red"
@@ -127,6 +129,64 @@ function log {
     } catch {
         Write-Error "Failed to write log entry: $_"
     }
+}
+function createNuviaFolders {
+    $rootPath = "C:\Nuvia"
+
+    log -msg "Setting up Nuvia folders at $rootPath..."
+
+    # Create root + subfolders
+    $subFolders = @("temp", "tools", "backups", "logs", "state")
+
+    # Check if root and all subfolders already exist
+    $allExist = Test-Path $rootPath
+    if ($allExist) {
+        foreach ($folder in $subFolders) {
+            $fullPath = Join-Path $rootPath $folder
+            if (-not (Test-Path $fullPath)) {
+                $allExist = $false
+                break
+            }
+        }
+    }
+
+    if ($allExist) {
+        log -msg "$rootPath and all subfolders already exist. Skipping setup."
+        return
+    }
+
+    if (-not (Test-Path $rootPath)) {
+        New-Item -Path $rootPath -ItemType Directory | Out-Null
+        log -msg "Created $rootPath"
+    }
+
+    foreach ($folder in $subFolders) {
+        $fullPath = Join-Path $rootPath $folder
+        if (-not (Test-Path $fullPath)) {
+            New-Item -Path $fullPath -ItemType Directory | Out-Null
+            log -msg "Created $fullPath"
+        }
+    }
+
+    # Hide the root folder 
+    $item = Get-Item $rootPath -Force
+    $item.Attributes = $item.Attributes -bor [System.IO.FileAttributes]::Hidden
+
+    # Restrict access to Administrators only 
+    # Disable inheritance and grant full control only to Administrators + SYSTEM
+    icacls $rootPath /inheritance:r | Out-Null
+    icacls $rootPath /grant:r "Administrators:(OI)(CI)F" | Out-Null
+    icacls $rootPath /grant:r "SYSTEM:(OI)(CI)F" | Out-Null
+    # Remove other default grants like Users/Authenticated Users if present
+    icacls $rootPath /remove "Users" "Authenticated Users" "Everyone" 2>$null | Out-Null
+
+    log -msg "Restricted $rootPath to Administrators/SYSTEM only."
+
+    # Set machine-level environment variable %n% ---
+    [Environment]::SetEnvironmentVariable("n", $rootPath, "Machine")
+    $env:n = $rootPath  # make it available in current session too
+
+    log -msg "Environment variable 'n' set to $rootPath (restart other shells to pick it up)."
 }
 
 # Invoke the root of Shell CLI
