@@ -73,7 +73,8 @@ function clinicalOnboarding {
         "DR2", 
         "DR3", 
         "DR4",
-        "LLT"
+        "LLT",
+        "IOS"
     )
 
     writeText -type "prompt" -text "What type of computer is this? Example: DR1, FD1, EX2"
