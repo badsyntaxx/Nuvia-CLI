@@ -269,7 +269,7 @@ function appendToMainScript {
         if ($directory) {
             $url = "$giturl/$directory/$file.ps1"
         }
-
+        Write-Host $url
         $src = (Invoke-WebRequest -Uri $url -UseBasicParsing).Content
         Add-Content -Path "C:\Nuvia\tools\shellcli\SHELLCLI.ps1" -Value $src        
     } catch {
