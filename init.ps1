@@ -16,6 +16,11 @@ function initializeShellCLI {
         log -msg "Building main script"
         New-Item -Path "C:\Nuvia\tools\shellcli\SHELLCLI.ps1" -ItemType File -Force | Out-Null
 
+        if (-not (Test-Path -Path "C:\Nuvia\tools\shellcli\SHELLCLI.ps1")) {
+            log -msg "Failed to create main script file" -lvl "ERROR"
+            throw "Failed to create main script file"
+        }
+
         appendToMainScript -file "framework"
         appendToMainScript -directory "nuvia" -file "core"
 

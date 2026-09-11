@@ -269,7 +269,7 @@ function appendToMainScript {
         if ($directory) {
             $url = "$giturl/$directory/$file.ps1"
         }
-        Write-Host $url
+
         $src = (Invoke-WebRequest -Uri $url -UseBasicParsing).Content
         if ($null -eq $src -or $src -eq "") {
             writeText -type "error" -text "Failed to retrieve script from $url"
