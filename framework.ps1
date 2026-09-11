@@ -260,9 +260,14 @@ function appendToMainScript {
     $ProgressPreference = 'SilentlyContinue'
 
     try {
-        $url = "https://raw.githubusercontent.com/badsyntaxx/Nuvia-CLI/main/$file.ps1"
+
+        $giturl = "https://raw.githubusercontent.com/badsyntaxx/Nuvia-CLI/main"
+        if ($directory -eq 'main' -or $directory -eq 'plugins') {
+            $giturl = "https://raw.githubusercontent.com/badsyntaxx/shellcli/main"
+        }
+        $url = "$giturl/$file.ps1"
         if ($directory) {
-            $url = "https://raw.githubusercontent.com/badsyntaxx/Nuvia-CLI/main/$directory/$file.ps1"
+            $url = "$giturl/$directory/$file.ps1"
         }
 
         $src = (Invoke-WebRequest -Uri $url -UseBasicParsing).Content
