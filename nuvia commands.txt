@@ -1,5 +1,6 @@
 #-- NUVIA COMMANDS --#
 "nuv"                            = @("nuvia", "Core", "nuvia", "Nuvia CLI plugin.")
+"n?"                             = @("nuvia", "Core", "writeHelp", "Nuvia CLI plugin.")
 "n menu"                         = @("nuvia", "Core", "readMenu", "Display the Nuvia CLI menu.")
 "i jumpcloud"                    = @("nuvia", "Install JumpCloud", "installJumpCloud", "Install JumpCloud.")
 "i ninja"                        = @("nuvia", "Ninja", "installNinja", "Install Ninja.")
@@ -17,8 +18,9 @@
 "isr i apps"                     = @("nuvia", "Sales Install Apps", "isrInstallApps", "Install sales applications.")
 "isr add bookmarks"              = @("nuvia", "Sales Add Bookmarks", "isrAddBookmarks", "Add sales bookmarks.")
 "isr onboard"                    = @("nuvia", "Sales Onboard", "isrOnboard", "Onboard new sales team members.")
-"clinic onboard"                 = @("nuvia", "Onboard", "init", "Onboard new clinic computer.")
 "i printer"                      = @("nuvia", "Get Printer Drivers", "getPrinterDrivers", "Get printer drivers.")
 "clean drive"                    = @("nuvia", "Clean Drive", "cleanDrive", "Clear up space on drive.")
 "clean vatech"                   = @("nuvia", "Clean Drive", "cleanVatech", "Clear up space on drive.")
 "clean temp"                     = @("nuvia", "Clean Drive", "cleanTemp", "Clear out the temp folders.")
+"onboard"                        = @("nuvia", "Onboard", "init", "Onboard a Nuvia computer.")
+"debloat"                        = @("nuvia", "debloat", "debloat", "Debloat a Nuvia computer.")

@@ -66,9 +66,9 @@ $global:commandMap = [ordered]@{
     "plugins massgravel"             = @("plugins", "massgravel", "massgravel", "Windows activation scripts.")
     "plugins reclaim"                = @("plugins", "reclaim", "reclaim", "Disable telemetry and bloatware in Windows 11.")
     #-- NUVIA COMMANDS --#
-    "nuv"                            = @("nuvia", "Core", "nuvia", "Nuvia CLI plugin.")
-    "n?"                             = @("nuvia", "Core", "writeHelp", "Nuvia CLI plugin.")
-    "n menu"                         = @("nuvia", "Core", "readMenu", "Display the Nuvia CLI menu.")
+    "nuv"                            = @("nuvia", "core", "nuvia", "Nuvia CLI plugin.")
+    "n?"                             = @("nuvia", "core", "writeHelp", "Nuvia CLI plugin.")
+    "n menu"                         = @("nuvia", "core", "readMenu", "Display the Nuvia CLI menu.")
     "i jumpcloud"                    = @("nuvia", "Install JumpCloud", "installJumpCloud", "Install JumpCloud.")
     "i ninja"                        = @("nuvia", "Ninja", "installNinja", "Install Ninja.")
     "u ninja"                        = @("nuvia", "Ninja", "uninstallNinja", "Uninstall Ninja.")
@@ -89,7 +89,7 @@ $global:commandMap = [ordered]@{
     "clean drive"                    = @("nuvia", "Clean Drive", "cleanDrive", "Clear up space on drive.")
     "clean vatech"                   = @("nuvia", "Clean Drive", "cleanVatech", "Clear up space on drive.")
     "clean temp"                     = @("nuvia", "Clean Drive", "cleanTemp", "Clear out the temp folders.")
-    "onboard"                        = @("nuvia", "Onboard", "init", "Onboard a Nuvia computer.")
+    "onboard"                        = @("nuvia", "onboard", "init", "Onboard a Nuvia computer.")
     "debloat"                        = @("nuvia", "debloat", "debloat", "Debloat a Nuvia computer.")
 }
 
