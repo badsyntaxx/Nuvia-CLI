@@ -271,6 +271,11 @@ function appendToMainScript {
         }
         Write-Host $url
         $src = (Invoke-WebRequest -Uri $url -UseBasicParsing).Content
+        if ($null -eq $src -or $src -eq "") {
+            writeText -type "error" -text "Failed to retrieve script from $url"
+            log -msg "Failed to retrieve script from $url" -lvl "ERROR"
+            return
+        }
         Add-Content -Path "C:\Nuvia\tools\shellcli\SHELLCLI.ps1" -Value $src        
     } catch {
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
