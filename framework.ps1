@@ -195,12 +195,12 @@ function readCommand {
             $commandFile = $filteredCommand[1]
             $commandFunction = $filteredCommand[2]
 
-            New-Item -Path "C:\Nuvia\tools\shellcli\SHELLCLI.ps1" -ItemType File -Force | Out-Null
+            New-Item -Path "$env:ProgramData\Nuvia\temp\SHELLCLI.ps1" -ItemType File -Force | Out-Null
             appendToMainScript -file "framework"
             appendToMainScript -directory $commandDirectory -file $commandFile
-            Add-Content -Path "C:\Nuvia\tools\shellcli\SHELLCLI.ps1" -Value "invokeScript '$commandFunction'"
-            Add-Content -Path "C:\Nuvia\tools\shellcli\SHELLCLI.ps1" -Value "readCommand"
-            $shellCLI = Get-Content -Path "C:\Nuvia\tools\shellcli\SHELLCLI.ps1" -Raw
+            Add-Content -Path "$env:ProgramData\Nuvia\temp\SHELLCLI.ps1" -Value "invokeScript '$commandFunction'"
+            Add-Content -Path "$env:ProgramData\Nuvia\temp\SHELLCLI.ps1" -Value "readCommand"
+            $shellCLI = Get-Content -Path "$env:ProgramData\Nuvia\temp\SHELLCLI.ps1" -Raw
             Invoke-Expression $shellCLI
         }
     } catch {
@@ -276,7 +276,7 @@ function appendToMainScript {
             log -msg "Failed to retrieve script from $url" -lvl "ERROR"
             return
         }
-        Add-Content -Path "C:\Nuvia\tools\shellcli\SHELLCLI.ps1" -Value $src        
+        Add-Content -Path "$env:ProgramData\Nuvia\temp\SHELLCLI.ps1" -Value $src        
     } catch {
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
@@ -295,7 +295,7 @@ function log {
 
     try {      
         # Define log directory
-        $logDirectory = "C:\Nuvia\logs\ShellCLI"
+        $logDirectory = "$env:ProgramData\Nuvia\logs\shellcli"
         
         # Create log directory if it doesn't exist
         if (-not (Test-Path -Path $logDirectory)) {

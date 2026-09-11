@@ -14,9 +14,9 @@ function initializeShellCLI {
         
         # Create the main script file
         log -msg "Building main script"
-        New-Item -Path "C:\Nuvia\tools\shellcli\SHELLCLI.ps1" -ItemType File -Force | Out-Null
+        New-Item -Path "$env:ProgramData\Nuvia\temp\SHELLCLI.ps1" -ItemType File -Force | Out-Null
 
-        if (-not (Test-Path -Path "C:\Nuvia\tools\shellcli\SHELLCLI.ps1")) {
+        if (-not (Test-Path -Path "$env:ProgramData\Nuvia\temp\SHELLCLI.ps1")) {
             log -msg "Failed to create main script file" -lvl "ERROR"
             throw "Failed to create main script file"
         }
@@ -25,11 +25,11 @@ function initializeShellCLI {
         appendToMainScript -directory "nuvia" -file "core"
 
         # Add a final line that will invoke the desired function
-        Add-Content -Path "C:\Nuvia\tools\shellcli\SHELLCLI.ps1" -Value 'invokeScript -script "readCommand -command `"n?`"" -initialize $true'
+        Add-Content -Path "$env:ProgramData\Nuvia\temp\SHELLCLI.ps1" -Value 'invokeScript -script "readCommand -command `"n?`"" -initialize $true'
 
         log -msg "Running main script"
         # Execute the combined script
-        . "C:\Nuvia\tools\shellcli\SHELLCLI.ps1"
+        . "$env:ProgramData\Nuvia\temp\SHELLCLI.ps1"
     } catch {
         Write-Host "  $($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)" -ForegroundColor "Red"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)"
@@ -51,7 +51,7 @@ function appendToMainScript {
         }
 
         $src = (Invoke-WebRequest -Uri $url -UseBasicParsing).Content
-        Add-Content -Path "C:\Nuvia\tools\shellcli\SHELLCLI.ps1" -Value $src
+        Add-Content -Path "$env:ProgramData\Nuvia\temp\SHELLCLI.ps1" -Value $src
     } catch {
         Write-Host "  $($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)" -ForegroundColor "Red"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)"
@@ -70,7 +70,7 @@ function log {
 
     try {      
         # Define log directory
-        $logDirectory = "C:\Nuvia\logs\ShellCLI"
+        $logDirectory = "$env:ProgramData\Nuvia\logs\shellcli"
         
         # Create log directory if it doesn't exist
         if (-not (Test-Path -Path $logDirectory)) {
@@ -98,7 +98,7 @@ function log {
     }
 }
 function createNuviaFolders {
-    $rootPath = "C:\Nuvia"
+    $rootPath = "$env:ProgramData\Nuvia"
 
     log -msg "Setting up Nuvia folders at $rootPath..."
 
@@ -150,10 +150,10 @@ function createNuviaFolders {
     log -msg "Restricted $rootPath to Administrators/SYSTEM only."
 
     # Set machine-level environment variable %n% ---
-    [Environment]::SetEnvironmentVariable("n", $rootPath, "Machine")
+    [Environment]::SetEnvironmentVariable("na", $rootPath, "Machine")
     $env:n = $rootPath  # make it available in current session too
 
-    log -msg "Environment variable 'n' set to $rootPath (restart other shells to pick it up)."
+    log -msg "Environment variable 'na' set to $rootPath (restart other shells to pick it up)."
 }
 
 # Invoke the root of Shell CLI

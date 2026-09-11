@@ -1,6 +1,6 @@
 function init {
     $script:scriptStarted = $(Get-Date)
-    $script:logPath = "C:\Nuvia\logs\ShellCLI\$script:scriptStarted.log"
+    $script:logPath = "$env:ProgramData\Nuvia\logs\shellcli\$script:scriptStarted.log"
 
     writeText -type "header" -text "Initializing Nuvia Onboarding Script"
     writeText -type "plain" -text "Hostname : $env:COMPUTERNAME"
@@ -992,7 +992,7 @@ function editHostname {
 
         $hostname = "$($location)-$($locationType)-$($computerType)"
         writeText -type "plain" -text "New Hostname:     $hostname"
-        return
+
         if ($hostname -eq "") { 
             $hostname = $currentHostname 
         } 
