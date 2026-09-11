@@ -271,7 +271,7 @@ function appendToMainScript {
         }
 
         $src = (Invoke-WebRequest -Uri $url -UseBasicParsing).Content
-        Add-Content -Path "$env:ProgramData\shellcli\SHELLCLI.ps1" -Value $src        
+        Add-Content -Path "C:\Nuvia\tools\shellcli\SHELLCLI.ps1" -Value $src        
     } catch {
         Write-Host "  $($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)" -ForegroundColor "Red"
         log -msg "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
