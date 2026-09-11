@@ -260,11 +260,11 @@ function appendToMainScript {
     $ProgressPreference = 'SilentlyContinue'
 
     try {
-
         $giturl = "https://raw.githubusercontent.com/badsyntaxx/Nuvia-CLI/main"
         if ($directory -eq 'main' -or $directory -eq 'plugins') {
             $giturl = "https://raw.githubusercontent.com/badsyntaxx/shellcli/main"
         }
+        
         $url = "$giturl/$file.ps1"
         if ($directory) {
             $url = "$giturl/$directory/$file.ps1"
@@ -273,8 +273,8 @@ function appendToMainScript {
         $src = (Invoke-WebRequest -Uri $url -UseBasicParsing).Content
         Add-Content -Path "C:\Nuvia\tools\shellcli\SHELLCLI.ps1" -Value $src        
     } catch {
-        Write-Host "  $($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)" -ForegroundColor "Red"
-        log -msg "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     } finally {
         $ProgressPreference = $oldProgress
     }
