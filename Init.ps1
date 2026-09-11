@@ -1,6 +1,5 @@
 function initializeShellCLI {
     try {
-        log -msg "Initializing ShellCLI..."
         # Check if user has administrator privileges
         if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]"Administrator")) {
             log -msg "Terminal is not admin. Self elevating."
@@ -8,88 +7,51 @@ function initializeShellCLI {
             Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" $PSCommandArgs" -WorkingDirectory $pwd -Verb RunAs
             Exit
         }
+        
+        log -msg "Initializing ShellCLI"
 
         createNuviaFolders
         
         # Create the main script file
+        log -msg "Building main script"
         New-Item -Path "C:\Nuvia\tools\shellcli\SHELLCLI.ps1" -ItemType File -Force | Out-Null
-        log -msg "Main script file created at C:\Nuvia\tools\shellcli\SHELLCLI.ps1."
 
-        $url = "https://raw.githubusercontent.com/badsyntaxx/Nuvia-CLI/main"
+        appendToMainScript -file "framework"
+        appendToMainScript -directory "main" -file "core"
 
-        # Download the script
-        $download = getScript -Url "$url/Framework.ps1" -Target "C:\Nuvia\tools\shellcli\Framework.ps1"
-        if ($download) { 
-            log -msg "Download done. Building framework..."
-            # Append the script to the main script
-            $rawScript = Get-Content -Path "C:\Nuvia\tools\shellcli\Framework.ps1" -Raw -ErrorAction SilentlyContinue
-            Add-Content -Path "C:\Nuvia\tools\shellcli\SHELLCLI.ps1" -Value $rawScript
+        # Add a final line that will invoke the desired function
+        Add-Content -Path "C:\Nuvia\tools\shellcli\SHELLCLI.ps1" -Value 'invokeScript -script "readCommand -command `"n?`"" -initialize $true'
 
-            # Remove the script file
-            Get-Item -ErrorAction SilentlyContinue "C:\Nuvia\tools\shellcli\Framework.ps1" | Remove-Item -ErrorAction SilentlyContinue
-
-            # Add a final line that will invoke the desired function
-            Add-Content -Path "C:\Nuvia\tools\shellcli\SHELLCLI.ps1" -Value 'invokeScript -script "readCommand -command `"n?`"" -initialize $true'
-
-            log -msg "Starting..."
-            # Execute the combined script
-            . "C:\Nuvia\tools\shellcli\SHELLCLI.ps1"
-        }
+        log -msg "Running main script"
+        # Execute the combined script
+        . "C:\Nuvia\tools\shellcli\SHELLCLI.ps1"
     } catch {
-        Write-Host "  $($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)" -ForegroundColor "Red"
-        log -msg "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
+        Write-Host "  $($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)" -ForegroundColor "Red"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)"
     }
 }
-function getScript {
+function appendToMainScript {
     param (
-        [Parameter(Mandatory)]
-        [string]$url,
-        [Parameter(Mandatory)]
-        [string]$target
+        [Parameter(Mandatory = $false)][string]$directory,
+        [Parameter(Mandatory)][string]$file
     )
-  
-    Process {
-        $downloadComplete = $true 
-        try {
-            # Create web request and get response
-            $request = [System.Net.HttpWebRequest]::Create($url)
-            $response = $request.GetResponse()
-            
-            # Check for unauthorized or non-existent file
-            if ($response.StatusCode -eq 401 -or $response.StatusCode -eq 403 -or $response.StatusCode -eq 404) {
-                throw "Remote file error: $($response.StatusCode) - '$url'"
-            }
-  
-            # Handle relative target path
-            if ($target -match '^\.\\') { 
-                $target = Join-Path (Get-Location) ($target -Split '^\.')[1] 
-            }
-  
-            # Open streams for reading and writing
-            $reader = $response.GetResponseStream()
-            $writer = New-Object System.IO.FileStream $target, "Create"
-            $buffer = new-object byte[] 1048576
-  
-            # Read data in chunks and write to target file
-            do {
-                $count = $reader.Read($buffer, 0, $buffer.Length)
-                $writer.Write($buffer, 0, $count)
-            } while ($count -gt 0)
-  
-            # Close streams silently (assuming success)
-            if ($downloadComplete) { 
-                return $true 
-            } else { 
-                return $false 
-            }
-        } catch {
-            write-host $($_.Exception.Message)
-            read-host
-            return $false
-        } finally {
-            $reader.Close()
-            $writer.Close()
+
+    $oldProgress = $ProgressPreference
+    $ProgressPreference = 'SilentlyContinue'
+
+    try {
+        $url = "https://raw.githubusercontent.com/badsyntaxx/Nuvia-CLI/main/$file.ps1"
+        if ($directory) {
+            $url = "https://raw.githubusercontent.com/badsyntaxx/Nuvia-CLI/main/$directory/$file.ps1"
         }
+
+        $src = (Invoke-WebRequest -Uri $url -UseBasicParsing).Content
+        Add-Content -Path "C:\Nuvia\tools\shellcli\SHELLCLI.ps1" -Value $src
+    } catch {
+        Write-Host "  $($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)" -ForegroundColor "Red"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)"
+    } finally {
+        $ProgressPreference = $oldProgress
     }
 }
 function log {
