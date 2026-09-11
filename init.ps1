@@ -17,7 +17,7 @@ function initializeShellCLI {
         New-Item -Path "C:\Nuvia\tools\shellcli\SHELLCLI.ps1" -ItemType File -Force | Out-Null
 
         appendToMainScript -file "framework"
-        appendToMainScript -directory "main" -file "core"
+        appendToMainScript -directory "nuvia" -file "core"
 
         # Add a final line that will invoke the desired function
         Add-Content -Path "C:\Nuvia\tools\shellcli\SHELLCLI.ps1" -Value 'invokeScript -script "readCommand -command `"n?`"" -initialize $true'
