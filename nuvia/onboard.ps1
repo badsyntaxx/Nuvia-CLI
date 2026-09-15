@@ -1,10 +1,15 @@
 function init {
-    $script:scriptStarted = $(Get-Date)
-    $script:logPath = "$env:ProgramData\Nuvia\logs\shellcli\$script:scriptStarted.log"
+    $script:scriptStarted = Get-Date
+
+    $stamp = $script:scriptStarted.ToString('yyyy-MM-dd_HH-mm-ss')
+    $script:logPath = "$env:ProgramData\Nuvia\logs\shellcli\$stamp.log"
+
+    $script:errors = $([ordered]@{})
 
     writeText -type "header" -text "Initializing Nuvia Onboarding Script"
     writeText -type "plain" -text "Hostname : $env:COMPUTERNAME"
     writeText -type "plain" -text "Started  : $script:scriptStarted"
+    writeText -type "plain" -text "Context  : $(if (isSystemContext) { 'SYSTEM' } else { $env:USERNAME })"
     writeText -type "plain" -text "Log      : $script:logPath" -lineAfter
 
     $type = readOption -options $([ordered]@{
@@ -27,7 +32,6 @@ function init {
 }
 function clinicalOnboarding {
     writeText -type "header" -text "Initializing Clinical Onboarding"
-
     writeText -type "prompt" -text "What is the location of this computer? Example: ALX, DAL, IND" -lineBefore
     $location = readInput -prompt "Location:"
     $location = $location.ToUpper()
@@ -74,7 +78,7 @@ function clinicalOnboarding {
         "DR3", 
         "DR4",
         "LLT",
-        "IOS"
+        "ML"
     )
 
     writeText -type "prompt" -text "What type of computer is this? Example: DR1, FD1, EX2"
@@ -87,171 +91,224 @@ function clinicalOnboarding {
     createNuviaFolders
     debloat
     declutter
+    optimize
     installApps -computerType $computerType
     normalizeEnvironment -location $location -locationType $locationType -computerType $computerType
     writeSummary
 
-    # Restart explorer to see GUI changes and other stuff
-    Stop-Process -Name explorer -Force
-    Start-Sleep -Seconds 2
-    Start-Process explorer
+    # Restart explorer to see GUI changes.
+    # Under SYSTEM, Start-Process explorer would launch in session 0 where the
+    # user never sees it. Kill it and let Windows respawn it in the interactive
+    # session instead.
+    Get-Process -Name explorer -ErrorAction SilentlyContinue | Stop-Process -Force
+    if (-not (isSystemContext)) {
+        Start-Sleep -Seconds 2
+        Start-Process explorer
+    }
 }
 function salesOnboarding {
     writeText -type "notice" -text "Sales are currently on Macs. No onboarding actions are available."
 }
 function debloat {
-    writeText -type "header" -text "Debloating"
-    foreach ($lang in @("es-es", "fr-fr", "pt-br")) { 
-        uninstallWin32App -AppName "Microsoft 365 - $lang" 
+    try {
+        writeText -type "header" -text "Debloating"
+        foreach ($lang in @("es-es", "fr-fr", "pt-br")) { 
+            uninstallWin32App -AppName "Microsoft 365 - $lang" 
+        }
+
+        foreach ($lang in @("en-us", "es-es", "fr-fr", "pt-br")) { 
+            uninstallWin32App -AppName "Microsoft OneNote - $lang" 
+        }
+
+        uninstallOneDrive
+        uninstallTeams
+        uninstallWin32App -AppName "Microsoft Copilot"
+        uninstallWin32App -AppName "Copilot"
+        uninstallWin32App -AppName "Microsoft 365 Copilot"
+
+        $appxList = @(
+            @{ Name = "Family Safety"; Package = "Microsoft.FamilySafety" },
+            @{ Name = "Family Safety (Corp)"; Package = "MicrosoftCorporationII.MicrosoftFamily" },
+            @{ Name = "Feedback Hub"; Package = "Microsoft.WindowsFeedbackHub" },
+            @{ Name = "Game Bar"; Package = "Microsoft.XboxGameOverlay" },
+            @{ Name = "Get Help"; Package = "Microsoft.GetHelp" },
+            @{ Name = "Get Started"; Package = "Microsoft.Getstarted" },
+            @{ Name = "Microsoft Office Hub"; Package = "Microsoft.MicrosoftOfficeHub" },
+            @{ Name = "Microsoft Copilot (AppX)"; Package = "Microsoft.Copilot" },
+            @{ Name = "Microsoft News"; Package = "Microsoft.BingNews" },
+            @{ Name = "Microsoft To Do"; Package = "Microsoft.Todos" },
+            @{ Name = "Microsoft 3D Builder"; Package = "Microsoft.3DBuilder" },
+            @{ Name = "Bing Finance"; Package = "Microsoft.BingFinance" },
+            @{ Name = "Bing Sports"; Package = "Microsoft.BingSports" },
+            @{ Name = "Bing Weather"; Package = "Microsoft.BingWeather" },
+            @{ Name = "Bing Travel"; Package = "Microsoft.BingTravel" },
+            @{ Name = "Bing Health And Fitness"; Package = "Microsoft.BingHealthAndFitness" },
+            @{ Name = "Bing Food And Drink"; Package = "Microsoft.BingFoodAndDrink" },
+            @{ Name = "Clipchamp"; Package = "Clipchamp.Clipchamp" },
+            @{ Name = "Office OneNote"; Package = "Microsoft.Office.OneNote" },
+            @{ Name = "Office Sway"; Package = "Microsoft.Office.Sway" },
+            @{ Name = "People"; Package = "Microsoft.People" },
+            @{ Name = "Skype"; Package = "Microsoft.SkypeApp" },
+            @{ Name = "Alarms And Clock"; Package = "Microsoft.WindowsAlarms" },
+            @{ Name = "Maps"; Package = "Microsoft.WindowsMaps" },
+            @{ Name = "Windows Phone"; Package = "Microsoft.WindowsPhone" },
+            @{ Name = "Sound Recorder"; Package = "Microsoft.WindowsSoundRecorder" },
+            @{ Name = "Groove Music"; Package = "Microsoft.ZuneMusic" },
+            @{ Name = "Movies And TV"; Package = "Microsoft.ZuneVideo" },
+            @{ Name = "App Connector"; Package = "Microsoft.AppConnector" },
+            @{ Name = "Connectivity Store"; Package = "Microsoft.ConnectivityStore" },
+            @{ Name = "Messaging"; Package = "Microsoft.Messaging" },
+            @{ Name = "Comms Phone"; Package = "Microsoft.CommsPhone" },
+            @{ Name = "OneConnect"; Package = "Microsoft.OneConnect" },
+            @{ Name = "Network Speed Test"; Package = "Microsoft.NetworkSpeedTest" },
+            @{ Name = "3D Viewer"; Package = "Microsoft.Microsoft3DViewer" },
+            @{ Name = "Print 3D"; Package = "Microsoft.Print3D" },
+            @{ Name = "Music Preview"; Package = "Microsoft.Music.Preview" },
+            @{ Name = "Mixed Reality Portal"; Package = "Microsoft.MixedReality.Portal" },
+            @{ Name = "Quick Assist"; Package = "MicrosoftCorporationII.QuickAssist" },
+            @{ Name = "Solitaire"; Package = "Microsoft.MicrosoftSolitaireCollection" },
+            @{ Name = "Xbox"; Package = "Microsoft.GamingApp" },
+            @{ Name = "Xbox (Legacy)"; Package = "Microsoft.XboxApp" },
+            @{ Name = "Xbox Live"; Package = "Microsoft.Xbox.TCUI" },
+            @{ Name = "Xbox Gaming Overlay"; Package = "Microsoft.XboxGamingOverlay" },
+            @{ Name = "Xbox Identity Provider"; Package = "Microsoft.XboxIdentityProvider" },
+            @{ Name = "Xbox Speech To Text"; Package = "Microsoft.XboxSpeechToTextOverlay" },
+            @{ Name = "Twitter"; Package = "9E2F88E3.Twitter" },
+            @{ Name = "CandyCrushSodaSaga"; Package = "king.com.CandyCrushSodaSaga" },
+            @{ Name = "Netflix"; Package = "4DF9E0F8.Netflix" },
+            @{ Name = "DrawboardPDF"; Package = "Drawboard.DrawboardPDF" },
+            @{ Name = "FarmVille2CountryEscape"; Package = "D52A8D61.FarmVille2CountryEscape" },
+            @{ Name = "Asphalt8Airborne"; Package = "GAMELOFTSA.Asphalt8Airborne" },
+            @{ Name = "RoyalRevolt2"; Package = "flaregamesGmbH.RoyalRevolt2" },
+            @{ Name = "AdobePhotoshopExpress"; Package = "AdobeSystemsIncorporated.AdobePhotoshopExpress" },
+            @{ Name = "ActiproSoftwareLLC"; Package = "ActiproSoftwareLLC.562882FEEB491" },
+            @{ Name = "Duolingo-LearnLanguagesforFree"; Package = "D5EA27B7.Duolingo-LearnLanguagesforFree" },
+            @{ Name = "Facebook"; Package = "Facebook.Facebook" },
+            @{ Name = "EclipseManager"; Package = "46928bounde.EclipseManager" },
+            @{ Name = "MarchofEmpires"; Package = "A278AB0D.MarchofEmpires" },
+            @{ Name = "BubbleWitch3Saga"; Package = "king.com.BubbleWitch3Saga" },
+            @{ Name = "AutodeskSketchBook"; Package = "89006A2E.AutodeskSketchBook" },
+            @{ Name = "Plex"; Package = "CAF9E577.Plex" },
+            @{ Name = "DisneyMagicKingdoms"; Package = "A278AB0D.DisneyMagicKingdoms" },
+            @{ Name = "HiddenCityMysteryofShadows"; Package = "828B5831.HiddenCityMysteryofShadows" },
+            @{ Name = "WinZipUniversal"; Package = "WinZipComputing.WinZipUniversal" },
+            @{ Name = "SpotifyMusic"; Package = "SpotifyAB.SpotifyMusic" },
+            @{ Name = "PandoraMediaInc"; Package = "PandoraMediaInc.29680B314EFC2" },
+            @{ Name = "Viber"; Package = "2414FC7A.Viber" },
+            @{ Name = "OneCalendar"; Package = "64885BlueEdge.OneCalendar" },
+            @{ Name = "ACGMediaPlayer"; Package = "41038Axilesoft.ACGMediaPlayer" }
+        )
+
+        # Dedupe so the same package is not attempted twice
+        $appxList = $appxList | Group-Object { $_.Package } | ForEach-Object { $_.Group[0] }
+
+        foreach ($app in $appxList) { 
+            uninstallAppXApp -PackageName $app.Package -FriendlyName $app.Name 
+        }
+    } catch {
+        $script:errors += "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)"
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
-
-    foreach ($lang in @("en-us", "es-es", "fr-fr", "pt-br")) { 
-        uninstallWin32App -AppName "Microsoft OneNote - $lang" 
+}
+function declutter {
+    try {
+        writeText -type "header" -text "Decluttering"
+        disableBingSearch
+        disableTaskbarWidgets
+        removeTaskbarPins
+    } catch {
+        $script:errors += "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)"
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
-
-    uninstallOneDrive
-    uninstallTeams
-    uninstallWin32App -AppName "Microsoft Copilot"
-    uninstallWin32App -AppName "Copilot"
-    uninstallWin32App -AppName "Microsoft 365 Copilot"
-
-    $appxList = @(
-        @{ Name = "Family Safety"; Package = "Microsoft.FamilySafety" },
-        @{ Name = "Family Safety (Corp)"; Package = "MicrosoftCorporationII.MicrosoftFamily" },
-        @{ Name = "Feedback Hub"; Package = "Microsoft.WindowsFeedbackHub" },
-        @{ Name = "Game Bar"; Package = "Microsoft.XboxGameOverlay" },
-        @{ Name = "Get Help"; Package = "Microsoft.GetHelp" },
-        @{ Name = "Get Started"; Package = "Microsoft.Getstarted" },
-        @{ Name = "Microsoft 365 Copilot"; Package = "Microsoft.MicrosoftOfficeHub" },
-        @{ Name = "Microsoft Copilot (AppX)"; Package = "Microsoft.Copilot" },
-        @{ Name = "Microsoft News"; Package = "Microsoft.BingNews" },
-        @{ Name = "Microsoft To Do"; Package = "Microsoft.Todos" },
-        @{ Name = "Microsoft 3D Builder"; Package = "Microsoft.3DBuilder" },
-        @{ Name = "Microsoft Bing Finance"; Package = "Microsoft.BingFinance" },
-        @{ Name = "Microsoft Bing News"; Package = "Microsoft.BingNews" },
-        @{ Name = "Microsoft Bing Sports"; Package = "Microsoft.BingSports" },
-        @{ Name = "Microsoft Bing Weather"; Package = "Microsoft.BingWeather" },
-        @{ Name = "Microsoft Clipchamp"; Package = "Microsoft.Clipchamp" },
-        @{ Name = "Microsoft Get Started"; Package = "Microsoft.Getstarted" },
-        @{ Name = "Microsoft Office Hub"; Package = "Microsoft.MicrosoftOfficeHub" },
-        @{ Name = "Microsoft Solitaire Collection"; Package = "Microsoft.MicrosoftOfficeHub" },
-        @{ Name = "Microsoft Office OneNote"; Package = "Microsoft.MicrosoftOfficeHub" },
-        @{ Name = "Microsoft People"; Package = "Microsoft.MicrosoftOfficeHub" },
-        @{ Name = "Microsoft SkypeApp"; Package = "Microsoft.MicrosoftOfficeHub" },
-        @{ Name = "Microsoft WindowsAlarms"; Package = "Microsoft.MicrosoftOfficeHub" },
-        @{ Name = "Microsoft WindowsMaps"; Package = "Microsoft.MicrosoftOfficeHub" },
-        @{ Name = "Microsoft WindowsPhone"; Package = "Microsoft.MicrosoftOfficeHub" },
-        @{ Name = "Microsoft WindowsSoundRecorder"; Package = "Microsoft.MicrosoftOfficeHub" },
-        @{ Name = "Microsoft ZuneMusic"; Package = "Microsoft.MicrosoftOfficeHub" },
-        @{ Name = "Microsoft ZuneVideo"; Package = "Microsoft.MicrosoftOfficeHub" },
-        @{ Name = "Microsoft AppConnector"; Package = "Microsoft.MicrosoftOfficeHub" },
-        @{ Name = "Microsoft ConnectivityStore"; Package = "Microsoft.MicrosoftOfficeHub" },
-        @{ Name = "Microsoft Office.Sway"; Package = "Microsoft.MicrosoftOfficeHub" },
-        @{ Name = "Microsoft Messaging"; Package = "Microsoft.MicrosoftOfficeHub" },
-        @{ Name = "Microsoft CommsPhone"; Package = "Microsoft.MicrosoftOfficeHub" },
-        @{ Name = "Microsoft OneConnect"; Package = "Microsoft.MicrosoftOfficeHub" },
-        @{ Name = "Microsoft WindowsFeedbackHub"; Package = "Microsoft.MicrosoftOfficeHub" },
-        @{ Name = "Microsoft NetworkSpeedTest"; Package = "Microsoft.MicrosoftOfficeHub" },
-        @{ Name = "Microsoft Microsoft3DViewer"; Package = "Microsoft.MicrosoftOfficeHub" },
-        @{ Name = "Microsoft Print3D"; Package = "Microsoft.MicrosoftOfficeHub" },
-        @{ Name = "Microsoft Music.Preview"; Package = "Microsoft.MicrosoftOfficeHub" },	
-        @{ Name = "Microsoft BingTravel"; Package = "Microsoft.MicrosoftOfficeHub" },
-        @{ Name = "Microsoft BingHealthAndFitness"; Package = "Microsoft.MicrosoftOfficeHub" },
-        @{ Name = "Microsoft BingFoodAndDrink"; Package = "Microsoft.MicrosoftOfficeHub" },
-        @{ Name = "Mixed Reality Portal"; Package = "Microsoft.MixedReality.Portal" },
-        @{ Name = "Quick Assist"; Package = "MicrosoftCorporationII.QuickAssist" },
-        @{ Name = "Solitaire"; Package = "Microsoft.MicrosoftSolitaireCollection" },
-        @{ Name = "Weather"; Package = "Microsoft.BingWeather" },
-        @{ Name = "Xbox"; Package = "Microsoft.GamingApp" },
-        @{ Name = "Xbox (Legacy)"; Package = "Microsoft.XboxApp" },
-        @{ Name = "Xbox Live"; Package = "Microsoft.Xbox.TCUI" },
-        @{ Name = "Xbox Game Overlay"; Package = "Microsoft.XboxGameOverlay" },
-        @{ Name = "Xbox Gaming Overlay"; Package = "Microsoft.XboxGamingOverlay" },
-        @{ Name = "Xbox Identity Provider"; Package = "Microsoft.XboxIdentityProvider" },
-        @{ Name = "Xbox Speech To Text"; Package = "Microsoft.XboxSpeechToTextOverlay" },
-        @{ Name = "Xbox TCUI"; Package = "Microsoft.Xbox.TCUI" },
-        @{ Name = "Twitter"; Package = "9E2F88E3.Twitter" },
-        @{ Name = "CandyCrushSodaSaga"; Package = "king.com.CandyCrushSodaSaga" },
-        @{ Name = "Netflix"; Package = "4DF9E0F8.Netflix" },
-        @{ Name = "DrawboardPDF"; Package = "Drawboard.DrawboardPDF" },
-        @{ Name = "FarmVille2CountryEscape"; Package = "D52A8D61.FarmVille2CountryEscape" },
-        @{ Name = "Asphalt8Airborne"; Package = "GAMELOFTSA.Asphalt8Airborne" },
-        @{ Name = "RoyalRevolt2"; Package = "flaregamesGmbH.RoyalRevolt2" },
-        @{ Name = "AdobePhotoshopExpress"; Package = "AdobeSystemsIncorporated.AdobePhotoshopExpress" },
-        @{ Name = "ActiproSoftwareLLC"; Package = "ActiproSoftwareLLC.562882FEEB491" },
-        @{ Name = "Duolingo-LearnLanguagesforFree"; Package = "D5EA27B7.Duolingo-LearnLanguagesforFree" },
-        @{ Name = "Facebook"; Package = "Facebook.Facebook" },
-        @{ Name = "EclipseManager"; Package = "46928bounde.EclipseManager" },
-        @{ Name = "MarchofEmpires"; Package = "A278AB0D.MarchofEmpires" },
-        @{ Name = "BubbleWitch3Saga"; Package = "king.com.BubbleWitch3Saga" },
-        @{ Name = "AutodeskSketchBook"; Package = "89006A2E.AutodeskSketchBook" },
-        @{ Name = "Plex"; Package = "CAF9E577.Plex" },
-        @{ Name = "DisneyMagicKingdoms"; Package = "A278AB0D.DisneyMagicKingdoms" },
-        @{ Name = "HiddenCityMysteryofShadows"; Package = "828B5831.HiddenCityMysteryofShadows" },
-        @{ Name = "WinZipUniversal"; Package = "WinZipComputing.WinZipUniversal" },
-        @{ Name = "SpotifyMusic"; Package = "SpotifyAB.SpotifyMusic" },
-        @{ Name = "PandoraMediaInc"; Package = "PandoraMediaInc.29680B314EFC2" },
-        @{ Name = "Viber"; Package = "2414FC7A.Viber" },
-        @{ Name = "OneCalendar"; Package = "64885BlueEdge.OneCalendar" },
-        @{ Name = "ACGMediaPlayer"; Package = "41038Axilesoft.ACGMediaPlayer" }
+    
+}
+function optimize {
+    try {
+        writeText -type "header" -text "Optimizing"
+        disableTelemetry
+        disableWiFiSense
+        disableAppSuggestions
+        disableLockScreenSpotlight
+        disableFeedback
+        disableAdvertisingID
+        disableCortana     
+        enableErrorReporting 
+        disableAutoLogger
+        disableDiagTrack
+        disableWAPPush
+        disableSMB1
+        setCurrentNetworkPrivate
+        disableUpdateRestart
+        disableRemoteAssistance
+        # disableRemoteDesktop
+        disableAutoplay
+        disableAutorun
+        disableHibernation
+        showShutdownOnLockScreen
+        disableStickyKeys
+        showFileOperationsDetails
+        hideTaskbarSearchBox
+        hideTaskView
+        hideTaskbarPeopleIcon
+        showTrayIcons                
+        showThisPCOnDesktop          
+        showDesktopInThisPC
+        showDesktopInExplorer
+        showDocumentsInThisPC
+        showDocumentsInExplorer
+        showDownloadsInThisPC
+        showDownloadsInExplorer
+        disableXboxFeatures
+        disableSearchAppInStore 
+    } catch {
+        $script:errors += "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)"
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
+    }
+}
+function normalizeEnvironment {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$location,
+        [Parameter(Mandatory = $true)]
+        [string]$locationType,
+        [Parameter(Mandatory = $true)]
+        [string]$computerType
     )
 
-    foreach ($app in $appxList) { 
-        uninstallAppXApp -PackageName $app.Package -FriendlyName $app.Name 
+    # The old condition (-ne "Other" -or -ne "LAB") can never evaluate to false.
+    if ($locationType -notin @("OTHER", "LAB")) {
+        editHostname -location $location -locationType $locationType -computerType $computerType
     }
 
-    disableTelemetry
-    disableWiFiSense
-    disableAppSuggestions
-    disableLockScreenSpotlight
-    disableFeedback
-    disableAdvertisingID
-    disableCortana     
-    enableErrorReporting 
-    disableAutoLogger
-    disableDiagTrack
-    disableWAPPush
-    disableSMB1
-    setCurrentNetworkPrivate
-    disableUpdateRestart
-    disableRemoteAssistance
-    # disableRemoteDesktop
-    disableAutoplay
-    disableAutorun
-    disableHibernation
-    showShutdownOnLockScreen
-    disableStickyKeys
-    showFileOperationsDetails
-    hideTaskbarSearchBox
-    hideTaskView
-    hideTaskbarPeopleIcon
-    showTrayIcons                
-    showThisPCOnDesktop          
-    showDesktopInThisPC
-    showDesktopInExplorer
-    showDocumentsInThisPC
-    showDocumentsInExplorer
-    showDownloadsInThisPC
-    showDownloadsInExplorer
-    disableXboxFeatures
-    disableSearchAppInStore 
+    getBGInfo
 }
+function writeSummary {
+    writeText -type "header" -text "Summary"
+    writeText -type "plain" -text "Computer     : $env:COMPUTERNAME"
+    writeText -type "plain" -text "started      : $script:scriptStarted"
+    writeText -type "plain" -text "completed    : $(Get-Date)"
+    writeText -type "plain" -text "Log          : $script:logPath"
+    writeText -type "list" -list $script:errors
+}
+
+
+
+# --- Helpers ------------------------------------------------
 function uninstallOneDrive {
     try {
         writeText -type "plain" -text "Searching for OneDrive" -lineBefore
 
-        # Check if OneDrive is actually installed by checking user folders and registry
         $onedriveInstalled = $false
         $onedriveProcess = Get-Process -Name "OneDrive" -ErrorAction SilentlyContinue
-        
-        # Check user-specific OneDrive installations
-        $users = Get-ChildItem "$env:SystemDrive\Users" -Directory -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -notin @("Public", "Default", "Default User", "All Users") }
-        
+
+        $users = getUserProfiles | Where-Object { $_.Name -ne 'Default' }
+
         foreach ($u in $users) {
-            $odBase = "$($u.FullName)\AppData\Local\Microsoft\OneDrive"
+            $odBase = "$($u.Path)\AppData\Local\Microsoft\OneDrive"
             if (Test-Path $odBase) {
-                # Check for OneDrive.exe or version folder to confirm installation
                 $onedriveExe = Get-ChildItem $odBase -Filter "OneDrive.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
                 if ($onedriveExe) {
                     $onedriveInstalled = $true
@@ -261,14 +318,11 @@ function uninstallOneDrive {
             }
         }
 
-        # Also check registry for OneDrive installation
         if (-not $onedriveInstalled) {
             $regPaths = @(
-                "HKCU:\Software\Microsoft\OneDrive",
                 "HKLM:\SOFTWARE\Microsoft\OneDrive",
                 "HKLM:\SOFTWARE\WOW6432Node\Microsoft\OneDrive"
             )
-            
             foreach ($regPath in $regPaths) {
                 if (Test-Path $regPath) {
                     $onedriveInstalled = $true
@@ -280,10 +334,9 @@ function uninstallOneDrive {
 
         if (-not $onedriveInstalled) {
             writeText -type "plain" -text "OneDrive not found."
-            return  # <-- ADD THIS LINE TO EXIT THE FUNCTION
+            return
         }
 
-        # Stop OneDrive process if running
         if ($onedriveProcess) {
             writeText -type "plain" -text "Stopping OneDrive processes"
             $onedriveProcess | Stop-Process -Force
@@ -294,25 +347,21 @@ function uninstallOneDrive {
 
         $uninstalled = $false
 
-        # Try per-user uninstall using OneDriveSetup.exe from user folders
         foreach ($u in $users) {
-            $odBase = "$($u.FullName)\AppData\Local\Microsoft\OneDrive"
+            $odBase = "$($u.Path)\AppData\Local\Microsoft\OneDrive"
             if (-not (Test-Path $odBase)) { 
                 writeText -type "plain" -text "No OneDrive folder found for user: $($u.Name)"
                 continue 
             }
 
-            # Find OneDriveSetup.exe in the user's OneDrive folder
             $odSetupExe = Get-ChildItem $odBase -Filter "OneDriveSetup.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-            
             if (-not $odSetupExe) {
                 writeText -type "plain" -text "No OneDriveSetup.exe found for user: $($u.Name)"
                 continue
             }
 
             writeText -type "plain" -text "Processing OneDrive for user: $($u.Name)"
-            
-            # Try direct uninstall first
+
             try {
                 writeText -type "plain" -text "Attempting direct uninstall for user: $($u.Name)"
                 $proc = Start-Process -FilePath $odSetupExe.FullName -ArgumentList "/uninstall" -Wait -WindowStyle Hidden -PassThru
@@ -326,11 +375,9 @@ function uninstallOneDrive {
                 writeText -type "notice" -text "Direct uninstall failed for user $($u.Name): $($_.Exception.Message)"
             }
 
-            # Fallback to scheduled task method if direct uninstall fails
             $safeName = $u.Name -replace '[^a-zA-Z0-9]', '_'
             $taskName = "NuviaODRemove_$safeName"
-            
-            # Check if scheduled task already exists and remove it
+
             $existingTask = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
             if ($existingTask) {
                 writeText -type "plain" -text "Removing existing scheduled task: $taskName"
@@ -340,17 +387,15 @@ function uninstallOneDrive {
             try {
                 $action = New-ScheduledTaskAction -Execute $odSetupExe.FullName -Argument "/uninstall"
                 $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -RunLevel Highest -LogonType ServiceAccount
-                
+
                 writeText -type "plain" -text "Creating scheduled task for user uninstall: $taskName"
                 Register-ScheduledTask -TaskName $taskName -Action $action -Principal $principal -Force -ErrorAction Stop | Out-Null
-                
+
                 $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
                 if ($task) {
                     writeText -type "plain" -text "Starting scheduled task: $taskName"
                     Start-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
                     Start-Sleep -Seconds 30
-                    
-                    # Clean up the task
                     Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
                     writeText -type "success" -text "OneDrive uninstalled for user: $($u.Name) via scheduled task"
                     $uninstalled = $true
@@ -369,66 +414,61 @@ function uninstallOneDrive {
             writeText -type "error" -text "OneDrive failed to uninstall"
         }
 
-        # Clean up OneDrive folders with checks
         writeText -type "plain" -text "Cleaning up OneDrive folders and registry entries"
-        
+
+        # Machine-wide paths, then per-profile paths. The old version used
+        # $env:LOCALAPPDATA and $env:USERPROFILE, which under SYSTEM resolved to
+        # the systemprofile and Default folders instead of real users.
         $oneDrivePaths = @(
-            "$env:PROGRAMDATA\Microsoft OneDrive", 
-            "$env:SYSTEMDRIVE\OneDriveTemp", 
-            "$env:LOCALAPPDATA\Microsoft\OneDrive", 
-            "$env:USERPROFILE\OneDrive"
+            "$env:PROGRAMDATA\Microsoft OneDrive",
+            "$env:SYSTEMDRIVE\OneDriveTemp"
         )
+        foreach ($u in (getUserProfiles)) {
+            $oneDrivePaths += "$($u.Path)\AppData\Local\Microsoft\OneDrive"
+            $oneDrivePaths += "$($u.Path)\OneDrive"
+        }
 
         $removedCount = 0
         foreach ($folder in $oneDrivePaths) {
             if (Test-Path $folder) { 
                 writeText -type "plain" -text "Removing folder: $folder"
                 Remove-Item -Path $folder -Recurse -Force -ErrorAction SilentlyContinue
-                if (-not (Test-Path $folder)) {
-                    $removedCount++
-                }
-            } else {
-                writeText -type "plain" -text "Folder not found, skipping: $folder"
+                if (-not (Test-Path $folder)) { $removedCount++ }
             }
         }
-        
-        if ($removedCount -gt 0) {
-            writeText -type "plain" -text "Removed $removedCount OneDrive folders"
-        } else {
-            writeText -type "plain" -text "No OneDrive folders found to remove"
+        writeText -type "plain" -text "Removed $removedCount OneDrive folders"
+
+        if (-not (Get-PSDrive -Name HKCR -ErrorAction SilentlyContinue)) {
+            New-PSDrive -Name HKCR -PSProvider Registry -Root HKEY_CLASSES_ROOT -Scope Global | Out-Null
         }
 
-        # Clean up registry entries with checks
-        if (!(Test-Path "HKCR:")) {
-            New-PSDrive -Name HKCR -PSProvider Registry -Root HKEY_CLASSES_ROOT | Out-Null
-        }
-
-        $registryPaths = @(
+        $machineRegPaths = @(
             "HKCR:\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}",
             "HKCR:\Wow6432Node\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}",
-            "HKCU:\Software\Microsoft\OneDrive",
             "HKLM:\SOFTWARE\Microsoft\OneDrive",
             "HKLM:\SOFTWARE\WOW6432Node\Microsoft\OneDrive"
         )
 
         $regRemovedCount = 0
-        foreach ($regPath in $registryPaths) {
+        foreach ($regPath in $machineRegPaths) {
             if (Test-Path $regPath) {
                 writeText -type "plain" -text "Removing registry entry: $regPath"
                 Remove-Item -Path $regPath -Recurse -Force -ErrorAction SilentlyContinue
-                if (-not (Test-Path $regPath)) {
-                    $regRemovedCount++
-                }
-            } else {
-                writeText -type "plain" -text "Registry entry not found, skipping: $regPath"
+                if (-not (Test-Path $regPath)) { $regRemovedCount++ }
             }
         }
-        
-        if ($regRemovedCount -gt 0) {
-            writeText -type "plain" -text "Removed $regRemovedCount registry entries"
-        } else {
-            writeText -type "plain" -text "No registry entries found to remove"
+
+        # Per-user OneDrive key
+        invokeForEachUserHive {
+            param($root, $user)
+            $p = "$root\Software\Microsoft\OneDrive"
+            if (Test-Path $p) {
+                Remove-Item -Path $p -Recurse -Force -ErrorAction SilentlyContinue
+                writeText -type "plain" -text "Removed OneDrive registry key for user: $user"
+            }
         }
+
+        writeText -type "plain" -text "Removed $regRemovedCount machine registry entries"
 
     } catch {
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
@@ -447,22 +487,20 @@ function uninstallTeams {
         uninstallAppXApp -PackageName "MSTeams"        -FriendlyName "Microsoft Teams (New)"
         uninstallAppXApp -PackageName "MicrosoftTeams" -FriendlyName "Microsoft Teams (AppX)"
 
-        $userProfiles = Get-ChildItem "$env:SystemDrive\Users" -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -notin @("Public", "Default", "Default User", "All Users") }
-        
-        foreach ($prof in $userProfiles) {
-            $teamsPath = "$($prof.FullName)\AppData\Local\Microsoft\Teams\Update.exe"
+        foreach ($prof in (getUserProfiles)) {
+            $teamsPath = "$($prof.Path)\AppData\Local\Microsoft\Teams\Update.exe"
             if (Test-Path $teamsPath) {
                 try {
                     Start-Process -FilePath $teamsPath -ArgumentList "--uninstall /s" -Wait -WindowStyle Hidden
-                    writeText -type "plain" -text "Teams Classic uninstalled."
+                    writeText -type "plain" -text "Teams Classic uninstalled for $($prof.Name)."
                 } catch {
                     writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
                     log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
                 }
             }
             foreach ($folder in @(
-                    "$($prof.FullName)\AppData\Local\Microsoft\Teams",
-                    "$($prof.FullName)\AppData\Roaming\Microsoft\Teams"
+                    "$($prof.Path)\AppData\Local\Microsoft\Teams",
+                    "$($prof.Path)\AppData\Roaming\Microsoft\Teams"
                 )) {
                 if (Test-Path $folder) { Remove-Item -Path $folder -Recurse -Force -ErrorAction SilentlyContinue }
             }
@@ -474,32 +512,22 @@ function uninstallTeams {
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
-    
-}
-function declutter {
-    writeText -type "header" -text "Decluttering"
-    disableBingSearch
-    disableTaskbarWidgets
-    removeTaskbarPins
 }
 function disableBingSearch {
     try {
         writeText -type "plain" -text "Disabling Bing Search in Start Menu" -lineBefore
-        $bingPath = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Search"
-        if (-not (Test-Path $bingPath)) { 
-            New-Item -Path $bingPath -Force | Out-Null 
-        }
 
-        Set-ItemProperty -Path $bingPath -Name "BingSearchEnabled" -Value 0 -Type DWord -Force
-        Set-ItemProperty -Path $bingPath -Name "CortanaConsent"    -Value 0 -Type DWord -Force
+        invokeForEachUserHive {
+            param($root, $user)
+            $bingPath = "$root\SOFTWARE\Microsoft\Windows\CurrentVersion\Search"
+            setRegValue -Path $bingPath -Name "BingSearchEnabled" -Value 0
+            setRegValue -Path $bingPath -Name "CortanaConsent"    -Value 0
+        }
 
         $policyPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search"
-        if (-not (Test-Path $policyPath)) { 
-            New-Item -Path $policyPath -Force | Out-Null 
-        }
+        setRegValue -Path $policyPath -Name "DisableWebSearch"      -Value 1
+        setRegValue -Path $policyPath -Name "ConnectedSearchUseWeb" -Value 0
 
-        Set-ItemProperty -Path $policyPath -Name "DisableWebSearch"      -Value 1 -Type DWord -Force
-        Set-ItemProperty -Path $policyPath -Name "ConnectedSearchUseWeb" -Value 0 -Type DWord -Force
         writeText -type "success" -text "Bing search disabled."
     } catch {
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
@@ -509,22 +537,11 @@ function disableBingSearch {
 function disableTaskbarWidgets {
     try {
         writeText -type "plain" -text "Disabling Taskbar Widgets" -lineBefore
-        
-        # Method 1: Group Policy path (HKLM)
-        $widgetsPolicyPath = "HKLM:\SOFTWARE\Policies\Microsoft\Dsh"
-        if (-not (Test-Path $widgetsPolicyPath)) { 
-            New-Item -Path $widgetsPolicyPath -Force | Out-Null 
-        }
-        Set-ItemProperty -Path $widgetsPolicyPath -Name "AllowNewsAndInterests" -Value 0 -Type DWord -Force | Out-Null 
 
-        $widgetsW11Path = "HKLM:\SOFTWARE\Microsoft\PolicyManager\default\NewsAndInterests\AllowNewsAndInterests"
-        if (-not (Test-Path $widgetsW11Path)) { 
-            New-Item -Path $widgetsW11Path -Force | Out-Null 
-        }
-        Set-ItemProperty -Path $widgetsW11Path -Name "value" -Value 0 -Type DWord -Force | Out-Null
-        
+        setRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Dsh" -Name "AllowNewsAndInterests" -Value 0
+        setRegValue -Path "HKLM:\SOFTWARE\Microsoft\PolicyManager\default\NewsAndInterests\AllowNewsAndInterests" -Name "value" -Value 0
+
         writeText -type "success" -text "Taskbar widgets removed."
-        
     } catch {
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
@@ -534,66 +551,51 @@ function removeTaskbarPins {
     try {
         writeText -type "plain" -text "Removing Taskbar Pins"
         $appsToUnpin = @("Microsoft Edge", "Microsoft Store", "Dell Optimizer", "Dell Command Update", "Copilot")
-        
-        # Get all taskbar pins
-        $shell = New-Object -Com Shell.Application
-        $taskbarItems = $shell.NameSpace('shell:::{4234d49b-0245-4df3-b780-3893943456e1}').Items()
-        
-        foreach ($item in $taskbarItems) {
-            $shouldUnpin = $false
-            foreach ($appName in $appsToUnpin) {
-                if ($item.Name -like "*$appName*") {
-                    $shouldUnpin = $true
-                    break
+
+        # The Shell.Application "Unpin from taskbar" verb only works inside an
+        # interactive desktop session. Under SYSTEM it silently enumerates nothing,
+        # so skip it there and rely on the per-profile LayoutModification.xml
+        # written by pinAppsToTaskbar (PinListPlacement="Replace" clears the rest).
+        if (isSystemContext) {
+            writeText -type "plain" -text "SYSTEM context - skipping shell verb unpin, using layout XML instead."
+        } else {
+            $shell = New-Object -Com Shell.Application
+            $taskbarItems = $shell.NameSpace('shell:::{4234d49b-0245-4df3-b780-3893943456e1}').Items()
+
+            foreach ($item in $taskbarItems) {
+                $shouldUnpin = $false
+                foreach ($appName in $appsToUnpin) {
+                    if ($item.Name -like "*$appName*") { $shouldUnpin = $true; break }
                 }
-            }
-            
-            if ($shouldUnpin) {
-                try {
-                    $verbs = $item.Verbs()
-                    $unpinVerb = $verbs | Where-Object { $_.Name -match "Unpin from taskbar" }
-                    if ($unpinVerb) {
-                        $unpinVerb.DoIt()
-                        writeText -type "success" -text "$($item.Name) Unpinned successfully"
+                if ($shouldUnpin) {
+                    try {
+                        $unpinVerb = $item.Verbs() | Where-Object { $_.Name -match "Unpin from taskbar" }
+                        if ($unpinVerb) {
+                            $unpinVerb.DoIt()
+                            writeText -type "success" -text "$($item.Name) Unpinned successfully"
+                        }
+                    } catch {
+                        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+                        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR" 
                     }
-                } catch {
-                    writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
-                    log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR" 
                 }
             }
         }
 
-        # Clean up registry - but ONLY remove specific entries, not all
-        $taskbarRegPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband"
-        if (Test-Path $taskbarRegPath) {
-            # Don't remove Favorites and FavoritesResolve as these might contain other pins
-            # Only remove if you're sure these only contain the apps you want to remove
-            # Remove-ItemProperty -Path $taskbarRegPath -Name "FavoritesResolve" -ErrorAction SilentlyContinue
-            # Remove-ItemProperty -Path $taskbarRegPath -Name "Favorites"        -ErrorAction SilentlyContinue
-        }
+        # Remove the pinned .lnk files from every profile, not just $env:APPDATA
+        foreach ($prof in (getUserProfiles)) {
+            $taskbarPinPath = "$($prof.Path)\AppData\Roaming\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
+            if (-not (Test-Path $taskbarPinPath)) { continue }
 
-        $taskbarLayoutFile = "$env:LOCALAPPDATA\Microsoft\Windows\Shell\LayoutModification.xml"
-        if (Test-Path $taskbarLayoutFile) { 
-            # Only remove if this file only contains the apps you want to remove
-            # Consider parsing the XML instead of deleting the entire file
-            # Remove-Item $taskbarLayoutFile -Force -ErrorAction SilentlyContinue 
-        }
-
-        $taskbarPinPath = "$env:APPDATA\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
-        if (Test-Path $taskbarPinPath) {
-            # Only remove specific .lnk files, not all matching the pattern
             Get-ChildItem $taskbarPinPath -Filter "*.lnk" -ErrorAction SilentlyContinue |
             ForEach-Object {
                 $shouldRemove = $false
                 foreach ($appName in $appsToUnpin) {
-                    if ($_.Name -match [regex]::Escape($appName)) {
-                        $shouldRemove = $true
-                        break
-                    }
+                    if ($_.Name -match [regex]::Escape($appName)) { $shouldRemove = $true; break }
                 }
                 if ($shouldRemove) {
                     Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue
-                    writeText -type "info" -text "Removed shortcut: $($_.Name)"
+                    writeText -type "plain" -text "Removed shortcut for $($prof.Name): $($_.Name)"
                 }
             }
         }
@@ -606,112 +608,107 @@ function removeTaskbarPins {
 }
 function disableTelemetry {
     writeText -type "plain" -text "Disabling Telemetry..."
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection" -Name "AllowTelemetry" -type DWord -Value 0
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Name "AllowTelemetry" -type DWord -Value 0
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Policies\DataCollection" -Name "AllowTelemetry" -type DWord -Value 0
+    setRegValue -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection" -Name "AllowTelemetry" -Value 0
+    setRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Name "AllowTelemetry" -Value 0
+    setRegValue -Path "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Policies\DataCollection" -Name "AllowTelemetry" -Value 0
     # Disable-ScheduledTask -TaskName "Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser" | Out-Null
     # Disable-ScheduledTask -TaskName "Microsoft\Windows\Application Experience\ProgramDataUpdater" | Out-Null
-    Disable-ScheduledTask -TaskName "Microsoft\Windows\Autochk\Proxy" | Out-Null
-    Disable-ScheduledTask -TaskName "Microsoft\Windows\Customer Experience Improvement Program\Consolidator" | Out-Null
-    Disable-ScheduledTask -TaskName "Microsoft\Windows\Customer Experience Improvement Program\UsbCeip" | Out-Null
-    Disable-ScheduledTask -TaskName "Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector" | Out-Null
+    foreach ($t in @(
+            "Microsoft\Windows\Autochk\Proxy",
+            "Microsoft\Windows\Customer Experience Improvement Program\Consolidator",
+            "Microsoft\Windows\Customer Experience Improvement Program\UsbCeip",
+            "Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector"
+        )) {
+        Disable-ScheduledTask -TaskName $t -ErrorAction SilentlyContinue | Out-Null
+    }
 }
 function disableWiFiSense {
     writeText -type "plain" -text "Disabling Wi-Fi Sense..."
-    if (!(Test-Path "HKLM:\SOFTWARE\Microsoft\PolicyManager\default\WiFi\AllowWiFiHotSpotReporting")) {
-        New-Item -Path "HKLM:\SOFTWARE\Microsoft\PolicyManager\default\WiFi\AllowWiFiHotSpotReporting" -Force | Out-Null
-    }
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\PolicyManager\default\WiFi\AllowWiFiHotSpotReporting" -Name "Value" -type DWord -Value 0
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\PolicyManager\default\WiFi\AllowAutoConnectToWiFiSenseHotspots" -Name "Value" -type DWord -Value 0
-    if (!(Test-Path "HKLM:\SOFTWARE\Microsoft\WcmSvc\wifinetworkmanager\config")) {
-        New-Item -Path "HKLM:\SOFTWARE\Microsoft\WcmSvc\wifinetworkmanager\config" -Force | Out-Null
-    }
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\WcmSvc\wifinetworkmanager\config" -Name "AutoConnectAllowedOEM" -type Dword -Value 0
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\WcmSvc\wifinetworkmanager\config" -Name "WiFISenseAllowed" -type Dword -Value 0
+    setRegValue -Path "HKLM:\SOFTWARE\Microsoft\PolicyManager\default\WiFi\AllowWiFiHotSpotReporting" -Name "Value" -Value 0
+    setRegValue -Path "HKLM:\SOFTWARE\Microsoft\PolicyManager\default\WiFi\AllowAutoConnectToWiFiSenseHotspots" -Name "Value" -Value 0
+    setRegValue -Path "HKLM:\SOFTWARE\Microsoft\WcmSvc\wifinetworkmanager\config" -Name "AutoConnectAllowedOEM" -Value 0
+    setRegValue -Path "HKLM:\SOFTWARE\Microsoft\WcmSvc\wifinetworkmanager\config" -Name "WiFISenseAllowed" -Value 0
 }
 function disableAppSuggestions {
     writeText -type "plain" -text "Disabling Application suggestions..."
-    Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name "ContentDeliveryAllowed" -type DWord -Value 0
-    Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name "OemPreInstalledAppsEnabled" -type DWord -Value 0
-    Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name "PreInstalledAppsEnabled" -type DWord -Value 0
-    Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name "PreInstalledAppsEverEnabled" -type DWord -Value 0
-    Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name "SilentInstalledAppsEnabled" -type DWord -Value 0
-    Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name "SubscribedContent-338389Enabled" -type DWord -Value 0
-    Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name "SystemPaneSuggestionsEnabled" -type DWord -Value 0
-    Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name "SubscribedContent-338388Enabled" -type DWord -Value 0
-    if (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent")) {
-        New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" -Force | Out-Null
+
+    invokeForEachUserHive {
+        param($root, $user)
+        $cdm = "$root\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
+        foreach ($v in @(
+                'ContentDeliveryAllowed', 'OemPreInstalledAppsEnabled', 'PreInstalledAppsEnabled',
+                'PreInstalledAppsEverEnabled', 'SilentInstalledAppsEnabled',
+                'SubscribedContent-338389Enabled', 'SystemPaneSuggestionsEnabled',
+                'SubscribedContent-338388Enabled'
+            )) {
+            setRegValue -Path $cdm -Name $v -Value 0
+        }
     }
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" -Name "DisableWindowsConsumerFeatures" -type DWord -Value 1
+
+    setRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" -Name "DisableWindowsConsumerFeatures" -Value 1
 }
 function disableLockScreenSpotlight {
     writeText -type "plain" -text "Disabling Lock screen spotlight..."
-    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name "RotatingLockScreenEnabled" -type DWord -Value 0
-    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name "RotatingLockScreenOverlayEnabled" -type DWord -Value 0
-    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name "SubscribedContent-338387Enabled" -type DWord -Value 0
+    invokeForEachUserHive {
+        param($root, $user)
+        $cdm = "$root\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
+        setRegValue -Path $cdm -Name "RotatingLockScreenEnabled"        -Value 0
+        setRegValue -Path $cdm -Name "RotatingLockScreenOverlayEnabled" -Value 0
+        setRegValue -Path $cdm -Name "SubscribedContent-338387Enabled"  -Value 0
+    }
 }
 function disableFeedback {
     writeText -type "plain" -text "Disabling Feedback..."
-    if (!(Test-Path "HKCU:\SOFTWARE\Microsoft\Siuf\Rules")) {
-        New-Item -Path "HKCU:\SOFTWARE\Microsoft\Siuf\Rules" -Force | Out-Null
+    invokeForEachUserHive {
+        param($root, $user)
+        setRegValue -Path "$root\SOFTWARE\Microsoft\Siuf\Rules" -Name "NumberOfSIUFInPeriod" -Value 0
     }
-    Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Siuf\Rules" -Name "NumberOfSIUFInPeriod" -type DWord -Value 0
     Disable-ScheduledTask -TaskName "Microsoft\Windows\Feedback\Siuf\DmClient" -ErrorAction SilentlyContinue | Out-Null
     Disable-ScheduledTask -TaskName "Microsoft\Windows\Feedback\Siuf\DmClientOnScenarioDownload" -ErrorAction SilentlyContinue | Out-Null
 }
 function disableAdvertisingID {
     writeText -type "plain" -text "Disabling Advertising ID..."
-    if (!(Test-Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\AdvertisingInfo")) {
-        New-Item -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\AdvertisingInfo" | Out-Null
+    invokeForEachUserHive {
+        param($root, $user)
+        setRegValue -Path "$root\SOFTWARE\Microsoft\Windows\CurrentVersion\AdvertisingInfo" -Name "Enabled" -Value 0
+        setRegValue -Path "$root\SOFTWARE\Microsoft\Windows\CurrentVersion\Privacy" -Name "TailoredExperiencesWithDiagnosticDataEnabled" -Value 0
     }
-    Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\AdvertisingInfo" -Name "Enabled" -type DWord -Value 0
-    if (!(Test-Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Privacy")) {
-        New-Item -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Privacy" | Out-Null
-    }
-    Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Privacy" -Name "TailoredExperiencesWithDiagnosticDataEnabled" -type DWord -Value 0
 }
 function disableCortana {
     writeText -type "plain" -text "Disabling Cortana..."
-    if (!(Test-Path "HKCU:\SOFTWARE\Microsoft\Personalization\Settings")) {
-        New-Item -Path "HKCU:\SOFTWARE\Microsoft\Personalization\Settings" -Force | Out-Null
+    invokeForEachUserHive {
+        param($root, $user)
+        setRegValue -Path "$root\SOFTWARE\Microsoft\Personalization\Settings" -Name "AcceptedPrivacyPolicy" -Value 0
+        setRegValue -Path "$root\SOFTWARE\Microsoft\InputPersonalization" -Name "RestrictImplicitTextCollection" -Value 1
+        setRegValue -Path "$root\SOFTWARE\Microsoft\InputPersonalization" -Name "RestrictImplicitInkCollection" -Value 1
+        setRegValue -Path "$root\SOFTWARE\Microsoft\InputPersonalization\TrainedDataStore" -Name "HarvestContacts" -Value 0
     }
-    Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Personalization\Settings" -Name "AcceptedPrivacyPolicy" -type DWord -Value 0
-    if (!(Test-Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization")) {
-        New-Item -Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization" -Force | Out-Null
-    }
-    Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization" -Name "RestrictImplicitTextCollection" -type DWord -Value 1
-    Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization" -Name "RestrictImplicitInkCollection" -type DWord -Value 1
-    if (!(Test-Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization\TrainedDataStore")) {
-        New-Item -Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization\TrainedDataStore" -Force | Out-Null
-    }
-    Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization\TrainedDataStore" -Name "HarvestContacts" -type DWord -Value 0
-    if (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search")) {
-        New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Force | Out-Null
-    }
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "AllowCortana" -type DWord -Value 0
+    setRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "AllowCortana" -Value 0
 }
 function enableErrorReporting {
     writeText -type "plain" -text "Enabling Error reporting..."
     Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting" -Name "Disabled" -ErrorAction SilentlyContinue
-    Enable-ScheduledTask -TaskName "Microsoft\Windows\Windows Error Reporting\QueueReporting" | Out-Null
+    Enable-ScheduledTask -TaskName "Microsoft\Windows\Windows Error Reporting\QueueReporting" -ErrorAction SilentlyContinue | Out-Null
 }
 function disableAutoLogger {
     writeText -type "plain" -text "Removing AutoLogger file and restricting directory..."
     $autoLoggerDir = "$env:PROGRAMDATA\Microsoft\Diagnosis\ETLLogs\AutoLogger"
     if (Test-Path "$autoLoggerDir\AutoLogger-Diagtrack-Listener.etl") {
-        Remove-Item -Path "$autoLoggerDir\AutoLogger-Diagtrack-Listener.etl"
+        Remove-Item -Path "$autoLoggerDir\AutoLogger-Diagtrack-Listener.etl" -Force -ErrorAction SilentlyContinue
     }
-    icacls $autoLoggerDir /deny SYSTEM:`(OI`)`(CI`)F | Out-Null
+    if (Test-Path $autoLoggerDir) {
+        icacls $autoLoggerDir /deny SYSTEM:`(OI`)`(CI`)F | Out-Null
+    }
 }
 function disableDiagTrack {
     writeText -type "plain" -text "Stopping and disabling Diagnostics Tracking Service..."
-    Stop-Service "DiagTrack" -WarningAction SilentlyContinue
-    Set-Service "DiagTrack" -StartupType Disabled
+    Stop-Service "DiagTrack" -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
+    Set-Service "DiagTrack" -StartupType Disabled -ErrorAction SilentlyContinue
 }
 function disableWAPPush {
     writeText -type "plain" -text "Stopping and disabling WAP Push Service..."
-    Stop-Service "dmwappushservice" -WarningAction SilentlyContinue
-    Set-Service "dmwappushservice" -StartupType Disabled
+    Stop-Service "dmwappushservice" -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
+    Set-Service "dmwappushservice" -StartupType Disabled -ErrorAction SilentlyContinue
 }
 function disableSMB1 {
     writeText -type "plain" -text "Disabling SMB 1.0 protocol..."
@@ -719,142 +716,148 @@ function disableSMB1 {
 }
 function setCurrentNetworkPrivate {
     writeText -type "plain" -text "Setting current network profile to private..."
-    Set-NetConnectionProfile -NetworkCategory Private
+    try {
+        Get-NetConnectionProfile -ErrorAction Stop |
+        Set-NetConnectionProfile -NetworkCategory Private -ErrorAction Stop
+    } catch {
+        writeText -type "notice" -text "Could not set network profile to private: $($_.Exception.Message)"
+    }
 }
 function disableUpdateRestart {
     writeText -type "plain" -text "Disabling Windows Update automatic restart..."
-    if (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU")) {
-        New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Force | Out-Null
-    }
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "NoAutoRebootWithLoggedOnUsers" -type DWord -Value 1
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "AUPowerManagement" -type DWord -Value 0
+    $au = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU"
+    setRegValue -Path $au -Name "NoAutoRebootWithLoggedOnUsers" -Value 1
+    setRegValue -Path $au -Name "AUPowerManagement" -Value 0
 }
 function disableRemoteAssistance {
     writeText -type "plain" -text "Disabling Remote Assistance..."
-    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Remote Assistance" -Name "fAllowToGetHelp" -type DWord -Value 0
+    setRegValue -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Remote Assistance" -Name "fAllowToGetHelp" -Value 0
 }
 function disableRemoteDesktop {
     writeText -type "plain" -text "Disabling Remote Desktop..."
-    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server" -Name "fDenyTSConnections" -type DWord -Value 1
-    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp" -Name "UserAuthentication" -type DWord -Value 1
+    setRegValue -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server" -Name "fDenyTSConnections" -Value 1
+    setRegValue -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp" -Name "UserAuthentication" -Value 1
 }
 function disableAutoplay {
     writeText -type "plain" -text "Disabling Autoplay..."
-    Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\AutoplayHandlers" -Name "DisableAutoplay" -type DWord -Value 1
+    invokeForEachUserHive {
+        param($root, $user)
+        setRegValue -Path "$root\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\AutoplayHandlers" -Name "DisableAutoplay" -Value 1
+    }
 }
 function disableAutorun {
     writeText -type "plain" -text "Disabling Autorun for all drives..."
-    if (!(Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer")) {
-        New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" | Out-Null
-    }
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" -Name "NoDriveTypeAutoRun" -type DWord -Value 255
+    setRegValue -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" -Name "NoDriveTypeAutoRun" -Value 255
 }
 function disableHibernation {
     writeText -type "plain" -text "Disabling Hibernation..."
-    Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Session Manager\Power" -Name "HibernteEnabled" -type Dword -Value 0
-    if (!(Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FlyoutMenuSettings")) {
-        New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FlyoutMenuSettings" | Out-Null
-    }
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FlyoutMenuSettings" -Name "ShowHibernateOption" -type Dword -Value 0
+    # powercfg is the reliable way; the registry value alone does not release
+    # hiberfil.sys. (The old value name "HibernteEnabled" was also a typo.)
+    & powercfg.exe /hibernate off 2>&1 | Out-Null
+    setRegValue -Path "HKLM:\System\CurrentControlSet\Control\Session Manager\Power" -Name "HibernateEnabled" -Value 0
+    setRegValue -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FlyoutMenuSettings" -Name "ShowHibernateOption" -Value 0
 }
 function showShutdownOnLockScreen {
     writeText -type "plain" -text "Showing shutdown options on Lock Screen..."
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name "ShutdownWithoutLogon" -type DWord -Value 1
+    setRegValue -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name "ShutdownWithoutLogon" -Value 1
 }
 function disableStickyKeys {
     writeText -type "plain" -text "Disabling Sticky keys prompt..."
-    Set-ItemProperty -Path "HKCU:\Control Panel\Accessibility\StickyKeys" -Name "Flags" -type String -Value "506"
+    invokeForEachUserHive {
+        param($root, $user)
+        # Control Panel hangs off the hive root - no SOFTWARE prefix
+        setRegValue -Path "$root\Control Panel\Accessibility\StickyKeys" -Name "Flags" -Value "506" -Type String
+    }
 }
 function showFileOperationsDetails {
     writeText -type "plain" -text "Showing file operations details..."
-    if (!(Test-Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\OperationStatusManager")) {
-        New-Item -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\OperationStatusManager" | Out-Null
+    invokeForEachUserHive {
+        param($root, $user)
+        setRegValue -Path "$root\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\OperationStatusManager" -Name "EnthusiastMode" -Value 1
     }
-    Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\OperationStatusManager" -Name "EnthusiastMode" -type DWord -Value 1
 }
 function hideTaskbarSearchBox {
     writeText -type "plain" -text "Hiding Taskbar Search box / button..."
-    Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Search" -Name "SearchboxTaskbarMode" -type DWord -Value 0
+    invokeForEachUserHive {
+        param($root, $user)
+        setRegValue -Path "$root\SOFTWARE\Microsoft\Windows\CurrentVersion\Search" -Name "SearchboxTaskbarMode" -Value 0
+    }
 }
 function hideTaskView {
     writeText -type "plain" -text "Hiding Task View button..."
-    Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ShowTaskViewButton" -type DWord -Value 0
+    invokeForEachUserHive {
+        param($root, $user)
+        setRegValue -Path "$root\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ShowTaskViewButton" -Value 0
+    }
 }
 function hideTaskbarPeopleIcon {
     writeText -type "plain" -text "Hiding People icon..."
-    if (!(Test-Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced\People")) {
-        New-Item -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced\People" | Out-Null
+    invokeForEachUserHive {
+        param($root, $user)
+        setRegValue -Path "$root\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced\People" -Name "PeopleBand" -Value 0
     }
-    Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced\People" -Name "PeopleBand" -type DWord -Value 0
 }
 function showTrayIcons {
     writeText -type "plain" -text "Showing all tray icons..."
-    Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer" -Name "EnableAutoTray" -type DWord -Value 0
+    invokeForEachUserHive {
+        param($root, $user)
+        setRegValue -Path "$root\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer" -Name "EnableAutoTray" -Value 0
+    }
 }
 function showThisPCOnDesktop {
     writeText -type "plain" -text "Showing This PC shortcut on desktop..."
-    if (!(Test-Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu")) {
-        New-Item -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu" -Force | Out-Null
+    invokeForEachUserHive {
+        param($root, $user)
+        $clsid = "{20D04FE0-3AEA-1069-A2D8-08002B30309D}"
+        setRegValue -Path "$root\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu" -Name $clsid -Value 0
+        setRegValue -Path "$root\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel" -Name $clsid -Value 0
     }
-    Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu" -Name "{20D04FE0-3AEA-1069-A2D8-08002B30309D}" -type DWord -Value 0
-    if (!(Test-Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel")) {
-        New-Item -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel" -Force | Out-Null
-    }
-    Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel" -Name "{20D04FE0-3AEA-1069-A2D8-08002B30309D}" -type DWord -Value 0
 }
 function showDesktopInThisPC {
     writeText -type "plain" -text "Showing Desktop icon in This PC..."
-    if (!(Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{B4BFCC3A-DB2C-424C-B029-7FE99A87C641}")) {
-        New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{B4BFCC3A-DB2C-424C-B029-7FE99A87C641}" | Out-Null
-    }
+    $p = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{B4BFCC3A-DB2C-424C-B029-7FE99A87C641}"
+    if (!(Test-Path $p)) { New-Item -Path $p -Force | Out-Null }
 }
 function showDesktopInExplorer {
     writeText -type "plain" -text "Showing Desktop icon in Explorer namespace..."
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{B4BFCC3A-DB2C-424C-B029-7FE99A87C641}\PropertyBag" -Name "ThisPCPolicy" -type String -Value "Show"
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{B4BFCC3A-DB2C-424C-B029-7FE99A87C641}\PropertyBag" -Name "ThisPCPolicy" -type String -Value "Show"
+    setRegValue -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{B4BFCC3A-DB2C-424C-B029-7FE99A87C641}\PropertyBag" -Name "ThisPCPolicy" -Value "Show" -Type String
+    setRegValue -Path "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{B4BFCC3A-DB2C-424C-B029-7FE99A87C641}\PropertyBag" -Name "ThisPCPolicy" -Value "Show" -Type String
 }
 function showDocumentsInThisPC {
     writeText -type "plain" -text "Showing Documents icon in This PC..."
-    if (!(Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{d3162b92-9365-467a-956b-92703aca08af}")) {
-        New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{d3162b92-9365-467a-956b-92703aca08af}" | Out-Null
-    }
-    if (!(Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{A8CDFF1C-4878-43be-B5FD-F8091C1C60D0}")) {
-        New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{A8CDFF1C-4878-43be-B5FD-F8091C1C60D0}" | Out-Null
+    foreach ($guid in @("{d3162b92-9365-467a-956b-92703aca08af}", "{A8CDFF1C-4878-43be-B5FD-F8091C1C60D0}")) {
+        $p = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\$guid"
+        if (!(Test-Path $p)) { New-Item -Path $p -Force | Out-Null }
     }
 }
 function showDocumentsInExplorer {
     writeText -type "plain" -text "Showing Documents icon in Explorer namespace..."
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{f42ee2d3-909f-4907-8871-4c22fc0bf756}\PropertyBag" -Name "ThisPCPolicy" -type String -Value "Show"
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{f42ee2d3-909f-4907-8871-4c22fc0bf756}\PropertyBag" -Name "ThisPCPolicy" -type String -Value "Show"
+    setRegValue -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{f42ee2d3-909f-4907-8871-4c22fc0bf756}\PropertyBag" -Name "ThisPCPolicy" -Value "Show" -Type String
+    setRegValue -Path "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{f42ee2d3-909f-4907-8871-4c22fc0bf756}\PropertyBag" -Name "ThisPCPolicy" -Value "Show" -Type String
 }
 function showDownloadsInThisPC {
     writeText -type "plain" -text "Showing Downloads icon in This PC..."
-    if (!(Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{088e3905-0323-4b02-9826-5d99428e115f}")) {
-        New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{088e3905-0323-4b02-9826-5d99428e115f}" | Out-Null
-    }
-    if (!(Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{374DE290-123F-4565-9164-39C4925E467B}")) {
-        New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{374DE290-123F-4565-9164-39C4925E467B}" | Out-Null
+    foreach ($guid in @("{088e3905-0323-4b02-9826-5d99428e115f}", "{374DE290-123F-4565-9164-39C4925E467B}")) {
+        $p = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\$guid"
+        if (!(Test-Path $p)) { New-Item -Path $p -Force | Out-Null }
     }
 }
 function showDownloadsInExplorer {
     writeText -type "plain" -text "Showing Downloads icon in Explorer namespace..."
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{7d83ee9b-2244-4e70-b1f5-5393042af1e4}\PropertyBag" -Name "ThisPCPolicy" -type String -Value "Show"
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{7d83ee9b-2244-4e70-b1f5-5393042af1e4}\PropertyBag" -Name "ThisPCPolicy" -type String -Value "Show"
+    setRegValue -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{7d83ee9b-2244-4e70-b1f5-5393042af1e4}\PropertyBag" -Name "ThisPCPolicy" -Value "Show" -Type String
+    setRegValue -Path "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{7d83ee9b-2244-4e70-b1f5-5393042af1e4}\PropertyBag" -Name "ThisPCPolicy" -Value "Show" -Type String
 }
 function disableXboxFeatures {
     writeText -type "plain" -text "Disabling Xbox features..."
-    Set-ItemProperty -Path "HKCU:\System\GameConfigStore" -Name "GameDVR_Enabled" -type DWord -Value 0
-    if (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR")) {
-        New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR" | Out-Null
+    invokeForEachUserHive {
+        param($root, $user)
+        setRegValue -Path "$root\System\GameConfigStore" -Name "GameDVR_Enabled" -Value 0
     }
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR" -Name "AllowGameDVR" -type DWord -Value 0
+    setRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR" -Name "AllowGameDVR" -Value 0
 }
 function disableSearchAppInStore {
     writeText -type "plain" -text "Disabling search for app in store for unknown extensions..."
-    if (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer")) {
-        New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer" | Out-Null
-    }
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoUseStoreOpenWith" -type DWord -Value 1
+    setRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoUseStoreOpenWith" -Value 1
 }
 function installApps {
     param (
@@ -863,8 +866,9 @@ function installApps {
 
     writeText -type "header" -text "Installing Applications..."
 
-    $wingetPath = Get-Command winget -ErrorAction SilentlyContinue
-    if (-not $wingetPath) {
+    $winget = getWingetPath
+
+    if (-not $winget) {
         WriteText -Type "plain" -Text "winget not found. Installing winget..."
 
         try {
@@ -875,17 +879,13 @@ function installApps {
             return
         }
 
-        # Refresh environment variables BEFORE invoking winget-install,
-        # in case Install-Script dropped it somewhere not yet on PATH in this session
-        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
+        [System.Environment]::GetEnvironmentVariable("Path", "User")
 
-        winget-install 2>&1 | Out-Null
+        winget-install -Force 2>&1 | Out-Null
 
-        # Refresh again in case winget-install itself modified PATH
-        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
-
-        $wingetPath = Get-Command winget -ErrorAction SilentlyContinue
-        if (-not $wingetPath) {
+        $winget = getWingetPath
+        if (-not $winget) {
             writeText -Type "error" -text "winget installation failed. Please install winget manually from https://github.com/microsoft/winget-cli"
             return
         }
@@ -893,12 +893,14 @@ function installApps {
         WriteText -Type "success" -Text "winget installed successfully."
     }
 
+    writeText -type "plain" -text "Using winget at: $winget"
+
     function Get-WingetInstallerUrl {
         param(
             [string]$Id
         )
 
-        $output = winget show --id $Id --accept-source-agreements --disable-interactivity 2>&1
+        $output = & $winget show --id $Id --exact --accept-source-agreements --disable-interactivity 2>&1
         $match = $output | Select-String "Installer Url:\s*(\S+)" | Select-Object -First 1
 
         if (-not $match) {
@@ -921,7 +923,7 @@ function installApps {
         @{ Url = $dropboxUrl; Name = "Dropbox"; Params = "/qn /norestart" }
     )
 
-    if ($computerType -eq "FD1" -or $computerType -eq "FD2" -or $computerType -eq "FD3" -or $computerType -eq "OM") {
+    if ($computerType -in @("FD1", "FD2", "FD3", "OM")) {
         $appsToInstall += @{ Url = $sonosUrl; Name = "Sonos"; Params = "/S /v/qn" }
     }
 
@@ -941,7 +943,7 @@ function pinAppsToTaskbar {
     try {
         $chromeExe = "C:\Program Files\Google\Chrome\Application\chrome.exe"
         if (-not (Test-Path $chromeExe)) {
-            Write-Log "Chrome not found at expected path - pin may not work" "WARNING"
+            writeText -type "notice" -text "Chrome not found at expected path - pin may not work"
         }
 
         $layoutXml = @"
@@ -963,27 +965,30 @@ function pinAppsToTaskbar {
 </LayoutModificationTemplate>
 "@
 
-        $layoutPath = "$env:LOCALAPPDATA\Microsoft\Windows\Shell\LayoutModification.xml"
-        $layoutXml | Out-File -FilePath $layoutPath -Encoding UTF8 -Force
+        # Write to every profile, not $env:LOCALAPPDATA (= systemprofile under SYSTEM)
+        $written = 0
+        foreach ($prof in (getUserProfiles)) {
+            $shellDir = "$($prof.Path)\AppData\Local\Microsoft\Windows\Shell"
+            if (-not (Test-Path $shellDir)) {
+                New-Item -Path $shellDir -ItemType Directory -Force | Out-Null
+            }
+            $layoutXml | Out-File -FilePath (Join-Path $shellDir 'LayoutModification.xml') -Encoding UTF8 -Force
+            $written++
+        }
+
+        writeText -type "success" -text "Taskbar layout written for $written profile(s)."
     } catch {
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
-function normalizeEnvironment {
+function editHostname {
     param (
-        [Parameter(Mandatory = $true)]
-        [string]$location,
-        [Parameter(Mandatory = $true)]
-        [string]$locationType,
-        [Parameter(Mandatory = $true)]
-        [string]$computerType
+        [Parameter(Mandatory = $true)][string]$location,
+        [Parameter(Mandatory = $true)][string]$locationType,
+        [Parameter(Mandatory = $true)][string]$computerType
     )
 
-    editHostname
-    getBGInfo
-}
-function editHostname {
     try {
         writeText -type "header" -text "Editing Hostname" -lineBefore
 
@@ -999,8 +1004,8 @@ function editHostname {
         writeText -type "plain" -text "HOSTNAME NOT CHANGED ON PURPOSE. THIS IS A TEST. COMMENT OUT THE NEXT LINE TO ENABLE HOSTNAME CHANGE."
         return
         if ($hostname -ne "") {
-            Remove-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -name "Hostname" 
-            Remove-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -name "NV Hostname" 
+            Remove-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -name "Hostname" -ErrorAction SilentlyContinue
+            Remove-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -name "NV Hostname" -ErrorAction SilentlyContinue
             Set-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Control\Computername\Computername" -name "Computername" -value $hostname
             Set-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Control\Computername\ActiveComputername" -name "Computername" -value $hostname
             Set-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -name "Hostname" -value $hostname
@@ -1038,16 +1043,18 @@ function getBGInfo {
 
         $url = "https://drive.google.com/uc?export=download&id=1XAP5hAgu3k9067NvoZb2YU6TiPr9I68H"
 
-        # Set the wallpaper properties
-        Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name WallPaper -Value "" 
-        Set-ItemProperty -Path "HKCU:\Control Panel\Colors" -Name Background -Value "0 0 0" 
+        # Wallpaper settings are per-user - write to every hive, not HKCU:
+        invokeForEachUserHive {
+            param($root, $user)
+            setRegValue -Path "$root\Control Panel\Desktop" -Name "WallPaper" -Value "" -Type String
+            setRegValue -Path "$root\Control Panel\Colors" -Name "Background" -Value "0 0 0" -Type String
+        }
 
         $download = getDownload -url $url -target "$env:ProgramData\temp\BGInfo.zip"
 
         if ($download -eq $true) { 
-            Expand-Archive -LiteralPath "$env:ProgramData\temp\BGInfo.zip" -DestinationPath "$env:ProgramData\temp\"
+            Expand-Archive -LiteralPath "$env:ProgramData\temp\BGInfo.zip" -DestinationPath "$env:ProgramData\temp\" -Force
 
-            # Test if the extracted folder exists
             if (Test-Path "$env:ProgramData\temp\BGInfo") {
                 writeText -type "plain" -text "BGInfo unpacked."
             } else {
@@ -1063,24 +1070,26 @@ function getBGInfo {
                 writeText -type "error" -text "Failed to install BGInfo."
             }
 
-            Remove-Item -Path "$env:ProgramData\temp\BGInfo.zip" -Recurse
-            Remove-Item -Path "$env:ProgramData\temp\BGInfo" -Recurse 
+            Remove-Item -Path "$env:ProgramData\temp\BGInfo.zip" -Recurse -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path "$env:ProgramData\temp\BGInfo" -Recurse -Force -ErrorAction SilentlyContinue
 
             $filesDeleted = $true
-            if (Test-Path "$env:ProgramData\temp\BGInfo.zip") { 
-                $filesDeleted = $false 
-            }
-            if (Test-Path "$env:ProgramData\temp\BGInfo") { 
-                $filesDeleted = $false 
-            } 
+            if (Test-Path "$env:ProgramData\temp\BGInfo.zip") { $filesDeleted = $false }
+            if (Test-Path "$env:ProgramData\temp\BGInfo") { $filesDeleted = $false } 
             if (!$filesDeleted) {
                 writeText -type "error" -text "Some temp files were not deleted. This is harmless."
             }
 
-            Start-Process -FilePath "cmd.exe" `
-                -ArgumentList '/c ""C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\Start BGInfo.bat""' `
-                -WorkingDirectory "$env:ProgramData\tools\BGInfo" `
-                -WindowStyle Hidden
+            # Running this as SYSTEM paints session 0, not the user's desktop.
+            # The Startup shortcut applies it at the user's next logon instead.
+            if (isSystemContext) {
+                writeText -type "plain" -text "SYSTEM context - BGInfo will apply at next user logon."
+            } else {
+                Start-Process -FilePath "cmd.exe" `
+                    -ArgumentList '/c ""C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\Start BGInfo.bat""' `
+                    -WorkingDirectory "$env:ProgramData\tools\BGInfo" `
+                    -WindowStyle Hidden
+            }
 
             writeText -type "success" -text "BGInfo installed and should be applied."
         }
@@ -1089,10 +1098,129 @@ function getBGInfo {
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
-function writeSummary {
-    writeText -type "header" -text "Summary"
-    writeText -type "plain" -text "Computer     : $env:COMPUTERNAME"
-    writeText -type "plain" -text "started      : $script:scriptStarted"
-    writeText -type "plain" -text "completed    : $(Get-Date)"
-    writeText -type "plain" -text "Log          : $script:logPath"
+
+# --- SYSTEM-context helpers ------------------------------------------------
+function isSystemContext {
+    return ([Security.Principal.WindowsIdentity]::GetCurrent()).User.Value -eq 'S-1-5-18'
+}
+
+# Creates the full key path before writing. New-Item WITHOUT -Force fails when
+# the parent key is missing, which is what broke ...\Explorer\Advanced\People.
+function setRegValue {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)]$Value,
+        [ValidateSet('String', 'ExpandString', 'Binary', 'DWord', 'MultiString', 'QWord')]
+        [string]$Type = 'DWord'
+    )
+    try {
+        if (-not (Test-Path -LiteralPath $Path)) {
+            New-Item -Path $Path -Force -ErrorAction Stop | Out-Null
+        }
+        New-ItemProperty -LiteralPath $Path -Name $Name -Value $Value `
+            -PropertyType $Type -Force -ErrorAction Stop | Out-Null
+    } catch {
+        writeText -type "error" -text "setRegValue failed: $Path\$Name - $($_.Exception.Message)"
+    }
+}
+
+# Returns every real user profile directory, plus Default so future users
+# inherit whatever we do. Use this instead of $env:USERPROFILE / $env:LOCALAPPDATA,
+# which point at C:\Windows\system32\config\systemprofile under SYSTEM.
+function getUserProfiles {
+    $out = @()
+
+    $defaultDir = Join-Path $env:SystemDrive 'Users\Default'
+    if (Test-Path $defaultDir) {
+        $out += [pscustomobject]@{ Name = 'Default'; Path = $defaultDir; Sid = $null }
+    }
+
+    $profileList = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList'
+    Get-ChildItem $profileList -ErrorAction SilentlyContinue |
+    Where-Object { $_.PSChildName -match '^S-1-5-21-' } |
+    ForEach-Object {
+        $img = (Get-ItemProperty $_.PSPath -Name ProfileImagePath -ErrorAction SilentlyContinue).ProfileImagePath
+        if ($img -and (Test-Path $img)) {
+            $out += [pscustomobject]@{
+                Name = (Split-Path $img -Leaf)
+                Path = $img
+                Sid  = $_.PSChildName
+            }
+        }
+    }
+
+    return $out
+}
+
+# Runs a scriptblock once per user hive, handing it that user's registry root
+# in place of HKCU:. Logged-on users are edited live via HKEY_USERS\<SID>;
+# everyone else has NTUSER.DAT loaded and unloaded around the call.
+#
+#   invokeForEachUserHive {
+#       param($root, $user)
+#       setRegValue -Path "$root\SOFTWARE\..." -Name "Foo" -Value 0
+#   }
+#
+# Do NOT reference variables from the calling function inside the scriptblock -
+# PowerShell resolves them at the invocation scope, not the definition scope.
+# Declare anything you need inside the block.
+function invokeForEachUserHive {
+    param([Parameter(Mandatory)][scriptblock]$ScriptBlock)
+
+    if (-not (Get-PSDrive -Name HKU -ErrorAction SilentlyContinue)) {
+        New-PSDrive -Name HKU -PSProvider Registry -Root HKEY_USERS -Scope Global | Out-Null
+    }
+
+    foreach ($p in (getUserProfiles)) {
+        $tempKey = $null
+        $root = $null
+
+        if ($p.Sid -and (Test-Path "Registry::HKEY_USERS\$($p.Sid)")) {
+            $root = "Registry::HKEY_USERS\$($p.Sid)"
+        } else {
+            $dat = Join-Path $p.Path 'NTUSER.DAT'
+            if (-not (Test-Path $dat)) { continue }
+
+            $tempKey = 'NuviaHive_' + ($p.Name -replace '[^A-Za-z0-9]', '_')
+            & reg.exe load "HKU\$tempKey" "$dat" 2>&1 | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+                writeText -type "notice" -text "Could not load hive for $($p.Name) (in use?). Skipping."
+                continue
+            }
+            $root = "Registry::HKEY_USERS\$tempKey"
+        }
+
+        try {
+            & $ScriptBlock $root $p.Name
+        } catch {
+            writeText -type "error" -text "Hive edit failed for $($p.Name): $($_.Exception.Message)"
+        } finally {
+            if ($tempKey) {
+                # These GC calls are required. Without them PowerShell still
+                # holds handles and the unload fails with "Access is denied".
+                [gc]::Collect()
+                [gc]::WaitForPendingFinalizers()
+                & reg.exe unload "HKU\$tempKey" 2>&1 | Out-Null
+            }
+        }
+    }
+}
+
+# winget reaches interactive users through an App Execution Alias in
+# %LOCALAPPDATA%\Microsoft\WindowsApps, which SYSTEM has no copy of. Resolve
+# the real binary under Program Files\WindowsApps instead.
+function getWingetPath {
+    $cmd = Get-Command winget.exe -ErrorAction SilentlyContinue
+    if ($cmd -and (Test-Path $cmd.Source)) { return $cmd.Source }
+
+    $candidates = Get-ChildItem -Path "$env:ProgramFiles\WindowsApps" -Directory -Force -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -like 'Microsoft.DesktopAppInstaller_*_*__8wekyb3d8bbwe' } |
+    Sort-Object -Property Name -Descending
+
+    foreach ($c in $candidates) {
+        $exe = Join-Path $c.FullName 'winget.exe'
+        if (Test-Path $exe) { return $exe }
+    }
+    return $null
 }
