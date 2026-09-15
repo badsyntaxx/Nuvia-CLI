@@ -278,7 +278,8 @@ function installApps {
         WriteText -Type "success" -Text "winget installed successfully."
     }
 
-    writeText -type "plain" -text "Using winget at: $winget"
+    writeText -type "plain" -text "Winget found:"
+    writeText -type "plain" -text "$winget"
 
     function Get-WingetInstallerUrl {
         param(
