@@ -237,6 +237,7 @@ function optimize {
         showDownloadsInThisPC
         showDownloadsInExplorer
         disableXboxFeatures
+        disableGameModeAndGameBar
         disableSearchAppInStore 
     } catch {
         $script:errors += "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)"
@@ -917,6 +918,37 @@ function disableXboxFeatures {
         setRegValue -Path "$root\System\GameConfigStore" -Name "GameDVR_Enabled" -Value 0
     }
     setRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR" -Name "AllowGameDVR" -Value 0
+}
+function disableGameModeAndGameBar {
+    writeText -type "plain" -text "Disabling Game Mode and Game Bar..."
+
+    invokeForEachUserHive {
+        param($root, $user)
+
+        # Game Mode
+        $gameBar = "$root\SOFTWARE\Microsoft\GameBar"
+        setRegValue -Path $gameBar -Name "AllowAutoGameMode"        -Value 0
+        setRegValue -Path $gameBar -Name "AutoGameModeEnabled"      -Value 0
+        setRegValue -Path $gameBar -Name "UseNexusForGameBarEnabled" -Value 0
+        setRegValue -Path $gameBar -Name "ShowStartupPanel"         -Value 0
+        setRegValue -Path $gameBar -Name "GamePanelStartupTipIndex" -Value 3
+
+        # Game Bar hotkeys and the "open Game Bar?" prompt
+        $gcs = "$root\System\GameConfigStore"
+        setRegValue -Path $gcs -Name "GameDVR_Enabled"                       -Value 0
+        setRegValue -Path $gcs -Name "GameDVR_FSEBehaviorMode"               -Value 2
+        setRegValue -Path $gcs -Name "GameDVR_HonorUserFSEBehaviorMode"      -Value 1
+        setRegValue -Path $gcs -Name "GameDVR_DXGIHonorFSEWindowsCompatible" -Value 1
+        setRegValue -Path $gcs -Name "GameDVR_EFSEFeatureFlags"              -Value 0
+
+        # Background recording
+        setRegValue -Path "$root\SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR" `
+            -Name "AppCaptureEnabled" -Value 0
+    }
+
+    # Machine-wide policy - blocks Game DVR regardless of per-user settings
+    setRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR" `
+        -Name "AllowGameDVR" -Value 0
 }
 function disableSearchAppInStore {
     writeText -type "plain" -text "Disabling search for app in store for unknown extensions..."
