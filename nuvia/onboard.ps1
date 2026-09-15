@@ -1,9 +1,7 @@
 function init {
     $script:scriptStarted = Get-Date
-
     $stamp = $script:scriptStarted.ToString('yyyy-MM-dd_HH-mm-ss')
     $script:logPath = "$env:ProgramData\Nuvia\logs\shellcli\$stamp.log"
-
     $script:errors = $([ordered]@{})
 
     writeText -type "header" -text "Initializing Nuvia Onboarding Script"
@@ -12,22 +10,78 @@ function init {
     writeText -type "plain" -text "Context  : $(if (isSystemContext) { 'SYSTEM' } else { $env:USERNAME })"
     writeText -type "plain" -text "Log      : $script:logPath" -lineAfter
 
-    $type = readOption -options $([ordered]@{
-            "Clinical" = "Clinical"
-            "Sales"    = "Sales"
-            "Exit"     = "Cancel onboarding and exit script"
-        }) -prompt "Select an onboarding type:" -returnKey -lineAfter
+    writeText -type "prompt" -text "What is the location of this computer? Example: ALX, DAL, IND" -lineBefore
+    $location = readInput -prompt "Location:"
+    $location = $location.ToUpper()
 
-    switch ($type) {
-        "Clinical" {
-            clinicalOnboarding
-        }
-        "Sales" {
-            salesOnboarding
-        }
-        "Exit" {
-            readCommand
-        }
+    writeText -type "notice" -text "$location-XXX-XXX"
+
+    $locationType = readOption -options $([ordered]@{
+            "ADV"   = "Advanced Dentistry"
+            "CLI"   = "Clinic"
+            "LAB"   = "Lab"
+            "OTHER" = "All other types (Dental Implant Center wallpaper)"
+        }) -prompt "Select a location type:" -returnKey -lineAfter
+
+    writeText -type "notice" -text "$location-$locationType-XXX"
+
+    $validSet = @(
+        "FD1", 
+        "FD2", 
+        "FD3", 
+        "OM", 
+        "HAL", 
+        "EX1", 
+        "EX2", 
+        "EX3", 
+        "EX4", 
+        "EX5", 
+        "CN1", 
+        "CN2", 
+        "CN3", 
+        "IOS", 
+        "MM", 
+        "MM1", 
+        "MM2", 
+        "SED1", 
+        "SED2", 
+        "SED3", 
+        "SUR1", 
+        "SUR2", 
+        "SUR3", 
+        "SUR4", 
+        "TRN", 
+        "DR1", 
+        "DR2", 
+        "DR3", 
+        "DR4",
+        "LLT",
+        "ML"
+    )
+
+    writeText -type "prompt" -text "What type of computer is this? Example: DR1, FD1, EX2"
+    $computerType = readInput -prompt "Computer type:" -validSet $validSet
+
+    $computerType = $computerType.ToUpper()
+
+    writeText -type "notice" -text "$location-$locationType-$computerType"
+
+    createNuviaFolders
+    debloat
+    declutter
+    optimize
+    installApps -computerType $computerType
+    normalizeEnvironment -location $location -locationType $locationType -computerType $computerType
+    writeSummary
+
+    # Restart explorer to see GUI changes.
+    # Under SYSTEM, Start-Process explorer would launch in session 0 where the
+    # user never sees it. Kill it and let Windows respawn it in the interactive
+    # session instead.
+    Get-Process -Name explorer -ErrorAction SilentlyContinue | Stop-Process -Force
+    if (-not (isSystemContext)) {
+        Start-Sleep -Seconds 2
+        Start-Process explorer
     }
 }
 function clinicalOnboarding {
@@ -278,12 +332,18 @@ function normalizeEnvironment {
         [string]$computerType
     )
 
-    # The old condition (-ne "Other" -or -ne "LAB") can never evaluate to false.
-    if ($locationType -notin @("OTHER", "LAB")) {
-        editHostname -location $location -locationType $locationType -computerType $computerType
-    }
+    try {
+        if ($locationType -notin @("OTHER", "LAB")) {
+            editHostname -location $location -locationType $locationType -computerType $computerType
+        }
 
-    getBGInfo
+        getBGInfo
+    } catch {
+        $script:errors += "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)"
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
+    }
+   
 }
 function writeSummary {
     writeText -type "header" -text "Summary"
