@@ -55,7 +55,8 @@ function init {
             "DR3", 
             "DR4",
             "LLT",
-            "ML"
+            "ML",
+            "BKS"
         )
 
         writeText -type "prompt" -text "What type of computer is this? Example: DR1, FD1, EX2"

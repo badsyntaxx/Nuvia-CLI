@@ -122,9 +122,7 @@ function invokeScript {
         if ($initialize) {
             Clear-Host
             Write-Host
-            Write-Host " $([char]0x250C)" -NoNewline -ForegroundColor "Cyan"
-            Write-Host " Shell CLI" -ForegroundColor "Cyan"
-            Write-Host " $([char]0x2502)" -ForegroundColor "Cyan"
+            Write-Host "Shell CLI" -ForegroundColor "Cyan"
         }
 
         Invoke-Expression $script
@@ -141,13 +139,14 @@ function readCommand {
 
     try {
         if ($command -eq "") { 
-            # Draw the prompt lines once
-            Write-Host " $([char]0x2502)" -ForegroundColor "Cyan"
-            
+            # Draw the prompt lines once           
             # Keep the cursor on this line for the prompt
-            Write-Host " $([char]0x251C)" -NoNewline -ForegroundColor "Cyan"
-            Write-Host " $([char]0x203A) " -NoNewline -ForegroundColor "White"
-            
+            # Write-Host " $([char]0x251C)" -NoNewline -ForegroundColor "Cyan"
+            Write-Host
+            Write-Host "$([char]0x203A) " -NoNewline -ForegroundColor "Gray"
+
+            $esc = [char]27
+            Write-Host "$esc[1 q" -NoNewline
             # Read the input - this will stay on the same line
             $command = Read-Host
             
@@ -162,8 +161,7 @@ function readCommand {
                 [System.Console]::SetCursorPosition(0, $cursorPos)
                 
                 # Redraw the prompt on the same line
-                Write-Host " $([char]0x251C)" -NoNewline -ForegroundColor "Cyan"
-                Write-Host " $([char]0x203A) " -NoNewline -ForegroundColor "White"
+                Write-Host "$([char]0x203A) " -NoNewline -ForegroundColor "Gray"
                 
                 # Read again
                 $command = Read-Host
@@ -173,12 +171,11 @@ function readCommand {
                     [System.Console]::SetCursorPosition(0, $cursorPos)
                     Write-Host (" " * [System.Console]::WindowWidth) -NoNewline
                     [System.Console]::SetCursorPosition(0, $cursorPos)
-                    Write-Host " $([char]0x251C)" -NoNewline -ForegroundColor "Cyan"
-                    Write-Host " $([char]0x203A) " -NoNewline -ForegroundColor "Cyan"
+                    Write-Host "$([char]0x203A) " -NoNewline -ForegroundColor "Gray"
                     $command = Read-Host
                 }
             }
-            Write-Host " $([char]0x2502)" -ForegroundColor "Cyan"
+            Write-Host
         }
 
         $command = $command.ToLower()
@@ -348,62 +345,51 @@ function writeText {
 
     try {
         # Add a new line before output if specified
-        if ($lineBefore) { Write-Host " $([char]0x2502)" -ForegroundColor "Cyan" }
+        if ($lineBefore) { Write-Host "" }
 
         # Format output based on the specified Type
         if ($type -eq "header") {
-            # $l = $([char]0x2500)
-            Write-Host " $([char]0x2502)" -ForegroundColor "Cyan"
-            Write-Host " $([char]0x251C)" -NoNewline -ForegroundColor "Cyan"
+            Write-Host "$([char]0x251C)" -NoNewline -ForegroundColor "Cyan"
             Write-Host " $text " -ForegroundColor "Cyan"
             log -msg $text -lvl "INFO"
         }
 
         if ($type -eq "prompt") {
-            Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Cyan"
-            Write-Host "   ?" -NoNewline -ForegroundColor "Yellow"
-            Write-Host " $text" -ForegroundColor "White"
+            Write-Host "?" -NoNewline -ForegroundColor "Yellow"
+            Write-Host " $text" -ForegroundColor "Gray"
             log -msg "ShellCLI prompted: $text"
         }
 
         if ($type -eq 'success') { 
-            Write-Host " $([char]0x2502)" -ForegroundColor "Cyan"
-            Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Cyan"
-            Write-Host "   $([char]0x2713) $text"  -ForegroundColor "Green"
-            Write-Host " $([char]0x2502)" -ForegroundColor "Cyan"
+            Write-Host "$([char]0x2713) $text"  -ForegroundColor "Green"
+            Write-Host "" -ForegroundColor "Cyan"
             log -msg $text -lvl "SUCCESS"
         }
 
         if ($type -eq 'error') { 
-            Write-Host " $([char]0x2502)" -ForegroundColor "Cyan"
-            Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Cyan"
-            Write-Host "   X $text" -ForegroundColor "Red"
-            Write-Host " $([char]0x2502)" -ForegroundColor "Cyan"
+            Write-Host "X $text" -ForegroundColor "Red"
+            Write-Host "" -ForegroundColor "Cyan"
             log -msg $text -lvl "ERROR"
         }
 
         if ($type -eq 'notice') { 
-            Write-Host " $([char]0x2502)" -ForegroundColor "Cyan"
-            Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Cyan"
-            Write-Host "   ! $text" -ForegroundColor "Yellow" 
-            Write-Host " $([char]0x2502)" -ForegroundColor "Cyan"
+            Write-Host "! $text" -ForegroundColor "Yellow" 
+            Write-Host "" -ForegroundColor "Cyan"
             log -msg $text -lvl "INFO"
         }
 
         if ($type -eq 'plain') {
             if ($label -ne "") { 
                 if ($Color -eq "Cyan") {
-                    $Color = 'DarkCyan'
+                    $Color = 'Cyan'
                 }
-                Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Cyan"
-                Write-Host "  $label`: " -NoNewline -ForegroundColor "Cyan"
+                Write-Host "$label`: " -NoNewline -ForegroundColor "Cyan"
                 Write-Host "$text" -ForegroundColor $Color 
                 if ($text -ne "") {
                     log -msg $text -lvl "INFO"
                 }
             } else {
-                Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Cyan"
-                Write-Host "   $text" -ForegroundColor $Color 
+                Write-Host "$text" -ForegroundColor $Color 
                 if ($text -ne "") {
                     log -msg $text -lvl "INFO"
                 }
@@ -419,16 +405,14 @@ function writeText {
 
             # Display single option if only one exists
             if ($orderedKeys.Count -eq 1) {
-                Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Cyan"
-                Write-Host "   $($orderedKeys) $(" " * ($longestKeyLength - $orderedKeys.Length)) - $($Table[$orderedKeys])"
+                Write-Host "$($orderedKeys) $(" " * ($longestKeyLength - $orderedKeys.Length)) - $($Table[$orderedKeys])"
                 log -msg "$($orderedKeys) - $($Table[$orderedKeys])" -lvl "INFO"
             } else {
                 # Loop through each option and display with padding and color
                 for ($i = 0; $i -lt $orderedKeys.Count; $i++) {
                     $key = $orderedKeys[$i]
                     $padding = " " * ($longestKeyLength - $key.Length)
-                    Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Cyan"
-                    Write-Host "   $($key): $padding $($Table[$key])" -ForegroundColor $Color
+                    Write-Host "$($key): $padding $($Table[$key])" -ForegroundColor $Color
                     log -msg "$($key): $padding $($Table[$key])" -lvl "INFO"
                 }
             }
@@ -442,7 +426,6 @@ function writeText {
 
             # Display single option if only one exists
             if ($orderedKeys.Count -eq 1) {
-                Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Cyan"
                 Write-Host " $($orderedKeys) $(" " * ($longestKeyLength - $orderedKeys.Length)) - $($List[$key][$ListValue])"
                 log -msg "$($orderedKeys) - $($List[$key][$ListValue])" -lvl "INFO"
             } else {
@@ -450,15 +433,14 @@ function writeText {
                 for ($i = 0; $i -lt $orderedKeys.Count; $i++) {
                     $key = $orderedKeys[$i]
                     $padding = " " * ($longestKeyLength - $key.Length)
-                    Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Cyan"
-                    Write-Host "   $($key): $padding $($List[$key][$ListValue])" -ForegroundColor $Color
+                    Write-Host "$($key): $padding $($List[$key][$ListValue])" -ForegroundColor $Color
                     log -msg "$($key): $padding $($List[$key][$ListValue])" -lvl "INFO"
                 }
             }
         }
 
         # Add a new line after output if specified
-        if ($lineAfter) { Write-Host " $([char]0x2502)" -ForegroundColor "Cyan" }
+        if ($lineAfter) { Write-Host }
     } catch {
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
@@ -492,14 +474,13 @@ function readInput {
         log -msg "Prompting host to input. ($prompt)"
 
         # Add a new line before prompt if specified
-        if ($lineBefore) { Write-Host " $([char]0x2502)" -ForegroundColor "Cyan" }
+        if ($lineBefore) { Write-Host }
 
         # Get current cursor position
         $currPos = $host.UI.RawUI.CursorPosition
 
-        Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Cyan"
         # Write-Host " ? " -NoNewline -ForegroundColor "Cyan"
-        Write-Host "   $prompt " -NoNewline
+        Write-Host "  $prompt " -NoNewline
 
         if ($IsSecure) { 
             $userInput = Read-Host -AsSecureString 
@@ -549,17 +530,16 @@ function readInput {
         # Reset cursor position
         [Console]::SetCursorPosition($currPos.X, $currPos.Y)
         
-        Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Cyan"
         # Write-Host " ? " -ForegroundColor "Cyan" -NoNewline
         if ($IsSecure -and ($userInput.Length -eq 0)) { 
-            Write-Host "   $prompt                                                "
+            Write-Host "  $prompt                                                "
         } else { 
-            Write-Host "   $prompt " -NoNewline
-            Write-Host "$userInput                                             " -ForegroundColor "DarkCyan"
+            Write-Host "  $prompt " -NoNewline
+            Write-Host "$userInput                                             " -ForegroundColor "DarkGray"
         }
 
         # Add a new line after prompt if specified
-        if ($lineAfter) { Write-Host " $([char]0x2502)" -ForegroundColor "Cyan" }
+        if ($lineAfter) { Write-Host "" }
 
         log -msg "Input accepted ($userInput)"
     
@@ -591,11 +571,10 @@ function readOption {
     try {
         log -msg "Prompting host to choose. ($prompt)"
         # Add a line break before the menu if lineBefore is specified
-        if ($lineBefore) { Write-Host " $([char]0x2502)" -ForegroundColor "Cyan" }
+        if ($lineBefore) { Write-Host }
 
-        Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Cyan"
-        Write-Host "   ?" -NoNewline -ForegroundColor "Yellow"
-        Write-Host " $prompt " -ForegroundColor "White"
+        Write-Host "?" -NoNewline -ForegroundColor "Yellow"
+        Write-Host " $prompt " -ForegroundColor "Gray"
 
         # Initialize variables for user input handling
         $vkeycode = 0
@@ -620,9 +599,8 @@ function readOption {
         # Display single option if only one exists
         if ($orderedKeys.Count -eq 1) {
             $truncatedDesc = truncateDescription -description $options[$orderedKeys]
-            Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Cyan"
-            Write-Host " $([char]0x2192)" -ForegroundColor "DarkCyan" -NoNewline
-            Write-Host "   $($orderedKeys) $(" " * ($longestKeyLength - $orderedKeys.Length)) - $truncatedDesc" -ForegroundColor "DarkCyan"
+            Write-Host "$([char]0x2192)" -ForegroundColor "Cyan" -NoNewline
+            Write-Host " $($orderedKeys) $(" " * ($longestKeyLength - $orderedKeys.Length)) - $truncatedDesc" -ForegroundColor "White"
         } else {
             # Loop through each option and display with padding and color
             for ($i = 0; $i -lt $orderedKeys.Count; $i++) {
@@ -630,12 +608,10 @@ function readOption {
                 $padding = " " * ($longestKeyLength - $key.Length)
                 $truncatedDesc = truncateDescription -description $options[$key]
                 if ($i -eq $pos) { 
-                    Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Cyan"
-                    Write-Host " $([char]0x2192)" -ForegroundColor "DarkCyan" -NoNewline  
-                    Write-Host " $key $padding - $truncatedDesc" -ForegroundColor "DarkCyan"
+                    Write-Host "$([char]0x2192)" -ForegroundColor "Cyan" -NoNewline  
+                    Write-Host " $key $padding - $truncatedDesc" -ForegroundColor "White"
                 } else { 
-                    Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Cyan"
-                    Write-Host "   $key $padding - $truncatedDesc"
+                    Write-Host "  $key $padding - $truncatedDesc" -ForegroundColor "Gray"
                 }
             }
         }
@@ -666,18 +642,16 @@ function readOption {
                 $newTruncatedDesc = truncateDescription -description $options[$orderedKeys[$pos]]
                 
                 $host.UI.RawUI.CursorPosition = $menuOldPos
-                Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Cyan"
-                Write-Host "   $($orderedKeys[$oldPos]) $(" " * ($longestKeyLength - $oldKey.Length)) - $oldTruncatedDesc"
+                Write-Host "  $($orderedKeys[$oldPos]) $(" " * ($longestKeyLength - $oldKey.Length)) - $oldTruncatedDesc" -ForegroundColor "Gray"
                 $host.UI.RawUI.CursorPosition = $menuNewPos
-                Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Cyan"
-                Write-Host " $([char]0x2192)" -ForegroundColor "DarkCyan" -NoNewline
-                Write-Host " $($orderedKeys[$pos]) $(" " * ($longestKeyLength - $newKey.Length)) - $newTruncatedDesc" -ForegroundColor "DarkCyan"
+                Write-Host "$([char]0x2192)" -ForegroundColor "Cyan" -NoNewline
+                Write-Host " $($orderedKeys[$pos]) $(" " * ($longestKeyLength - $newKey.Length)) - $newTruncatedDesc" -ForegroundColor "White"
                 $host.UI.RawUI.CursorPosition = $currPos
             }
         }
 
         # Add a line break after the menu if lineAfter is specified
-        if ($lineAfter) { Write-Host " $([char]0x2502)" -ForegroundColor "Cyan" }
+        if ($lineAfter) { Write-Host }
 
         # Handle function return values (key, value, menu position) based on parameters
         if ($returnKey) { 
@@ -746,11 +720,9 @@ function getDownload {
             $progbar = $progbar.PadRight($barSize, [char]9617)
 
             if ($complete) {
-                Write-Host "`r $([char]0x2502)" -NoNewline -ForegroundColor "Cyan"
-                Write-Host -NoNewLine "   $progbar $([char]0x2713)" -ForegroundColor "DarkGray"
+                Write-Host -NoNewLine "`r$progbar" -ForegroundColor "Gray"
             } else {
-                Write-Host "`r $([char]0x2502)" -NoNewline -ForegroundColor "Cyan"
-                Write-Host -NoNewLine "   $progbar $($percentComplete.ToString("##0.00").PadLeft(6))%" -ForegroundColor "DarkGray"
+                Write-Host -NoNewLine "`r$progbar $($percentComplete.ToString("##0.00").PadLeft(6))%" -ForegroundColor "Gray"
             }         
         }
     }
@@ -800,7 +772,6 @@ function getDownload {
                 if ($lineBefore) { Write-Host }
 
                 if (-not $hide -and $label -ne "") {
-                    Write-Host " $([char]0x2502)" -NoNewline -ForegroundColor "Cyan"
                     Write-Host " $text" -ForegroundColor "Yellow"
                 }
                 # start download
@@ -901,7 +872,7 @@ function selectUser {
 
     try {
         # Add a line break before the menu if lineBefore is specified
-        if ($lineBefore) { Write-Host " $([char]0x2502)" -ForegroundColor "Gray" }
+        if ($lineBefore) { Write-Host "" }
          
         # Initialize empty array to store user names
         $userNames = @()
@@ -992,7 +963,7 @@ function selectUser {
         }
 
         # Add a line break after the menu if lineAfter is specified
-        if ($lineAfter) { Write-Host " $([char]0x2502)" -ForegroundColor "Gray" }
+        if ($lineAfter) { Write-Host "" }
 
         # Return the user data dictionary
         return $data
@@ -1106,123 +1077,174 @@ function installViaWinget {
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }    
 }
-function installWingetForAllUsers {
-    # Win32_UserProfile gives us actual profile-having accounts, not just AD/local accounts
-    $profiles = Get-CimInstance -ClassName Win32_UserProfile | Where-Object {
-        -not $_.Special -and
-        $_.LocalPath -notmatch '\\(systemprofile|LocalService|NetworkService)$' -and
-        $_.SID -notmatch '^S-1-5-(18|19|20)$'   # SYSTEM, LOCAL SERVICE, NETWORK SERVICE
-    }
+function resolveWinget {
+    try {
+        $cmd = Get-Command winget.exe -ErrorAction SilentlyContinue
+        if ($cmd) { return $cmd.Source }
 
-    $users = foreach ($p in $profiles) {
-        try {
-            $sid = New-Object System.Security.Principal.SecurityIdentifier($p.SID)
-            $account = $sid.Translate([System.Security.Principal.NTAccount])
-            [PSCustomObject]@{
-                UserName  = $account.Value          # DOMAIN\user or COMPUTER\user
-                SID       = $p.SID
-                Loaded    = $p.Loaded
-                LocalPath = $p.LocalPath
-            }
-        } catch {
-            # SID no longer resolves (orphaned profile) - skip
-            continue
-        }
-    }
+        $candidate = Get-ChildItem -Path "$env:ProgramFiles\WindowsApps" `
+            -Filter "winget.exe" -Recurse -ErrorAction SilentlyContinue |
+        Where-Object { $_.DirectoryName -like "*Microsoft.DesktopAppInstaller_*_x64__8wekyb3d8bbwe*" } |
+        Select-Object -Last 1
 
-    if (-not $users) {
-        writeText -Type "error" -text "No user profiles found on this system."
-        return
-    }
-
-    WriteText -Type "plain" -Text "Found $($users.Count) user(s): $($users.UserName -join ', ')"
-
-    # Kick off one scheduled task per user, running concurrently
-    $jobs = foreach ($u in $users) {
-        WriteText -Type "plain" -Text "Queuing winget install for $($u.UserName)..."
-        installWingetForUser -UserName $u.UserName
-    }
-
-    # Poll all tasks until done or timeout
-    $timeoutSeconds = 240
-    $elapsed = 0
-    do {
-        Start-Sleep -Seconds 3
-        $elapsed += 3
-        $stillRunning = $jobs | Where-Object {
-            $_.Result -eq "PENDING" -and
-            (Get-ScheduledTask -TaskName $_.TaskName -ErrorAction SilentlyContinue).State -eq 'Running'
-        }
-    } while ($stillRunning -and $elapsed -lt $timeoutSeconds)
-
-    # Collect results
-    foreach ($j in $jobs) {
-        if ($j.Result -eq "ERROR") {
-            writeText -Type "error" -text "Failed to schedule install for $($j.UserName): $($j.Detail)"
-            continue
-        }
-
-        Unregister-ScheduledTask -TaskName $j.TaskName -Confirm:$false -ErrorAction SilentlyContinue
-
-        if (Test-Path $j.LogPath) {
-            $log = Get-Content $j.LogPath -Raw
-            Remove-Item $j.LogPath -Force -ErrorAction SilentlyContinue
-
-            if ($log -match 'SUCCESS') {
-                WriteText -Type "success" -Text "winget installed successfully for $($j.UserName)."
-            } else {
-                writeText -Type "error" -text "winget install failed for $($j.UserName). Log:`n$log"
-            }
-        } else {
-            writeText -Type "error" -text "No result for $($j.UserName) - task may have timed out."
-        }
+        if ($candidate) { return $candidate.FullName }
+        return $null
+    } catch {
+        return $null
     }
 }
-function installWingetForUser {
+function registerWingetForCurrentUser {
+    <#
+        Provisioning stages the package into the image, but the account running
+        the script right now may not have it registered. This binds it without
+        re-downloading anything.
+    #>
+    try {
+        Add-AppxPackage -RegisterByFamilyName `
+            -MainPackage "Microsoft.DesktopAppInstaller_8wekyb3d8bbwe" `
+            -ErrorAction Stop
+    } catch {
+        # Expected under SYSTEM, where there is no meaningful user context.
+        log -msg "registerWingetForCurrentUser: $($_.Exception.Message)" -lvl "WARN"
+    }
+}
+function installWingetForAllUsers {
+    [CmdletBinding()]
     param(
-        [Parameter(Mandatory)]
-        [string]$UserName
+        # Re-provision even if App Installer is already present.
+        [switch]$Force
     )
 
-    $taskName = "TempWingetInstall_$([guid]::NewGuid().ToString('N'))"
-    $logPath = "$env:TEMP\winget-install-$([guid]::NewGuid().ToString('N')).log"
-
-    $scriptBlock = {
-        param($LogPath)
-        try {
-            Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted -ErrorAction Stop | Out-Null
-            Install-Script -Name winget-install -Force -Scope CurrentUser -ErrorAction Stop | Out-Null
-
-            $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
-            winget-install *>> $LogPath
-            $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
-
-            if (Get-Command winget -ErrorAction SilentlyContinue) {
-                "SUCCESS" | Out-File -FilePath $LogPath -Append
-            } else {
-                "FAILURE" | Out-File -FilePath $LogPath -Append
-            }
-        } catch {
-            "FAILURE: $($_.Exception.Message)" | Out-File -FilePath $LogPath -Append
-        }
-    }
-
-    $encoded = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes(
-            "& { $scriptBlock } -LogPath `"$logPath`""
-        ))
-
-    $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand $encoded"
-    $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(5)
-    $principal = New-ScheduledTaskPrincipal -UserId $UserName -LogonType S4U -RunLevel Limited
-
     try {
-        Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Force | Out-Null
-        Start-ScheduledTask -TaskName $taskName
-    } catch {
-        return [PSCustomObject]@{ UserName = $UserName; Result = "ERROR"; Detail = $_.Exception.Message; TaskName = $taskName; LogPath = $logPath }
-    }
+        # Already there? ---------------------------------------------
+        if (-not $Force) {
+            $existing = Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq 'Microsoft.DesktopAppInstaller' }
 
-    return [PSCustomObject]@{ UserName = $UserName; Result = "PENDING"; Detail = $null; TaskName = $taskName; LogPath = $logPath }
+            if ($existing) {
+                writeText -type "plain" -text "App Installer already provisioned (v$($existing.Version))." -lineAfter
+                if (-not (resolveWinget)) { registerWingetForCurrentUser }
+                return
+            }
+        }
+
+        # Scratch space -------------------------------------------------
+        $work = Join-Path $env:ProgramData "shellcli\wingetProvision"
+        if (Test-Path $work) { Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue }
+        New-Item -ItemType Directory -Path $work -Force | Out-Null
+
+        # Work out what to download --------------------------------------
+        writeText -type "plain" -text "Querying latest winget-cli release..."
+
+        $apiJson = Join-Path $work "release.json"
+        if (-not (getDownload -url "https://api.github.com/repos/microsoft/winget-cli/releases/latest" -target $apiJson)) {
+            writeText -type "error" -text "Failed to query the winget-cli release feed."
+            log -msg "installWingetForAllUsers: release feed download failed." -lvl "ERROR"
+            return
+        }
+
+        try {
+            $release = Get-Content -LiteralPath $apiJson -Raw | ConvertFrom-Json
+        } catch {
+            # Almost always a 403 from GitHub because no User-Agent header was sent.
+            writeText -type "error" -text "Release feed did not return valid JSON. If getDownload uses WebClient or BITS, add a User-Agent header."
+            log -msg "installWingetForAllUsers: release feed parse failed - $($_.Exception.Message)" -lvl "ERROR"
+            return
+        }
+
+        if (-not $release.assets) {
+            writeText -type "error" -text "Release feed contained no assets."
+            return
+        }
+
+        $bundleAsset = $release.assets | Where-Object { $_.name -like "*.msixbundle" }   | Select-Object -First 1
+        $licenseAsset = $release.assets | Where-Object { $_.name -like "*_License1.xml" } | Select-Object -First 1
+        $depsAsset = $release.assets | Where-Object { $_.name -eq "DesktopAppInstaller_Dependencies.zip" } | Select-Object -First 1
+
+        if (-not $bundleAsset -or -not $licenseAsset -or -not $depsAsset) {
+            writeText -type "error" -text "Could not locate all required assets in release $($release.tag_name)."
+            log -msg "installWingetForAllUsers: missing release assets in $($release.tag_name)." -lvl "ERROR"
+            return
+        }
+
+        writeText -type "plain" -text "Found $($release.tag_name)."
+
+        # --- 5. Download via getDownload ----------------------------------------
+        $bundlePath = Join-Path $work $bundleAsset.name
+        $licensePath = Join-Path $work $licenseAsset.name
+        $depsZipPath = Join-Path $work $depsAsset.name
+
+        $downloads = @(
+            @{ Url = $bundleAsset.browser_download_url; Target = $bundlePath; Label = "App Installer bundle" },
+            @{ Url = $licenseAsset.browser_download_url; Target = $licensePath; Label = "license file" },
+            @{ Url = $depsAsset.browser_download_url; Target = $depsZipPath; Label = "dependency package" }
+        )
+
+        foreach ($item in $downloads) {
+            if (-not (getDownload -url $item.Url -target $item.Target)) {
+                writeText -type "error" -text "Failed to download the $($item.Label)."
+                log -msg "installWingetForAllUsers: download failed - $($item.Url)" -lvl "ERROR"
+                return
+            }
+            if (-not (Test-Path $item.Target)) {
+                writeText -type "error" -text "getDownload reported success but $($item.Target) is missing."
+                return
+            }
+        }
+
+        # --- 6. Unpack the dependencies -------------------------------------------
+        $depsDir = Join-Path $work "deps"
+        Expand-Archive -LiteralPath $depsZipPath -DestinationPath $depsDir -Force
+
+        # Zip layout is <arch>\<package>.appx - we only need the host arch.
+        $arch = if ([Environment]::Is64BitOperatingSystem) { "x64" } else { "x86" }
+        $dependencies = @(
+            Get-ChildItem -Path (Join-Path $depsDir $arch) -Filter "*.appx" -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty FullName
+        )
+
+        if ($dependencies.Count -eq 0) {
+            writeText -type "notice" -text "No $arch dependency packages found; attempting provision without them."
+        } else {
+            writeText -type "plain" -text "Staging $($dependencies.Count) dependency package(s)."
+        }
+
+        # --- 7. Provision -------------------------------------------------------
+        writeText -type "plain" -text "Provisioning App Installer for all users..."
+
+        $provisionArgs = @{
+            Online      = $true
+            PackagePath = $bundlePath
+            LicensePath = $licensePath
+        }
+        if ($dependencies.Count -gt 0) {
+            $provisionArgs['DependencyPackagePath'] = $dependencies
+        }
+
+        Add-AppxProvisionedPackage @provisionArgs -ErrorAction Stop | Out-Null
+
+        # --- 8. Register for the current account so winget works right now ------
+        registerWingetForCurrentUser
+
+        # --- 9. Verify -----------------------------------------------------------
+        $exe = resolveWinget
+        if ($exe) {
+            $version = (& $exe --version) 2>$null
+            writeText -type "success" -text "winget $version provisioned and available."
+            log -msg "installWingetForAllUsers: provisioned $($release.tag_name)." -lvl "INFO"
+        } else {
+            writeText -type "notice" -text "Provisioning succeeded but winget is not resolvable in this session. It will be available to users at next sign-in."
+            log -msg "installWingetForAllUsers: provisioned but not resolvable in current session." -lvl "WARN"
+        }
+
+        # --- 10. Clean up ----------------------------------------------------------
+        Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue
+        if (Test-Path $work) {
+            writeText -type "error" -text "Some temp files were not deleted. This is harmless."
+        }
+    } catch {
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
+    }
 }
 function installApp {
     param (
