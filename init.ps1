@@ -1,5 +1,5 @@
 function initializeShellCLI {
-    $shellCliRoot = Join-Path -Path $env:ProgramData -ChildPath 'shellcli'
+    $shellCliRoot = Join-Path -Path $env:ProgramData -ChildPath 'Nuvia\tools\shellcli'
     $mainScript = Join-Path -Path $shellCliRoot -ChildPath 'SHELLCLI.ps1'
 
     try {
@@ -15,7 +15,7 @@ function initializeShellCLI {
                     -WorkingDirectory $env:SystemRoot -ArgumentList @(
                     '-NoProfile'
                     '-ExecutionPolicy', 'Bypass'
-                    '-Command', 'irm shellcli.com | iex'
+                    '-Command', 'irm n.shellcli.com | iex'
                 )
                 log -msg "Elevated process launched." -lvl "INFO"
             } catch {
@@ -82,7 +82,7 @@ function appendToMainScript {
         [Parameter(Mandatory)][string]$file
     )
 
-    $mainScript = Join-Path -Path $env:ProgramData -ChildPath 'shellcli\SHELLCLI.ps1'
+    $mainScript = Join-Path -Path $env:ProgramData -ChildPath 'Nuvia\tools\shellcli\SHELLCLI.ps1'
     $oldProgress = $ProgressPreference
     $ProgressPreference = 'SilentlyContinue'
 
