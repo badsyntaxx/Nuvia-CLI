@@ -403,7 +403,7 @@ function dispatchCommand {
         invokeScript -script $commandFunction
         return
     }
-
+    Read-Host "$commandDirectory/$commandFile"
     # The framework itself is already loaded, so only the module is fetched.
     $src = getModuleSource -directory $commandDirectory -file $commandFile
 
