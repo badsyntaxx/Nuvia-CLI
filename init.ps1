@@ -25,36 +25,36 @@ function initializeShellCLI {
 
             return
         }
-        read-host 1
+
         createNuviaFolders
-        read-host 2
+
         log -msg "Initializing ShellCLI"
-        read-host 3
+
         # ------------------------------------------------------------------
         # Working directory
         # ------------------------------------------------------------------
         if (-not (Test-Path -LiteralPath $shellCliRoot)) {
             New-Item -Path $shellCliRoot -ItemType Directory -Force -ErrorAction Stop | Out-Null
         }
-        read-host 4
+
         protectShellCLIDirectory -path $shellCliRoot
-        read-host 5
+
         # ------------------------------------------------------------------
         # Build the main script
         # ------------------------------------------------------------------
         log -msg "Building main script"
-        read-host 6
+
         # Set-Content creates or truncates, and stamps the file with a UTF-8 BOM
         # so Windows PowerShell 5.1 reads it back correctly.
         Set-Content -LiteralPath $mainScript -Value '' -Encoding UTF8 -Force -ErrorAction Stop
-        read-host 7
+
         if (-not (appendToMainScript -file 'framework')) {
             throw "Could not download framework.ps1"
         }
         if (-not (appendToMainScript -directory 'nuvia' -file 'core')) {
             throw "Could not download nuvia/core.ps1"
         }
-        read-host $mainScript
+
         # Bootstrap line that hands control to the CLI
         Add-Content -LiteralPath $mainScript -Encoding UTF8 -ErrorAction Stop `
             -Value 'invokeScript -script "startShell" -initialize $true'
@@ -64,7 +64,7 @@ function initializeShellCLI {
         if ($builtSize -lt 256) {
             throw "Main script built but looks truncated ($builtSize bytes)"
         }
-        read-host 9
+
         log -msg "Running main script"
         . $mainScript
     } catch {
