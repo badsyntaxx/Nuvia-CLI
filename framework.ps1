@@ -1417,7 +1417,7 @@ function installApp {
             WriteText -Type "plain" -Text "$appName is already installed."
         } else {
             $fileName = Split-Path -Path $url -Leaf
-            $outputPath = Join-Path -Path "$env:SystemDrive\shellcli" -ChildPath $fileName
+            $outputPath = Join-Path -Path "$env:SystemDrive\Nuvia\temp" -ChildPath $fileName
 
             if (getDownload -url $url -target $outputPath) {
                 $fileExtension = [System.IO.Path]::GetExtension($outputPath).ToLower()
