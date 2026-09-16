@@ -197,13 +197,20 @@ function runCommand {
         [Parameter(Mandatory)][string]$command
     )
 
-    log -msg "Running command: $command"
+    try {
+        log -msg "Running command: $command"
 
-    $filteredCommand = filterCommands -command $command
+        $filteredCommand = filterCommands -command $command
 
-    if ($filteredCommand -and $filteredCommand.Count -eq 4) {
-        dispatchCommand -filteredCommand $filteredCommand
+        if ($filteredCommand -and $filteredCommand.Count -eq 4) {
+            dispatchCommand -filteredCommand $filteredCommand
+        } 
+    } catch {
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
+
+    
 }
 function readCommand {
     <#
