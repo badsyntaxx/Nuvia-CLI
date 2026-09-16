@@ -26,9 +26,9 @@ function initializeShellCLI {
             return
         }
 
-        log -msg "Initializing ShellCLI"
-
         createNuviaFolders
+        
+        log -msg "Initializing ShellCLI"
 
         # ------------------------------------------------------------------
         # Working directory
