@@ -51,8 +51,8 @@ function initializeShellCLI {
         if (-not (appendToMainScript -file 'framework')) {
             throw "Could not download framework.ps1"
         }
-        if (-not (appendToMainScript -directory 'main' -file 'core')) {
-            throw "Could not download main/core.ps1"
+        if (-not (appendToMainScript -directory 'nuvia' -file 'core')) {
+            throw "Could not download nuvia/core.ps1"
         }
         read-host 8
         # Bootstrap line that hands control to the CLI
