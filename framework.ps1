@@ -317,78 +317,85 @@ function getModuleSource {
         [Parameter(Mandatory)][string]$file
     )
 
-    $key = if ($directory) { "$directory/$file" } else { $file }
-
-    if ($global:moduleCache.ContainsKey($key)) {
-        log -msg "Module '$key' served from memory." -lvl "DEBUG"
-        return $global:moduleCache[$key]
-    }
-
-    $base = "https://raw.githubusercontent.com/badsyntaxx/Nuvia-CLI/main"
-    if ($directory -eq 'main' -or $directory -eq 'plugins') {
-        $base = "https://raw.githubusercontent.com/badsyntaxx/shellcli/main"
-    }
-
-    $url = if ($directory) { "$base/$directory/$file.ps1" } else { "$base/$file.ps1" }
-    Read-Host $url
-    $cachePath = getModuleCachePath -key $key
-
-    $oldProgress = $ProgressPreference
-    $ProgressPreference = 'SilentlyContinue'
-
     try {
-        [Net.ServicePointManager]::SecurityProtocol = `
-            [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+        $key = if ($directory) { "$directory/$file" } else { $file }
 
-        $resp = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 20 -ErrorAction Stop
-
-        # Decode UTF-8 explicitly rather than trusting the response header.
-        $src = [System.Text.Encoding]::UTF8.GetString($resp.RawContentStream.ToArray())
-
-        if ([string]::IsNullOrWhiteSpace($src)) { throw "Empty response body from $url" }
-
-        # Reject unparseable content before it reaches Invoke-Expression.
-        $parseErrors = $null
-        [void][System.Management.Automation.Language.Parser]::ParseInput(
-            $src, [ref]$null, [ref]$parseErrors)
-
-        if ($parseErrors -and $parseErrors.Count -gt 0) {
-            throw "Module '$key' failed to parse: $($parseErrors[0].Message)"
+        if ($global:moduleCache.ContainsKey($key)) {
+            log -msg "Module '$key' served from memory." -lvl "DEBUG"
+            return $global:moduleCache[$key]
         }
 
-        $global:moduleCache[$key] = $src
-
-        try {
-            $utf8Bom = New-Object System.Text.UTF8Encoding($true)
-            [System.IO.File]::WriteAllText($cachePath, $src, $utf8Bom)
-        } catch {
-            log -msg "Disk cache write failed for '$key': $($_.Exception.Message)" -lvl "WARNING"
+        $base = "https://raw.githubusercontent.com/badsyntaxx/Nuvia-CLI/main"
+        if ($directory -eq 'main' -or $directory -eq 'plugins') {
+            $base = "https://raw.githubusercontent.com/badsyntaxx/shellcli/main"
         }
 
-        log -msg "Module '$key' downloaded ($($src.Length) chars)." -lvl "DEBUG"
-        return $src
-    } catch {
-        log -msg "Download of '$key' failed: $($_.Exception.Message)" -lvl "WARNING"
-    } finally {
-        $ProgressPreference = $oldProgress
-    }
+        $url = if ($directory) { "$base/$directory/$file.ps1" } else { "$base/$file.ps1" }
+        Read-Host $url
+        $cachePath = getModuleCachePath -key $key
 
-    if (Test-Path -LiteralPath $cachePath) {
+        $oldProgress = $ProgressPreference
+        $ProgressPreference = 'SilentlyContinue'
+
         try {
-            $src = [System.IO.File]::ReadAllText($cachePath)
-            if (-not [string]::IsNullOrWhiteSpace($src)) {
-                $global:moduleCache[$key] = $src
-                $age = (Get-Date) - (Get-Item -LiteralPath $cachePath).LastWriteTime
-                writeText -type "notice" -text "Offline - using cached '$key' from $([int]$age.TotalDays) day(s) ago."
-                return $src
+            [Net.ServicePointManager]::SecurityProtocol = `
+                [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+
+            $resp = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 20 -ErrorAction Stop
+
+            # Decode UTF-8 explicitly rather than trusting the response header.
+            $src = [System.Text.Encoding]::UTF8.GetString($resp.RawContentStream.ToArray())
+
+            if ([string]::IsNullOrWhiteSpace($src)) { throw "Empty response body from $url" }
+
+            # Reject unparseable content before it reaches Invoke-Expression.
+            $parseErrors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseInput(
+                $src, [ref]$null, [ref]$parseErrors)
+
+            if ($parseErrors -and $parseErrors.Count -gt 0) {
+                throw "Module '$key' failed to parse: $($parseErrors[0].Message)"
             }
+
+            $global:moduleCache[$key] = $src
+
+            try {
+                $utf8Bom = New-Object System.Text.UTF8Encoding($true)
+                [System.IO.File]::WriteAllText($cachePath, $src, $utf8Bom)
+            } catch {
+                log -msg "Disk cache write failed for '$key': $($_.Exception.Message)" -lvl "WARNING"
+            }
+
+            log -msg "Module '$key' downloaded ($($src.Length) chars)." -lvl "DEBUG"
+            return $src
         } catch {
-            log -msg "Disk cache read failed for '$key': $($_.Exception.Message)" -lvl "ERROR"
+            log -msg "Download of '$key' failed: $($_.Exception.Message)" -lvl "WARNING"
+        } finally {
+            $ProgressPreference = $oldProgress
         }
+
+        if (Test-Path -LiteralPath $cachePath) {
+            try {
+                $src = [System.IO.File]::ReadAllText($cachePath)
+                if (-not [string]::IsNullOrWhiteSpace($src)) {
+                    $global:moduleCache[$key] = $src
+                    $age = (Get-Date) - (Get-Item -LiteralPath $cachePath).LastWriteTime
+                    writeText -type "notice" -text "Offline - using cached '$key' from $([int]$age.TotalDays) day(s) ago."
+                    return $src
+                }
+            } catch {
+                log -msg "Disk cache read failed for '$key': $($_.Exception.Message)" -lvl "ERROR"
+            }
+        }
+
+        log -msg "Module '$key' unavailable from network and cache." -lvl "ERROR"
+        return $null 
+    } catch {
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 
-    log -msg "Module '$key' unavailable from network and cache." -lvl "ERROR"
-    return $null
+    
 }
 function dispatchCommand {
     param (
