@@ -54,7 +54,7 @@ function initializeShellCLI {
         if (-not (appendToMainScript -directory 'nuvia' -file 'core')) {
             throw "Could not download nuvia/core.ps1"
         }
-        read-host 8
+        read-host $mainScript
         # Bootstrap line that hands control to the CLI
         Add-Content -LiteralPath $mainScript -Encoding UTF8 -ErrorAction Stop `
             -Value 'invokeScript -script "startShell" -initialize $true'
