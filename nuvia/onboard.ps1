@@ -190,7 +190,7 @@ function debloat {
 }
 function declutter {
     try {
-        writeText -type "header" -text "Decluttering"
+        writeText -type "header" -text "Decluttering" -lineBefore
         disableBingSearch
         disableTaskbarWidgets
         removeTaskbarPins
@@ -251,7 +251,7 @@ function installApps {
         [Parameter(Mandatory = $true)][string]$computerType
     )
 
-    writeText -type "header" -text "Installing Applications..."
+    writeText -type "header" -text "Installing Applications" -lineBefore
 
     $winget = getWingetPath
 
@@ -1059,53 +1059,49 @@ function getBGInfo {
 
         $url = "https://drive.google.com/uc?export=download&id=1XAP5hAgu3k9067NvoZb2YU6TiPr9I68H"
 
-        # Wallpaper settings are per-user - write to every hive, not HKCU:
-        invokeForEachUserHive {
-            param($root, $user)
-            setRegValue -Path "$root\Control Panel\Desktop" -Name "WallPaper" -Value "" -Type String
-            setRegValue -Path "$root\Control Panel\Colors" -Name "Background" -Value "0 0 0" -Type String
-        }
+        # Set the wallpaper properties
+        Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name WallPaper -Value "" 
+        Set-ItemProperty -Path "HKCU:\Control Panel\Colors" -Name Background -Value "0 0 0" 
 
-        $download = getDownload -url $url -target "$env:SystemDrive\temp\BGInfo.zip"
+        $download = getDownload -url $url -target "$env:SystemDrive\Nuvia\temp\BGInfo.zip"
 
         if ($download -eq $true) { 
-            Expand-Archive -LiteralPath "$env:SystemDrive\temp\BGInfo.zip" -DestinationPath "$env:SystemDrive\temp\" -Force
+            Expand-Archive -LiteralPath "$env:SystemDrive\Nuvia\temp\BGInfo.zip" -DestinationPath "$env:SystemDrive\Nuvia\temp\"
 
-            if (Test-Path "$env:SystemDrive\temp\BGInfo") {
+            # Test if the extracted folder exists
+            if (Test-Path "$env:SystemDrive\Nuvia\temp\BGInfo") {
                 writeText -type "plain" -text "BGInfo unpacked."
             } else {
                 writeText -type "error" -text "Failed to unpack BGInfo."
             }
 
-            ROBOCOPY "$env:SystemDrive\temp\BGInfo" "$env:SystemDrive\tools\BGInfo" /E /NFL /NDL /NJH /NJS /nc /ns | Out-Null
-            ROBOCOPY "$env:SystemDrive\temp\BGInfo" "$env:SystemDrive\Microsoft\Windows\Start Menu\Programs\Startup" "Start BGInfo.bat" /NFL /NDL /NJH /NJS /nc /ns | Out-Null
+            ROBOCOPY "$env:SystemDrive\Nuvia\temp\BGInfo" "$env:SystemDrive\Nuvia\tools\BGInfo" /E /NFL /NDL /NJH /NJS /nc /ns | Out-Null
+            ROBOCOPY "$env:SystemDrive\Nuvia\temp\BGInfo" "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup" "Start BGInfo.bat" /NFL /NDL /NJH /NJS /nc /ns | Out-Null
 
-            if (Test-Path "$env:SystemDrive\tools\BGInfo") {
+            if (Test-Path "$env:SystemDrive\Nuvia\tools\BGInfo") {
                 writeText -type "plain" -text "BGInfo installed."
             } else {
                 writeText -type "error" -text "Failed to install BGInfo."
             }
 
-            Remove-Item -Path "$env:SystemDrive\temp\BGInfo.zip" -Recurse -Force -ErrorAction SilentlyContinue
-            Remove-Item -Path "$env:SystemDrive\temp\BGInfo" -Recurse -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path "$env:SystemDrive\Nuvia\temp\BGInfo.zip" -Recurse
+            Remove-Item -Path "$env:SystemDrive\Nuvia\temp\BGInfo" -Recurse 
 
             $filesDeleted = $true
-            if (Test-Path "$env:SystemDrive\temp\BGInfo.zip") { $filesDeleted = $false }
-            if (Test-Path "$env:SystemDrive\temp\BGInfo") { $filesDeleted = $false } 
+            if (Test-Path "$env:SystemDrive\Nuvia\temp\BGInfo.zip") { 
+                $filesDeleted = $false 
+            }
+            if (Test-Path "$env:SystemDrive\Nuvia\temp\BGInfo") { 
+                $filesDeleted = $false 
+            } 
             if (!$filesDeleted) {
                 writeText -type "error" -text "Some temp files were not deleted. This is harmless."
             }
 
-            # Running this as SYSTEM paints session 0, not the user's desktop.
-            # The Startup shortcut applies it at the user's next logon instead.
-            if (isSystemContext) {
-                writeText -type "plain" -text "SYSTEM context - BGInfo will apply at next user logon."
-            } else {
-                Start-Process -FilePath "cmd.exe" `
-                    -ArgumentList '/c ""C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\Start BGInfo.bat""' `
-                    -WorkingDirectory "$env:SystemDrive\tools\BGInfo" `
-                    -WindowStyle Hidden
-            }
+            Start-Process -FilePath "cmd.exe" `
+                -ArgumentList '/c ""C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\Start BGInfo.bat""' `
+                -WorkingDirectory "$env:SystemDrive\Nuvia\tools\BGInfo" `
+                -WindowStyle Hidden
 
             writeText -type "success" -text "BGInfo installed and should be applied."
         }
