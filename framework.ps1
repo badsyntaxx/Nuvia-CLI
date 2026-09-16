@@ -330,6 +330,7 @@ function getModuleSource {
     }
 
     $url = if ($directory) { "$base/$directory/$file.ps1" } else { "$base/$file.ps1" }
+    Read-Host $url
     $cachePath = getModuleCachePath -key $key
 
     $oldProgress = $ProgressPreference
