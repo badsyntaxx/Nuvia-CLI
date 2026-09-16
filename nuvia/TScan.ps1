@@ -1,6 +1,6 @@
 function installTscan {
     try {
-        $nuviaPath = "C:\Nuvia"
+        $nuviaPath = "$env:ProgramData\Nuvia"
         writeText -type "plain" -text "Creating TScan folder..."
         writeText -type "plain" -text "$nuviaPath\Temp\tscan"
 
@@ -22,7 +22,7 @@ function installTscan {
         writeText -type "plain" -text "T-Scan SQL Server:	SERVER\TSCAN10"
         writeText -type "plain" -text "Scans shared path:   \\SERVER\Scans" -lineAfter
 
-        writeText -type "prompt" -text "What is the install path?"
+        writeText -type "prompt" -text "What is the installer path?"
         $networkPath = readInput -prompt "Path:"
         
         # Authenticate to network share using net use (no drive letter)
