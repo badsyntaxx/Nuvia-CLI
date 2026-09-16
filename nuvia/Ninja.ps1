@@ -157,7 +157,7 @@ function removeNinjaDirectories {
     
     $Directories = @(
         @{Path = $installLocation; Name = 'installation directory' },
-        @{Path = "$env:ProgramData\NinjaRMMAgent"; Name = 'data directory' },
+        @{Path = "$env:SystemDrive\NinjaRMMAgent"; Name = 'data directory' },
         @{Path = "$env:ProgramFiles\WindowsPowerShell\Modules\NJCliPSh"; Name = 'PowerShell module directory' }
         @{Path = "$env:ProgramFiles\NinjaOne"; Name = 'NinjeOne' }
     )

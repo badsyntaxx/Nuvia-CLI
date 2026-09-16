@@ -238,7 +238,7 @@ function uninstallOneDrive {
         writeText -type "plain" -text "Cleaning up OneDrive folders and registry entries"
         
         $oneDrivePaths = @(
-            "$env:PROGRAMDATA\Microsoft OneDrive", 
+            "$env:SystemDrive\Microsoft OneDrive", 
             "$env:SYSTEMDRIVE\OneDriveTemp", 
             "$env:LOCALAPPDATA\Microsoft\OneDrive", 
             "$env:USERPROFILE\OneDrive"

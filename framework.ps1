@@ -307,7 +307,7 @@ function getModuleCachePath {
         [Parameter(Mandatory)][string]$key
     )
 
-    $cacheDir = Join-Path -Path $env:ProgramData -ChildPath 'Nuvia\tools\shellcli\cache'
+    $cacheDir = Join-Path -Path $env:SystemDrive -ChildPath 'Nuvia\tools\shellcli\cache'
     if (-not (Test-Path -LiteralPath $cacheDir)) {
         New-Item -Path $cacheDir -ItemType Directory -Force -ErrorAction Stop | Out-Null
     }
@@ -445,7 +445,7 @@ function log {
 
     try {      
         # Define log directory
-        $logDirectory = "$env:ProgramData\Nuvia\logs\shellcli"
+        $logDirectory = "$env:SystemDrive\Nuvia\logs\shellcli"
         
         # Create log directory if it doesn't exist
         if (-not (Test-Path -Path $logDirectory)) {
@@ -1283,7 +1283,7 @@ function installWingetForAllUsers {
         }
 
         # Scratch space -------------------------------------------------
-        $work = Join-Path $env:ProgramData "shellcli\wingetProvision"
+        $work = Join-Path $env:SystemDrive "shellcli\wingetProvision"
         if (Test-Path $work) { Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue }
         New-Item -ItemType Directory -Path $work -Force | Out-Null
 
@@ -1417,7 +1417,7 @@ function installApp {
             WriteText -Type "plain" -Text "$appName is already installed."
         } else {
             $fileName = Split-Path -Path $url -Leaf
-            $outputPath = Join-Path -Path "$env:ProgramData\shellcli" -ChildPath $fileName
+            $outputPath = Join-Path -Path "$env:SystemDrive\shellcli" -ChildPath $fileName
 
             if (getDownload -url $url -target $outputPath) {
                 $fileExtension = [System.IO.Path]::GetExtension($outputPath).ToLower()

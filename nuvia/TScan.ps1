@@ -1,6 +1,6 @@
 function installTscan {
     try {
-        $nuviaPath = "$env:ProgramData\Nuvia"
+        $nuviaPath = "$env:SystemDrive\Nuvia"
         writeText -type "plain" -text "Creating TScan folder..."
         writeText -type "plain" -text "$nuviaPath\Temp\tscan"
 

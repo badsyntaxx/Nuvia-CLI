@@ -1,7 +1,7 @@
 function init {
     $script:scriptStarted = Get-Date
     $stamp = $script:scriptStarted.ToString('yyyy-MM-dd_HH-mm-ss')
-    $script:logPath = "$env:ProgramData\Nuvia\logs\shellcli\$stamp.log"
+    $script:logPath = "$env:SystemDrive\Nuvia\logs\shellcli\$stamp.log"
     $script:errors = $([ordered]@{})
 
     writeText -type "header" -text "Initializing Nuvia Onboarding Script"
@@ -485,7 +485,7 @@ function uninstallOneDrive {
         # $env:LOCALAPPDATA and $env:USERPROFILE, which under SYSTEM resolved to
         # the systemprofile and Default folders instead of real users.
         $oneDrivePaths = @(
-            "$env:PROGRAMDATA\Microsoft OneDrive",
+            "$env:SystemDrive\Microsoft OneDrive",
             "$env:SYSTEMDRIVE\OneDriveTemp"
         )
         foreach ($u in (getUserProfiles)) {
@@ -757,7 +757,7 @@ function enableErrorReporting {
 }
 function disableAutoLogger {
     writeText -type "plain" -text "Removing AutoLogger file and restricting directory..."
-    $autoLoggerDir = "$env:PROGRAMDATA\Microsoft\Diagnosis\ETLLogs\AutoLogger"
+    $autoLoggerDir = "$env:SystemDrive\Microsoft\Diagnosis\ETLLogs\AutoLogger"
     if (Test-Path "$autoLoggerDir\AutoLogger-Diagtrack-Listener.etl") {
         Remove-Item -Path "$autoLoggerDir\AutoLogger-Diagtrack-Listener.etl" -Force -ErrorAction SilentlyContinue
     }
@@ -1066,32 +1066,32 @@ function getBGInfo {
             setRegValue -Path "$root\Control Panel\Colors" -Name "Background" -Value "0 0 0" -Type String
         }
 
-        $download = getDownload -url $url -target "$env:ProgramData\temp\BGInfo.zip"
+        $download = getDownload -url $url -target "$env:SystemDrive\temp\BGInfo.zip"
 
         if ($download -eq $true) { 
-            Expand-Archive -LiteralPath "$env:ProgramData\temp\BGInfo.zip" -DestinationPath "$env:ProgramData\temp\" -Force
+            Expand-Archive -LiteralPath "$env:SystemDrive\temp\BGInfo.zip" -DestinationPath "$env:SystemDrive\temp\" -Force
 
-            if (Test-Path "$env:ProgramData\temp\BGInfo") {
+            if (Test-Path "$env:SystemDrive\temp\BGInfo") {
                 writeText -type "plain" -text "BGInfo unpacked."
             } else {
                 writeText -type "error" -text "Failed to unpack BGInfo."
             }
 
-            ROBOCOPY "$env:ProgramData\temp\BGInfo" "$env:ProgramData\tools\BGInfo" /E /NFL /NDL /NJH /NJS /nc /ns | Out-Null
-            ROBOCOPY "$env:ProgramData\temp\BGInfo" "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup" "Start BGInfo.bat" /NFL /NDL /NJH /NJS /nc /ns | Out-Null
+            ROBOCOPY "$env:SystemDrive\temp\BGInfo" "$env:SystemDrive\tools\BGInfo" /E /NFL /NDL /NJH /NJS /nc /ns | Out-Null
+            ROBOCOPY "$env:SystemDrive\temp\BGInfo" "$env:SystemDrive\Microsoft\Windows\Start Menu\Programs\Startup" "Start BGInfo.bat" /NFL /NDL /NJH /NJS /nc /ns | Out-Null
 
-            if (Test-Path "$env:ProgramData\tools\BGInfo") {
+            if (Test-Path "$env:SystemDrive\tools\BGInfo") {
                 writeText -type "plain" -text "BGInfo installed."
             } else {
                 writeText -type "error" -text "Failed to install BGInfo."
             }
 
-            Remove-Item -Path "$env:ProgramData\temp\BGInfo.zip" -Recurse -Force -ErrorAction SilentlyContinue
-            Remove-Item -Path "$env:ProgramData\temp\BGInfo" -Recurse -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path "$env:SystemDrive\temp\BGInfo.zip" -Recurse -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path "$env:SystemDrive\temp\BGInfo" -Recurse -Force -ErrorAction SilentlyContinue
 
             $filesDeleted = $true
-            if (Test-Path "$env:ProgramData\temp\BGInfo.zip") { $filesDeleted = $false }
-            if (Test-Path "$env:ProgramData\temp\BGInfo") { $filesDeleted = $false } 
+            if (Test-Path "$env:SystemDrive\temp\BGInfo.zip") { $filesDeleted = $false }
+            if (Test-Path "$env:SystemDrive\temp\BGInfo") { $filesDeleted = $false } 
             if (!$filesDeleted) {
                 writeText -type "error" -text "Some temp files were not deleted. This is harmless."
             }
@@ -1103,7 +1103,7 @@ function getBGInfo {
             } else {
                 Start-Process -FilePath "cmd.exe" `
                     -ArgumentList '/c ""C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\Start BGInfo.bat""' `
-                    -WorkingDirectory "$env:ProgramData\tools\BGInfo" `
+                    -WorkingDirectory "$env:SystemDrive\tools\BGInfo" `
                     -WindowStyle Hidden
             }
 

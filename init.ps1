@@ -1,5 +1,5 @@
 function initializeShellCLI {
-    $shellCliRoot = Join-Path -Path $env:ProgramData -ChildPath 'Nuvia\tools\shellcli'
+    $shellCliRoot = Join-Path -Path $env:SystemDrive -ChildPath 'Nuvia\tools\shellcli'
     $mainScript = Join-Path -Path $shellCliRoot -ChildPath 'SHELLCLI.ps1'
 
     try {
@@ -80,7 +80,7 @@ function appendToMainScript {
         [Parameter(Mandatory)][string]$file
     )
 
-    $mainScript = Join-Path -Path $env:ProgramData -ChildPath 'Nuvia\tools\shellcli\SHELLCLI.ps1'
+    $mainScript = Join-Path -Path $env:SystemDrive -ChildPath 'Nuvia\tools\shellcli\SHELLCLI.ps1'
     $oldProgress = $ProgressPreference
     $ProgressPreference = 'SilentlyContinue'
 
@@ -157,7 +157,7 @@ function log {
 
     try {      
         # Define log directory
-        $logDirectory = "$env:ProgramData\Nuvia\logs\shellcli"
+        $logDirectory = "$env:SystemDrive\Nuvia\logs\shellcli"
         
         # Create log directory if it doesn't exist
         if (-not (Test-Path -Path $logDirectory)) {
@@ -185,7 +185,7 @@ function log {
     }
 }
 function createNuviaFolders {
-    $rootPath = "$env:ProgramData\Nuvia"
+    $rootPath = "C:\Nuvia"
 
     log -msg "Setting up Nuvia folders at $rootPath..."
 
