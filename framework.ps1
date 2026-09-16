@@ -504,7 +504,7 @@ function writeText {
 
         # Format output based on the specified Type
         if ($type -eq "header") {
-            Write-Host "$([char]0x251C)" -NoNewline -ForegroundColor "Cyan"
+            Write-Host "#" -NoNewline -ForegroundColor "Cyan"
             Write-Host " $text " -ForegroundColor "Cyan"
             log -msg $text -lvl "INFO"
         }
@@ -597,7 +597,7 @@ function writeText {
         # Add a new line after output if specified
         if ($lineAfter) { Write-Host }
     } catch {
-        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        Write-Host "  $($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber): $($_.Exception.Message)" -ForegroundColor "Red"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
