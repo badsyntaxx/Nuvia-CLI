@@ -389,18 +389,6 @@ function getModuleSource {
     log -msg "Module '$key' unavailable from network and cache." -lvl "ERROR"
     return $null
 }
-function clearModuleCache {
-    $count = $global:moduleCache.Count
-    $global:moduleCache = @{}
-
-    $cacheDir = Join-Path -Path $env:ProgramData -ChildPath 'shellcli\cache'
-    if (Test-Path -LiteralPath $cacheDir) {
-        Remove-Item -LiteralPath $cacheDir -Recurse -Force -ErrorAction SilentlyContinue
-    }
-
-    writeText -type "success" -text "Cleared $count cached module(s)."
-    log -msg "Module cache cleared." -lvl "INFO"
-}
 function dispatchCommand {
     param (
         [Parameter(Mandatory)][array]$filteredCommand
