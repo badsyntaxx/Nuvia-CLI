@@ -339,7 +339,7 @@ function getModuleSource {
         }
 
         $url = if ($directory) { "$base/$directory/$file.ps1" } else { "$base/$file.ps1" }
-        Read-Host $url
+
         $cachePath = getModuleCachePath -key $key
 
         $oldProgress = $ProgressPreference
@@ -419,7 +419,7 @@ function dispatchCommand {
         invokeScript -script $commandFunction
         return
     }
-    Read-Host "$commandDirectory/$commandFile"
+
     # The framework itself is already loaded, so only the module is fetched.
     $src = getModuleSource -directory $commandDirectory -file $commandFile
 
@@ -431,7 +431,7 @@ function dispatchCommand {
     # Defines the module's functions in this scope. invokeScript is called
     # from here, so its scope chain reaches them.
     Invoke-Expression $src
-    Read-Host "$src/$commandFunction"
+
     invokeScript -script $commandFunction
 }
 function log {
