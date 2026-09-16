@@ -1,3 +1,4 @@
+$global:moduleCache = @{}
 $global:commandMap = [ordered]@{
     "?"                              = @("main", "core", "writeHelp", "List some help info.")
     "help"                           = @("main", "core", "writeHelp", "List some help info.")
