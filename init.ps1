@@ -185,62 +185,102 @@ function log {
     }
 }
 function createNuviaFolders {
-    $rootPath = "C:\Nuvia"
+    [CmdletBinding()]
+    param(
+        [string]$RootPath = 'C:\Nuvia',
 
-    log -msg "Setting up Nuvia folders at $rootPath..."
+        # By default users can READ each other's log files (but never modify/delete them).
+        # Pass -PrivateLogFiles to make each file visible only to its creator + admins.
+        [switch]$PrivateLogFiles
+    )
 
-    # Create root + subfolders
-    $subFolders = @("temp", "tools", "backups", "logs", "state")
+    # Well-known SIDs. Hard-coding "Administrators" / "Users" breaks on non-English Windows.
+    $ADMINS = '*S-1-5-32-544'   # BUILTIN\Administrators
+    $SYSTEM = '*S-1-5-18'       # NT AUTHORITY\SYSTEM
+    $USERS = '*S-1-5-32-545'   # BUILTIN\Users
+    $CREATOR = '*S-1-3-0'        # CREATOR OWNER
 
-    # Check if root and all subfolders already exist
-    $allExist = Test-Path $rootPath
-    if ($allExist) {
-        foreach ($folder in $subFolders) {
-            $fullPath = Join-Path $rootPath $folder
-            if (-not (Test-Path $fullPath)) {
-                $allExist = $false
-                break
-            }
+    $subFolders = @('temp', 'tools', 'backups', 'logs', 'state')
+    $writeFolder = 'logs'
+
+    # icacls returns a non-zero exit code instead of throwing, so wrap it.
+    function Invoke-Icacls([string[]]$IcaclsArgs) {
+        $out = & icacls.exe @IcaclsArgs 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            throw ("icacls {0} failed ({1}): {2}" -f ($IcaclsArgs -join ' '), $LASTEXITCODE, ($out -join ' '))
         }
     }
 
-    if ($allExist) {
-        log -msg "$rootPath and all subfolders already exist. Skipping setup."
-        return
+    $principal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+    if (-not $principal.IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)) {
+        throw 'createNuviaFolders must be run from an elevated session.'
     }
 
-    if (-not (Test-Path $rootPath)) {
-        New-Item -Path $rootPath -ItemType Directory | Out-Null
-        log -msg "Created $rootPath"
+    log -msg "Setting up Nuvia folders at $RootPath..."
+
+    # ------------------------------------------------------------------
+    # 1. Folders (idempotent - New-Item -Force is a no-op if it exists)
+    # ------------------------------------------------------------------
+    foreach ($path in @($RootPath) + ($subFolders | ForEach-Object { Join-Path $RootPath $_ })) {
+        if (Test-Path -LiteralPath $path) { continue }
+        New-Item -Path $path -ItemType Directory -Force -ErrorAction Stop | Out-Null
+        log -msg "Created $path"
     }
 
-    foreach ($folder in $subFolders) {
-        $fullPath = Join-Path $rootPath $folder
-        if (-not (Test-Path $fullPath)) {
-            New-Item -Path $fullPath -ItemType Directory | Out-Null
-            log -msg "Created $fullPath"
-        }
-    }
-
-    # Hide the root folder 
-    $item = Get-Item $rootPath -Force
+    # ------------------------------------------------------------------
+    # 2. Hide the root (cosmetic only - this is not a security control)
+    # ------------------------------------------------------------------
+    $item = Get-Item -LiteralPath $RootPath -Force
     $item.Attributes = $item.Attributes -bor [System.IO.FileAttributes]::Hidden
 
-    # Restrict access to Administrators only 
-    # Disable inheritance and grant full control only to Administrators + SYSTEM
-    icacls $rootPath /inheritance:r | Out-Null
-    icacls $rootPath /grant:r "Administrators:(OI)(CI)F" | Out-Null
-    icacls $rootPath /grant:r "SYSTEM:(OI)(CI)F" | Out-Null
-    # Remove other default grants like Users/Authenticated Users if present
-    icacls $rootPath /remove "Users" "Authenticated Users" "Everyone" 2>$null | Out-Null
+    # ------------------------------------------------------------------
+    # 3. Root ACL: Administrators + SYSTEM own everything.
+    #    Users get traverse on the root ITSELF only (no (OI)/(CI) flags = "this folder only"),
+    #    so they can reach C:\Nuvia\logs without being able to open temp/tools/backups/state.
+    #    Without this you're relying on the "Bypass traverse checking" privilege, which is
+    #    granted to Everyone by default but can be revoked by policy.
+    # ------------------------------------------------------------------
+    Invoke-Icacls @($RootPath, '/inheritance:r')
+    Invoke-Icacls @($RootPath, '/grant:r',
+        "${ADMINS}:(OI)(CI)F",
+        "${SYSTEM}:(OI)(CI)F",
+        "${USERS}:(X,RA)")
 
-    log -msg "Restricted $rootPath to Administrators/SYSTEM only."
+    log -msg "Locked $RootPath to Administrators/SYSTEM (Users: traverse only)."
 
-    # Set machine-level environment variable %n% ---
-    [Environment]::SetEnvironmentVariable("na", $rootPath, "Machine")
-    $env:n = $rootPath  # make it available in current session too
+    # ------------------------------------------------------------------
+    # 4. logs ACL: the "sticky bit" pattern.
+    #
+    #    (CI)(RX,WD,AD)  -> folder + subfolders: list, traverse, create files (WD),
+    #                       create subfolders (AD). No DE (delete self), no DC (delete child).
+    #                       (CI) with NO (OI) is the crux: this ACE never inherits onto a file,
+    #                       so a user has no rights at all on files someone else created.
+    #
+    #    CREATOR OWNER (OI)(CI)(IO)F -> inherit-only, so it does nothing to the folder itself
+    #                       but stamps full control onto each NEW item for whoever made it.
+    #                       Deleting a file needs DELETE on the file, not DC on the parent,
+    #                       so people can still clean up their own logs.
+    # ------------------------------------------------------------------
+    $writePath = Join-Path $RootPath $writeFolder
 
-    log -msg "Environment variable 'na' set to $rootPath (restart other shells to pick it up)."
+    Invoke-Icacls @($writePath, '/grant:r', "${USERS}:(CI)(RX,WD,AD)")
+    Invoke-Icacls @($writePath, '/grant', "${CREATOR}:(OI)(CI)(IO)F")
+
+    if (-not $PrivateLogFiles) {
+        # Separate ACE (files only, inherit-only) so reading other people's logs is possible
+        # without giving them WD, which would let them truncate/overwrite the contents.
+        Invoke-Icacls @($writePath, '/grant', "${USERS}:(OI)(CI)(IO)(R)")
+    }
+
+    log -msg "Granted Users create-only access to $writePath (creators own their own files)."
+
+    # ------------------------------------------------------------------
+    # 5. Environment variable
+    # ------------------------------------------------------------------
+    [Environment]::SetEnvironmentVariable('na', $RootPath, 'Machine')
+    $env:na = $RootPath   # was $env:n in the original - name mismatch
+
+    log -msg "Environment variable 'na' set to $RootPath (restart other shells to pick it up)."
 }
 
 # Invoke the root of Shell CLI
