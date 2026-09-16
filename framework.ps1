@@ -415,7 +415,7 @@ function dispatchCommand {
     # Defines the module's functions in this scope. invokeScript is called
     # from here, so its scope chain reaches them.
     Invoke-Expression $src
-
+    Read-Host "$src/$commandFunction"
     invokeScript -script $commandFunction
 }
 function log {
