@@ -307,7 +307,7 @@ function getModuleCachePath {
         [Parameter(Mandatory)][string]$key
     )
 
-    $cacheDir = Join-Path -Path $env:ProgramData -ChildPath 'shellcli\cache'
+    $cacheDir = Join-Path -Path $env:ProgramData -ChildPath 'Nuvia\tools\shellcli\cache'
     if (-not (Test-Path -LiteralPath $cacheDir)) {
         New-Item -Path $cacheDir -ItemType Directory -Force -ErrorAction Stop | Out-Null
     }
