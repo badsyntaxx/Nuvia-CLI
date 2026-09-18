@@ -25,6 +25,7 @@ function init {
         writeText -type "notice" -text "$location-$locationType-XXX"
 
         $validSet = @(
+            "FD",
             "FD1", 
             "FD2", 
             "FD3", 
