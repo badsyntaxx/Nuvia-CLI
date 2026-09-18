@@ -58,6 +58,7 @@ function init {
             "LLT",
             "ML",
             "BKS",
+            "BKU",
             "CAM",
             "SCAN"
         )
