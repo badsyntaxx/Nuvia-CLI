@@ -58,7 +58,8 @@ function init {
             "LLT",
             "ML",
             "BKS",
-            "CAM"
+            "CAM",
+            "SCAN"
         )
 
         writeText -type "prompt" -text "What type of computer is this? Example: DR1, FD1, EX2"
