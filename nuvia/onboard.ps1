@@ -1021,8 +1021,7 @@ function editHostname {
         if ($hostname -eq "") { 
             $hostname = $currentHostname 
         } 
-        writeText -type "plain" -text "HOSTNAME NOT CHANGED ON PURPOSE. THIS IS A TEST. COMMENT OUT THE NEXT LINE TO ENABLE HOSTNAME CHANGE."
-        return
+
         if ($hostname -ne "") {
             Remove-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -name "Hostname" -ErrorAction SilentlyContinue
             Remove-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -name "NV Hostname" -ErrorAction SilentlyContinue
