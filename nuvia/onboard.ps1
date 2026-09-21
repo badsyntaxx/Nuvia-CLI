@@ -226,7 +226,7 @@ function optimize {
         disableSMB1
         setCurrentNetworkPrivate
         disableUpdateRestart
-        disableRemoteAssistance
+        #disableRemoteAssistance
         disableRemoteDesktop
         disableAutoplay
         disableAutorun
