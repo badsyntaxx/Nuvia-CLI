@@ -295,18 +295,20 @@ function installApps {
         writeText -type "plain" -text "$winget"
 
         function getWingetInstallerUrl {
-            param(
-                [string]$Id
-            )
-
-            $output = & $winget show --id $Id --exact --accept-source-agreements --disable-interactivity 2>&1
-            $match = $output | Select-String "Installer Url:\s*(\S+)" | Select-Object -First 1
-
-            if (-not $match) {
+            param([string]$Id)
+            try {
+                $output = & $winget show --id $Id --exact --accept-source-agreements --disable-interactivity 2>&1
+                if ($LASTEXITCODE -ne 0) {
+                    writeText -type "notice" -text "winget show failed for $Id (exit $LASTEXITCODE)."
+                    return $null
+                }
+                $match = $output | Select-String "Installer Url:\s*(\S+)" | Select-Object -First 1
+                if (-not $match) { return $null }
+                return $match.Matches[0].Groups[1].Value
+            } catch {
+                writeText -type "notice" -text "Could not query winget for ${Id}: $($_.Exception.Message)"
                 return $null
             }
-
-            return $match.Matches[0].Groups[1].Value
         }
 
         $sonosUrl = getWingetInstallerUrl -Id "Sonos.Controller"
