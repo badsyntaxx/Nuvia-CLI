@@ -3,6 +3,8 @@ function init {
     $stamp = $script:scriptStarted.ToString('yyyy-MM-dd_HH-mm-ss')
     $script:logPath = "$env:SystemDrive\Nuvia\logs\shellcli\$stamp.log"
     $script:errors = $([ordered]@{})
+    $location = ""
+    $computerType = ""
 
     writeText -type "header" -text "Initializing Nuvia Onboarding Script"
     writeText -type "plain" -text "Hostname : $env:COMPUTERNAME"
@@ -78,7 +80,7 @@ function init {
     debloat
     declutter
     optimize
-    if ($computerType -ne "") {
+    if (-not [string]::IsNullOrWhiteSpace($computerType)) {
         installApps -computerType $computerType
     }
     normalizeEnvironment -location $location -locationType $locationType -computerType $computerType
@@ -343,12 +345,9 @@ function installApps {
 }
 function normalizeEnvironment {
     param (
-        [Parameter(Mandatory = $true)]
-        [string]$location,
-        [Parameter(Mandatory = $true)]
-        [string]$locationType,
-        [Parameter(Mandatory = $true)]
-        [string]$computerType
+        [Parameter(Mandatory = $true)][AllowEmptyString()][string]$location,
+        [Parameter(Mandatory = $true)][string]$locationType,
+        [Parameter(Mandatory = $true)][AllowEmptyString()][string]$computerType
     )
 
     try {
