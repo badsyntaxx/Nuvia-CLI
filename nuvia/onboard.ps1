@@ -227,7 +227,7 @@ function optimize {
         setCurrentNetworkPrivate
         disableUpdateRestart
         #disableRemoteAssistance
-        disableRemoteDesktop
+        #disableRemoteDesktop
         disableAutoplay
         disableAutorun
         disableHibernation
