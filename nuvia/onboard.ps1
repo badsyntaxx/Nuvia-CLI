@@ -78,7 +78,9 @@ function init {
     debloat
     declutter
     optimize
-    installApps -computerType $computerType
+    if ($computerType -ne "") {
+        installApps -computerType $computerType
+    }
     normalizeEnvironment -location $location -locationType $locationType -computerType $computerType
     writeSummary
 
@@ -344,7 +346,7 @@ function normalizeEnvironment {
     )
 
     try {
-        if ($locationType -notin @("OTHER", "LAB")) {
+        if ($locationType -notin @("OTHER")) {
             editHostname -location $location -locationType $locationType -computerType $computerType
         }
 
