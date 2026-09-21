@@ -371,6 +371,7 @@ function writeSummary {
     writeText -type "plain" -text "started      : $script:scriptStarted"
     writeText -type "plain" -text "completed    : $(Get-Date)"
     writeText -type "plain" -text "Log          : $script:logPath"
+    writeText -type "plain" -text "Errors       :"
     writeText -type "list" -list $script:errors
 }
 
