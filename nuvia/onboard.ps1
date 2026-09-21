@@ -193,7 +193,7 @@ function debloat {
             uninstallAppXApp -PackageName $app.Package -FriendlyName $app.Name 
         }
     } catch {
-        addError -source "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)" -message $_.Exception.Message
+        addError -source "$($MyInvocation.MyCommand.Name)" -message $_.Exception.Message
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
@@ -205,7 +205,7 @@ function declutter {
         disableTaskbarWidgets
         removeTaskbarPins
     } catch {
-        addError -source "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)" -message $_.Exception.Message
+        addError -source "$($MyInvocation.MyCommand.Name)" -message $_.Exception.Message
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
@@ -251,7 +251,7 @@ function optimize {
         disableGameModeAndGameBar
         disableSearchAppInStore 
     } catch {
-        addError -source "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)" -message $_.Exception.Message
+        addError -source "$($MyInvocation.MyCommand.Name)" -message $_.Exception.Message
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
@@ -340,7 +340,7 @@ function installApps {
 
         #Install-NinjaOne  -InstallerUrl $NinjaInstallerUrl
     } catch {
-        addError -source "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)" -message $_.Exception.Message
+        addError -source "$($MyInvocation.MyCommand.Name)" -message $_.Exception.Message
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
@@ -359,7 +359,7 @@ function normalizeEnvironment {
 
         getBGInfo
     } catch {
-        addError -source "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)" -message $_.Exception.Message
+        addError -source "$($MyInvocation.MyCommand.Name)" -message $_.Exception.Message
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
@@ -623,6 +623,7 @@ function disableTaskbarWidgets {
 
         writeText -type "success" -text "Taskbar widgets removed."
     } catch {
+        addError -source "$($MyInvocation.MyCommand.Name)" -message $_.Exception.Message
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
@@ -682,6 +683,7 @@ function removeTaskbarPins {
 
         writeText -type "success" -text "Taskbar Pins removal completed"
     } catch {
+        addError -source "$($MyInvocation.MyCommand.Name)" -message $_.Exception.Message
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
