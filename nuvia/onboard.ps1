@@ -259,81 +259,87 @@ function installApps {
         [Parameter(Mandatory = $true)][string]$computerType
     )
 
-    writeText -type "header" -text "Installing Applications" -lineBefore
-
-    $winget = getWingetPath
-
-    if (-not $winget) {
-        WriteText -Type "plain" -Text "winget not found. Installing winget..."
-
-        try {
-            Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted -ErrorAction Stop | Out-Null
-            Install-Script -Name winget-install -Force -ErrorAction Stop | Out-Null
-        } catch {
-            writeText -Type "error" -text "Failed to install winget-install script: $($_.Exception.Message)"
-            return
-        }
-
-        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
-        [System.Environment]::GetEnvironmentVariable("Path", "User")
-
-        winget-install -Force 2>&1 | Out-Null
+    try {
+        writeText -type "header" -text "Installing Applications" -lineBefore
 
         $winget = getWingetPath
+
         if (-not $winget) {
-            writeText -Type "error" -text "winget installation failed. Please install winget manually from https://github.com/microsoft/winget-cli"
-            return
+            WriteText -Type "plain" -Text "winget not found. Installing winget..."
+
+            try {
+                Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted -ErrorAction Stop | Out-Null
+                Install-Script -Name winget-install -Force -ErrorAction Stop | Out-Null
+            } catch {
+                writeText -Type "error" -text "Failed to install winget-install script: $($_.Exception.Message)"
+                return
+            }
+
+            $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
+            [System.Environment]::GetEnvironmentVariable("Path", "User")
+
+            winget-install -Force 2>&1 | Out-Null
+
+            $winget = getWingetPath
+            if (-not $winget) {
+                writeText -Type "error" -text "winget installation failed. Please install winget manually from https://github.com/microsoft/winget-cli"
+                return
+            }
+
+            WriteText -Type "success" -Text "winget installed successfully."
         }
 
-        WriteText -Type "success" -Text "winget installed successfully."
-    }
+        writeText -type "plain" -text "Winget found:"
+        writeText -type "plain" -text "$winget"
 
-    writeText -type "plain" -text "Winget found:"
-    writeText -type "plain" -text "$winget"
+        function getWingetInstallerUrl {
+            param(
+                [string]$Id
+            )
 
-    function getWingetInstallerUrl {
-        param(
-            [string]$Id
+            $output = & $winget show --id $Id --exact --accept-source-agreements --disable-interactivity 2>&1
+            $match = $output | Select-String "Installer Url:\s*(\S+)" | Select-Object -First 1
+
+            if (-not $match) {
+                return $null
+            }
+
+            return $match.Matches[0].Groups[1].Value
+        }
+
+        $sonosUrl = getWingetInstallerUrl -Id "Sonos.Controller"
+        $adobeUrl = getWingetInstallerUrl -Id "Adobe.Acrobat.Reader.64-bit"
+        $googleChromeUrl = getWingetInstallerUrl -Id "Google.Chrome"
+        $cliqUrl = getWingetInstallerUrl -Id "Zoho.Cliq"
+        $dropboxUrl = getWingetInstallerUrl -Id "Dropbox.Dropbox"
+
+        $appsToInstall = @(
+            @{ Url = $adobeUrl; Name = "Adobe Acrobat"; Params = "/sAll /rs /msi EULA_ACCEPT=YES ALLUSERS=1" }
+            @{ Url = $googleChromeUrl; Name = "Google Chrome"; Params = "/qn /norestart" }
+            @{ Url = $cliqUrl; Name = "Cliq"; Params = "/qn /norestart" }
+            @{ Url = $dropboxUrl; Name = "Dropbox"; Params = "/qn /norestart" }
         )
 
-        $output = & $winget show --id $Id --exact --accept-source-agreements --disable-interactivity 2>&1
-        $match = $output | Select-String "Installer Url:\s*(\S+)" | Select-Object -First 1
-
-        if (-not $match) {
-            return $null
+        if ($computerType -in @("FD1", "FD2", "FD3", "OM")) {
+            $appsToInstall += @{ Url = $sonosUrl; Name = "Sonos"; Params = "/S /v/qn" }
         }
 
-        return $match.Matches[0].Groups[1].Value
-    }
-
-    $sonosUrl = getWingetInstallerUrl -Id "Sonos.Controller"
-    $adobeUrl = getWingetInstallerUrl -Id "Adobe.Acrobat.Reader.64-bit"
-    $googleChromeUrl = getWingetInstallerUrl -Id "Google.Chrome"
-    $cliqUrl = getWingetInstallerUrl -Id "Zoho.Cliq"
-    $dropboxUrl = getWingetInstallerUrl -Id "Dropbox.Dropbox"
-
-    $appsToInstall = @(
-        @{ Url = $adobeUrl; Name = "Adobe Acrobat"; Params = "/sAll /rs /msi EULA_ACCEPT=YES ALLUSERS=1" }
-        @{ Url = $googleChromeUrl; Name = "Google Chrome"; Params = "/qn /norestart" }
-        @{ Url = $cliqUrl; Name = "Cliq"; Params = "/qn /norestart" }
-        @{ Url = $dropboxUrl; Name = "Dropbox"; Params = "/qn /norestart" }
-    )
-
-    if ($computerType -in @("FD1", "FD2", "FD3", "OM")) {
-        $appsToInstall += @{ Url = $sonosUrl; Name = "Sonos"; Params = "/S /v/qn" }
-    }
-
-    foreach ($app in $appsToInstall) {
-        if (-not $app.Url) {
-            writeText -Type "error" -text "Could not resolve installer URL for $($app.Name). Skipping."
-            continue
+        foreach ($app in $appsToInstall) {
+            if (-not $app.Url) {
+                writeText -Type "error" -text "Could not resolve installer URL for $($app.Name). Skipping."
+                continue
+            }
+            installApp -url $app.Url -appName $app.Name -params $app.Params
         }
-        installApp -url $app.Url -appName $app.Name -params $app.Params
+
+        pinAppsToTaskbar
+
+        #Install-NinjaOne  -InstallerUrl $NinjaInstallerUrl
+    } catch {
+        $script:errors += "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)"
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
-
-    pinAppsToTaskbar
-
-    #Install-NinjaOne  -InstallerUrl $NinjaInstallerUrl
 }
 function normalizeEnvironment {
     param (
