@@ -193,7 +193,7 @@ function debloat {
             uninstallAppXApp -PackageName $app.Package -FriendlyName $app.Name 
         }
     } catch {
-        $script:errors += "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)"
+        addError -source "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)" -message $_.Exception.Message
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
@@ -205,7 +205,7 @@ function declutter {
         disableTaskbarWidgets
         removeTaskbarPins
     } catch {
-        $script:errors += "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)"
+        addError -source "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)" -message $_.Exception.Message
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
@@ -251,7 +251,7 @@ function optimize {
         disableGameModeAndGameBar
         disableSearchAppInStore 
     } catch {
-        $script:errors += "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)"
+        addError -source "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)" -message $_.Exception.Message
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
@@ -338,7 +338,7 @@ function installApps {
 
         #Install-NinjaOne  -InstallerUrl $NinjaInstallerUrl
     } catch {
-        $script:errors += "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)"
+        addError -source "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)" -message $_.Exception.Message
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
@@ -357,7 +357,7 @@ function normalizeEnvironment {
 
         getBGInfo
     } catch {
-        $script:errors += "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)"
+        addError -source "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)" -message $_.Exception.Message
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
@@ -1247,4 +1247,15 @@ function getWingetPath {
         if (Test-Path $exe) { return $exe }
     }
     return $null
+}
+
+function addError {
+    param(
+        [Parameter(Mandatory)][string]$source,
+        [Parameter(Mandatory)][string]$message
+    )
+    $key = $source
+    $i = 1
+    while ($script:errors.Contains($key)) { $i++; $key = "$source ($i)" }
+    $script:errors[$key] = $message
 }
