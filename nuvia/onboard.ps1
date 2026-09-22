@@ -114,6 +114,13 @@ function debloat {
         uninstallWin32App -AppName "Microsoft 365 Copilot"
 
         $appxList = @(
+            @{ Name = "Disney+"; Package = "Disney.37853FC22B2CE" },
+            @{ Name = "Netflix"; Package = "4DF9E0F8.Netflix" },
+            @{ Name = "Amazon Prime Video"; Package = "AmazonVideo.PrimeVideo" },
+            @{ Name = "Facebook"; Package = "Facebook.Facebook" },
+            @{ Name = "TikTok"; Package = "BytedancePte.Ltd.TikTok" },
+            @{ Name = "Instagram"; Package = "Facebook.InstagramBeta" },
+            @{ Name = "Twitter"; Package = "9E2F88E3.Twitter" },
             @{ Name = "Family Safety"; Package = "Microsoft.FamilySafety" },
             @{ Name = "Family Safety (Corp)"; Package = "MicrosoftCorporationII.MicrosoftFamily" },
             @{ Name = "Feedback Hub"; Package = "Microsoft.WindowsFeedbackHub" },
@@ -160,9 +167,7 @@ function debloat {
             @{ Name = "Xbox Gaming Overlay"; Package = "Microsoft.XboxGamingOverlay" },
             @{ Name = "Xbox Identity Provider"; Package = "Microsoft.XboxIdentityProvider" },
             @{ Name = "Xbox Speech To Text"; Package = "Microsoft.XboxSpeechToTextOverlay" },
-            @{ Name = "Twitter"; Package = "9E2F88E3.Twitter" },
             @{ Name = "CandyCrushSodaSaga"; Package = "king.com.CandyCrushSodaSaga" },
-            @{ Name = "Netflix"; Package = "4DF9E0F8.Netflix" },
             @{ Name = "DrawboardPDF"; Package = "Drawboard.DrawboardPDF" },
             @{ Name = "FarmVille2CountryEscape"; Package = "D52A8D61.FarmVille2CountryEscape" },
             @{ Name = "Asphalt8Airborne"; Package = "GAMELOFTSA.Asphalt8Airborne" },
@@ -170,7 +175,6 @@ function debloat {
             @{ Name = "AdobePhotoshopExpress"; Package = "AdobeSystemsIncorporated.AdobePhotoshopExpress" },
             @{ Name = "ActiproSoftwareLLC"; Package = "ActiproSoftwareLLC.562882FEEB491" },
             @{ Name = "Duolingo-LearnLanguagesforFree"; Package = "D5EA27B7.Duolingo-LearnLanguagesforFree" },
-            @{ Name = "Facebook"; Package = "Facebook.Facebook" },
             @{ Name = "EclipseManager"; Package = "46928bounde.EclipseManager" },
             @{ Name = "MarchofEmpires"; Package = "A278AB0D.MarchofEmpires" },
             @{ Name = "BubbleWitch3Saga"; Package = "king.com.BubbleWitch3Saga" },
