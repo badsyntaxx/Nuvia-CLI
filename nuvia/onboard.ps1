@@ -1035,16 +1035,6 @@ function editHostname {
         } else {
             writeText -type "success" -text "Hostname unchanged."
         }
-
-        $choice = readOption -options $([ordered]@{
-                "Yes" = "Change the description of the PC."
-                "No"  = "Do not change the description of the PC."
-            }) -prompt "Do you also want to change the description for the target PC?" -lineAfter
-
-        switch ($choice) {
-            0 { editDescription }
-            1 { readCommand }
-        }
     } catch {
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
