@@ -256,7 +256,6 @@ function optimize {
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
-
 function installApps {
     param (
         [Parameter(Mandatory = $true)][string]$computerType
