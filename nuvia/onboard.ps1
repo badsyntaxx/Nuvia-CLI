@@ -265,25 +265,29 @@ function installApps {
         writeText -type "header" -text "Installing Applications" -lineBefore
 
         $appsToInstall = @(
-            @{ Name    = "Adobe Acrobat"
+            @{ 
+                Name   = "Adobe Acrobat"
                 Url    = (getAdobeReaderUrl)
                 File   = "AcroRdrDCx64_MUI.exe"
                 Params = "/sAll /rs /msi EULA_ACCEPT=YES ALLUSERS=1" 
             }
 
-            @{ Name    = "Google Chrome"
+            @{ 
+                Name   = "Google Chrome"
                 Url    = "https://dl.google.com/dl/chrome/install/googlechromestandaloneenterprise64.msi"
                 File   = "GoogleChromeStandaloneEnterprise64.msi"
                 Params = "/qn /norestart" 
             }
 
-            @{ Name    = "Cliq"
+            @{ 
+                Name   = "Cliq"
                 Url    = "https://downloads.zohocdn.com/chat-desktop/windows/Cliq_1.8.4_x64.exe"
                 File   = "Cliq-x64.msi"
                 Params = "/qn /norestart" 
             }
 
-            @{ Name    = "Dropbox"
+            @{ 
+                Name   = "Dropbox"
                 Url    = "https://client.dropbox.com/desktop/desktop-dropbox/requestdownload?install_type=enterprise_install&platform=win&arch=x86_64"
                 File   = "DropboxEnterprise.msi"
                 Params = "/qn /norestart" 
@@ -291,10 +295,11 @@ function installApps {
         )
 
         if ($computerType -in @("FD1", "FD2", "FD3", "OM")) {
-            $appsToInstall += @{ Name = "Sonos"
-                Url                   = "https://www.sonos.com/redir/controller_software_pc2"
-                File                  = "SonosSetup.exe"
-                Params                = "/S" 
+            $appsToInstall += @{ 
+                Name   = "Sonos"
+                Url    = "https://www.sonos.com/redir/controller_software_pc2"
+                File   = "SonosSetup.exe"
+                Params = "/S" 
             }
         }
 
