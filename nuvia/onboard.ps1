@@ -278,7 +278,7 @@ function installApps {
             }
 
             @{ Name    = "Cliq"
-                Url    = "https://downloads.zohocdn.com/chat-desktop/windows/Cliq-1.4.9-x64.msi"
+                Url    = "https://downloads.zohocdn.com/chat-desktop/windows/Cliq_1.8.4_x64.exe"
                 File   = "Cliq-x64.msi"
                 Params = "/qn /norestart" 
             }
