@@ -1107,7 +1107,7 @@ function installJumpcloud {
 
             (New-Object System.Net.WebClient).DownloadFile("$url", "$installerPath")
        
-            $log = "C:\Nuvia\Temp\jcInstall.log";
+            $log = "C:\Nuvia\Logs\jcInstall.log";
             $JumpCloudConnectKey = "jcc_eyJwdWJsaWNLaWNrc3RhcnRVcmwiOiJodHRwczovL2tpY2tzdGFydC5qdW1wY2xvdWQuY29tIiwicHJpdmF0ZUtpY2tzdGFydFVybCI6Imh0dHBzOi8vcHJpdmF0ZS1raWNrc3RhcnQuanVtcGNsb3VkLmNvbSIsImNvbm5lY3RLZXkiOiJkOGFmZTk1NTE2NzdjMzJhMDBkMTRhZmY3MjgwZjZiNDEzZWE5MmRlIn0g";
                 
             # Correct MSIEXEC arguments - note the proper quoting
