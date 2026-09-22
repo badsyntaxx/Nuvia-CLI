@@ -112,9 +112,9 @@ function appendToMainScript {
 
 function protectShellCLIDirectory {
     <#
-        Restricts %ProgramData%\shellcli to SYSTEM and Administrators.
+        Restricts shellcli root to SYSTEM and Administrators.
 
-        Subfolders under ProgramData inherit ACEs that let standard users create
+        Subfolders under shellcliroot inherit ACEs that let standard users create
         files there. Since SHELLCLI.ps1 is written and then dot-sourced with
         admin rights, an unprivileged user could otherwise swap its contents
         between those two steps.
@@ -157,7 +157,7 @@ function log {
 
     try {      
         # Define log directory
-        $logDirectory = "$env:SystemDrive\Nuvia\logs\shellcli"
+        $logDirectory = "$env:SystemDrive\Nuvia\Logs\shellcli"
         
         # Create log directory if it doesn't exist
         if (-not (Test-Path -Path $logDirectory)) {
@@ -200,7 +200,7 @@ function createNuviaFolders {
     $USERS = '*S-1-5-32-545'   # BUILTIN\Users
     $CREATOR = '*S-1-3-0'        # CREATOR OWNER
 
-    $subFolders = @('temp', 'tools', 'backups', 'logs', 'state')
+    $subFolders = @('Temp', 'Tools', 'Backups', 'Logs', 'State')
     $writeFolder = 'logs'
 
     # icacls returns a non-zero exit code instead of throwing, so wrap it.

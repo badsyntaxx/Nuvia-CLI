@@ -445,7 +445,7 @@ function log {
 
     try {      
         # Define log directory
-        $logDirectory = "$env:SystemDrive\Nuvia\logs\shellcli"
+        $logDirectory = "$env:SystemDrive\Nuvia\Logs\shellcli"
         
         # Create log directory if it doesn't exist
         if (-not (Test-Path -Path $logDirectory)) {
@@ -1181,7 +1181,8 @@ function installApp {
         [parameter(Mandatory = $true)][string]$url,
         [parameter(Mandatory = $true)][string]$appName,
         [parameter(Mandatory = $true)][string]$fileName,
-        [parameter(Mandatory = $false)][string]$params = ""
+        [parameter(Mandatory = $false)][string]$params = "",
+        [parameter(Mandatory = $false)][string]$outputPath = "$env:ProgramData\shellcli"
     )
 
     try {
@@ -1192,7 +1193,7 @@ function installApp {
             return
         }
 
-        $outputPath = Join-Path -Path "$env:ProgramData\shellcli" -ChildPath $fileName
+        $outputPath = Join-Path -Path "$outputPath" -ChildPath $fileName
 
         if (-not (getDownload -url $url -target $outputPath)) {
             writeText -type "error" -text "Download failed for $appName."

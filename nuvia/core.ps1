@@ -70,7 +70,7 @@ function readLog {
     )
 
     try {
-        $logDirectory = "$env:SystemDrive\Nuvia\logs\shellcli"
+        $logDirectory = "$env:SystemDrive\Nuvia\Logs\shellcli"
         
         if ($date) {
             $logFileName = "${date}.log"
