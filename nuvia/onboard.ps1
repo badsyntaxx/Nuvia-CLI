@@ -1105,6 +1105,7 @@ function getBGInfo {
 }
 function installJumpcloud {
     try {
+        writeText -type "plain" -text "Installing JumpCloud"
         $agentPath = Join-Path ${env:ProgramFiles} "JumpCloud"
         if (-not (Test-Path -Path "$($agentPath)\jumpcloud-agent.exe")) {
             $url = "https://cdn02.jumpcloud.com/production/versions/2.179.2/jcagent-msi-signed.msi"
