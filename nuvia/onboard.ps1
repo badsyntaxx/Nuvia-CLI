@@ -307,10 +307,13 @@ function installApps {
             installApp -url $app.Url -appName $app.Name -fileName $app.File -params $app.Params | Out-Null
         }
 
+        installJumpcloud
+
         pinAppsToTaskbar
     } catch {
         addError -source "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)" -message $_.Exception.Message
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
 function normalizeEnvironment {
@@ -1089,6 +1092,79 @@ function getBGInfo {
                 -WindowStyle Hidden
 
             writeText -type "success" -text "BGInfo installed and should be applied."
+        }
+    } catch {
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
+    }
+}
+function installJumpcloud {
+    try {
+        $agentPath = Join-Path ${env:ProgramFiles} "JumpCloud"
+        if (-not (Test-Path -Path "$($agentPath)\jumpcloud-agent.exe")) {
+            $url = "https://cdn02.jumpcloud.com/production/versions/2.179.2/jcagent-msi-signed.msi"
+            $installerPath = "C:\Nuvia\Temp\jcagent-msi-signed.msi"
+
+            (New-Object System.Net.WebClient).DownloadFile("$url", "$installerPath")
+       
+            $log = "C:\Nuvia\Temp\jcInstall.log";
+            $JumpCloudConnectKey = "jcc_eyJwdWJsaWNLaWNrc3RhcnRVcmwiOiJodHRwczovL2tpY2tzdGFydC5qdW1wY2xvdWQuY29tIiwicHJpdmF0ZUtpY2tzdGFydFVybCI6Imh0dHBzOi8vcHJpdmF0ZS1raWNrc3RhcnQuanVtcGNsb3VkLmNvbSIsImNvbm5lY3RLZXkiOiJkOGFmZTk1NTE2NzdjMzJhMDBkMTRhZmY3MjgwZjZiNDEzZWE5MmRlIn0g";
+                
+            # Correct MSIEXEC arguments - note the proper quoting
+            $installArgs = @(
+                "/i",
+                "`"$installerPath`"",
+                "/quiet",
+                "/norestart",
+                "/L*V",
+                "`"$log`"",
+                "JCINSTALLERARGUMENTS=`"-k $JumpCloudConnectKey`""
+            )
+                
+            "Starting installation with arguments: msiexec $installArgs" | Out-File -FilePath $log -Append
+                
+            $process = Start-Process -FilePath "msiexec" -ArgumentList $installArgs -PassThru -NoNewWindow -Wait
+
+            writeText -type "plain" -text "Installation process started (PID: $($process.Id))"
+            writeText -type "plain" -text "Waiting for agent service to start..."
+                
+            $startTime = Get-Date
+            $timeout = New-TimeSpan -Minutes 10
+            $animationChars = @('|', '/', '-', '\')
+            $counter = 0
+
+            while ((Get-Date) - $startTime -lt $timeout) {
+                $agentService = Get-Service -Name "jumpcloud-agent" -ErrorAction SilentlyContinue
+                    
+                if ($agentService -and $agentService.Status -eq "Running") {
+                    writeText -type "plain" -text "Installation completed in: $((Get-Date) - $startTime)"
+                    writeText -type "plain" -text "Service status: $($agentService.Status)"
+                    writeText -type "plain" -text "JumpCloud Agent installed and running successfully!"
+                    break
+                }
+                    
+                # Animated progress indicator
+                $animation = $animationChars[$counter % $animationChars.Length]
+                writeText -type "plain" -text "`rInstalling $animation (Elapsed: $((Get-Date) - $startTime))"
+                $counter++
+                Start-Sleep -Milliseconds 250
+            }
+                
+            if (-not $agentService -or $agentService.Status -ne "Running") {
+                Write-Warning "Installation timeout reached. Checking service status..."
+                $agentService = Get-Service -Name "jumpcloud-agent" -ErrorAction SilentlyContinue
+                if (-not $agentService) {
+                    throw "JumpCloud service not found after installation attempt."
+                    exit
+                } else {
+                    Write-Warning "JumpCloud service found but not running. Current status: $($agentService.Status)"
+                }
+                writeText -type "plain" -text "Please check the installation log at: $log"
+            }
+
+            $JumpCloudConnectKey = $null;
+        } else {
+            writeText -type "plain" -text "JumpCloud Agent Already Installed."
         }
     } catch {
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
