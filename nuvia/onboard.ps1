@@ -256,6 +256,7 @@ function optimize {
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
+
 function installApps {
     param (
         [Parameter(Mandatory = $true)][string]$computerType
@@ -264,85 +265,53 @@ function installApps {
     try {
         writeText -type "header" -text "Installing Applications" -lineBefore
 
-        $winget = getWingetPath
-
-        if (-not $winget) {
-            WriteText -Type "plain" -Text "winget not found. Installing winget..."
-
-            try {
-                Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted -ErrorAction Stop | Out-Null
-                Install-Script -Name winget-install -Force -ErrorAction Stop | Out-Null
-            } catch {
-                writeText -Type "error" -text "Failed to install winget-install script: $($_.Exception.Message)"
-                return
-            }
-
-            $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
-            [System.Environment]::GetEnvironmentVariable("Path", "User")
-
-            winget-install -Force 2>&1 | Out-Null
-
-            $winget = getWingetPath
-            if (-not $winget) {
-                writeText -Type "error" -text "winget installation failed. Please install winget manually from https://github.com/microsoft/winget-cli"
-                return
-            }
-
-            WriteText -Type "success" -Text "winget installed successfully."
-        }
-
-        writeText -type "plain" -text "Winget found:"
-        writeText -type "plain" -text "$winget"
-
-        function getWingetInstallerUrl {
-            param([string]$Id)
-            try {
-                $output = & $winget show --id $Id --exact --accept-source-agreements --disable-interactivity 2>&1
-                if ($LASTEXITCODE -ne 0) {
-                    writeText -type "notice" -text "winget show failed for $Id (exit $LASTEXITCODE)."
-                    return $null
-                }
-                $match = $output | Select-String "Installer Url:\s*(\S+)" | Select-Object -First 1
-                if (-not $match) { return $null }
-                return $match.Matches[0].Groups[1].Value
-            } catch {
-                writeText -type "notice" -text "Could not query winget for ${Id}: $($_.Exception.Message)"
-                return $null
-            }
-        }
-
-        $sonosUrl = getWingetInstallerUrl -Id "Sonos.Controller"
-        $adobeUrl = getWingetInstallerUrl -Id "Adobe.Acrobat.Reader.64-bit"
-        $googleChromeUrl = getWingetInstallerUrl -Id "Google.Chrome"
-        $cliqUrl = getWingetInstallerUrl -Id "Zoho.Cliq"
-        $dropboxUrl = getWingetInstallerUrl -Id "Dropbox.Dropbox"
-
         $appsToInstall = @(
-            @{ Url = $adobeUrl; Name = "Adobe Acrobat"; Params = "/sAll /rs /msi EULA_ACCEPT=YES ALLUSERS=1" }
-            @{ Url = $googleChromeUrl; Name = "Google Chrome"; Params = "/qn /norestart" }
-            @{ Url = $cliqUrl; Name = "Cliq"; Params = "/qn /norestart" }
-            @{ Url = $dropboxUrl; Name = "Dropbox"; Params = "/qn /norestart" }
+            @{ Name    = "Adobe Acrobat"
+                Url    = (getAdobeReaderUrl)
+                File   = "AcroRdrDCx64_MUI.exe"
+                Params = "/sAll /rs /msi EULA_ACCEPT=YES ALLUSERS=1" 
+            }
+
+            @{ Name    = "Google Chrome"
+                Url    = "https://dl.google.com/dl/chrome/install/googlechromestandaloneenterprise64.msi"
+                File   = "GoogleChromeStandaloneEnterprise64.msi"
+                Params = "/qn /norestart" 
+            }
+
+            @{ Name    = "Cliq"
+                Url    = "https://downloads.zohocdn.com/chat-desktop/windows/Cliq-1.4.9-x64.msi"
+                File   = "Cliq-x64.msi"
+                Params = "/qn /norestart" 
+            }
+
+            @{ Name    = "Dropbox"
+                Url    = "https://client.dropbox.com/desktop/desktop-dropbox/requestdownload?install_type=enterprise_install&platform=win&arch=x86_64"
+                File   = "DropboxEnterprise.msi"
+                Params = "/qn /norestart" 
+            }
         )
 
         if ($computerType -in @("FD1", "FD2", "FD3", "OM")) {
-            $appsToInstall += @{ Url = $sonosUrl; Name = "Sonos"; Params = "/S /v/qn" }
+            $appsToInstall += @{ Name = "Sonos"
+                Url                   = "https://www.sonos.com/redir/controller_software_pc2"
+                File                  = "SonosSetup.exe"
+                Params                = "/S" 
+            }
         }
 
         foreach ($app in $appsToInstall) {
             if (-not $app.Url) {
-                writeText -Type "error" -text "Could not resolve installer URL for $($app.Name). Skipping."
+                writeText -type "error" -text "No installer URL for $($app.Name). Skipping."
+                addError -source "installApps-$($app.Name)" -message "No installer URL resolved"
                 continue
             }
-            installApp -url $app.Url -appName $app.Name -params $app.Params
+            installApp -url $app.Url -appName $app.Name -fileName $app.File -params $app.Params | Out-Null
         }
 
         pinAppsToTaskbar
-
-        #Install-NinjaOne  -InstallerUrl $NinjaInstallerUrl
     } catch {
-        addError -source "$($MyInvocation.MyCommand.Name)" -message $_.Exception.Message
+        addError -source "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)" -message $_.Exception.Message
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
-        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
 function normalizeEnvironment {
@@ -1253,7 +1222,6 @@ function getWingetPath {
     }
     return $null
 }
-
 function addError {
     param(
         [Parameter(Mandatory)][string]$source,
@@ -1263,4 +1231,21 @@ function addError {
     $i = 1
     while ($script:errors.Contains($key)) { $i++; $key = "$source ($i)" }
     $script:errors[$key] = $message
+}
+function getAdobeReaderUrl {
+    $fallback = "https://ardownload3.adobe.com/pub/adobe/acrobat/win/AcrobatDC/2600221901/AcroRdrDCx642600221901_MUI.exe"
+    try {
+        [Net.ServicePointManager]::SecurityProtocol =
+        [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+
+        $api = "https://rdc.adobe.io/reader/products?lang=mui&site=enterprise&os=Windows%2011&api_key=dc-get-adobereader-cdn"
+        $v = ((Invoke-RestMethod -Uri $api -TimeoutSec 20 -ErrorAction Stop).products.reader |
+            Where-Object { $_.displayName -match "64bit" }).version -replace '\.', ''
+
+        if (-not $v) { return $fallback }
+        return "https://ardownload3.adobe.com/pub/adobe/acrobat/win/AcrobatDC/$v/AcroRdrDCx64${v}_MUI.exe"
+    } catch {
+        writeText -type "notice" -text "Could not resolve current Adobe version, using pinned build."
+        return $fallback
+    }
 }

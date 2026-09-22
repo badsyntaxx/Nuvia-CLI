@@ -891,6 +891,13 @@ function getDownload {
         
                 # invoke request
                 $request = [System.Net.HttpWebRequest]::Create($url)
+                [Net.ServicePointManager]::SecurityProtocol =
+                [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+
+                $request = [System.Net.HttpWebRequest]::Create($url)
+                $request.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NuviaOnboarding/1.0"
+                $request.Timeout = 60000
+                $request.ReadWriteTimeout = 300000
                 $response = $request.GetResponse()
   
                 if ($response.StatusCode -eq 401 -or $response.StatusCode -eq 403 -or $response.StatusCode -eq 404) {
@@ -926,7 +933,7 @@ function getDownload {
                 if ($lineBefore) { Write-Host }
 
                 if (-not $hide -and $label -ne "") {
-                    Write-Host " $text" -ForegroundColor "Yellow"
+                    Write-Host " $label" -ForegroundColor "Yellow"
                 }
                 # start download
                 $finalBarCount = 0 #Show final bar only one time
@@ -958,11 +965,7 @@ function getDownload {
                     Write-Host
                 }
                 
-                if ($downloadComplete) { 
-                    return $true 
-                } else { 
-                    return $false 
-                }
+                return $true
             } catch {
                 $downloadComplete = $false
             
@@ -974,14 +977,15 @@ function getDownload {
                     log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
                 }
             } finally {
-                # cleanup
-                if ($reader) { $reader.Close() }
-                if ($writer) { $writer.Flush(); $writer.Close() }
+                if ($reader) { $reader.Close(); $reader = $null }
+                if ($writer) { $writer.Flush(); $writer.Close(); $writer = $null }
+                if ($response) { $response.Close(); $response = $null }
         
                 $ErrorActionPreference = $storeEAP
                 [GC]::Collect()
             } 
-        }   
+        }  
+        return $false 
     }
 }
 function getUserData {
