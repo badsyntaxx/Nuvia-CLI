@@ -213,3 +213,93 @@ function findODConfig {
         }
     }
 }
+
+function enableAdminNetShare {
+    try {
+        # --- Find the built-in Administrator (SID ends in -500, works even if renamed) ---
+        $admin = Get-LocalUser | Where-Object { $_.SID.Value -like "S-1-5-21-*-500" }
+        if (-not $admin) {
+            throw "Could not find the built-in Administrator account."
+        }
+        writeText -type "plain" -text "Found built-in admin account: $($admin.Name)"
+
+        # --- Get and confirm password ---
+        $pw1 = readInput -prompt "New Administrator password:" -isSecure
+        $pw2 = readInput -prompt "Confirm password:" -isSecure
+        if (-not $pw1 -or $pw1.Length -eq 0) {
+            throw "Password cannot be empty (blank passwords are blocked over the network)."
+        }
+        $plain1 = [System.Net.NetworkCredential]::new("", $pw1).Password
+        $plain2 = [System.Net.NetworkCredential]::new("", $pw2).Password
+        $match = $plain1 -ceq $plain2
+        $plain1 = $null; $plain2 = $null
+        if (-not $match) {
+            throw "Passwords do not match."
+        }
+
+        # --- Set password and enable the account ---
+        writeText -type "plain" -text "Setting password..."
+        Set-LocalUser -SID $admin.SID -Password $pw1 -ErrorAction Stop
+
+        writeText -type "plain" -text "Enabling account..."
+        Enable-LocalUser -SID $admin.SID -ErrorAction Stop
+
+        if (-not (Get-LocalUser -SID $admin.SID).Enabled) {
+            throw "Account $($admin.Name) still shows as disabled after enabling."
+        }
+        writeText -type "plain" -text "Account $($admin.Name) is enabled."
+
+        # --- Network profile check (sharing rules shouldn't be opened on Public) ---
+        $profiles = Get-NetConnectionProfile
+        $public = $profiles | Where-Object { $_.NetworkCategory -eq "Public" }
+        if ($public) {
+            writeText -type "error" -text ("Warning: network '$($public.Name -join ', ')' is set to Public. " +
+                "File sharing rules are only enabled for Domain/Private, so remote access may still fail. " +
+                "Change it with: Set-NetConnectionProfile -InterfaceAlias '<name>' -NetworkCategory Private")
+        }
+
+        # --- Enable File and Printer Sharing firewall rules (Domain/Private only) ---
+        # Group ID is language-neutral, unlike the display name
+        writeText -type "plain" -text "Enabling File and Printer Sharing firewall rules..."
+        $rules = Get-NetFirewallRule -Group "@FirewallAPI.dll,-28502" -ErrorAction Stop |
+        Where-Object { $_.Profile.ToString() -match "Domain|Private|Any" }
+        if (-not $rules) {
+            throw "No File and Printer Sharing firewall rules found."
+        }
+        $rules | Enable-NetFirewallRule -ErrorAction Stop
+
+        $smbRule = Get-NetFirewallRule -Group "@FirewallAPI.dll,-28502" |
+        Where-Object { $_.Enabled -eq "True" -and $_.DisplayName -like "*SMB-In*" }
+        if (-not $smbRule) {
+            throw "SMB-In firewall rule is not enabled after update."
+        }
+
+        # --- Make sure the Server service is running ---
+        writeText -type "plain" -text "Checking Server (LanmanServer) service..."
+        Set-Service -Name LanmanServer -StartupType Automatic -ErrorAction Stop
+        if ((Get-Service LanmanServer).Status -ne "Running") {
+            Start-Service LanmanServer -ErrorAction Stop
+        }
+
+        # --- Make sure admin shares aren't disabled ---
+        $regPath = "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters"
+        $autoShare = (Get-ItemProperty -Path $regPath -ErrorAction SilentlyContinue).AutoShareWks
+        if ($autoShare -eq 0) {
+            writeText -type "plain" -text "Admin shares were disabled; re-enabling (restarting Server service)..."
+            Set-ItemProperty -Path $regPath -Name AutoShareWks -Value 1 -ErrorAction Stop
+            Restart-Service LanmanServer -Force -ErrorAction Stop
+        }
+
+        # --- Verify C$ exists ---
+        if (-not (Get-SmbShare -Name 'C$' -ErrorAction SilentlyContinue)) {
+            throw "The C$ admin share is not present."
+        }
+
+        writeText -type "success" -text "$env:COMPUTERNAME is ready. Connect as $env:COMPUTERNAME\$($admin.Name)."
+        writeText -type "plain" -text "DON'T FORGET TO DISABLE THE ADMIN ACCOUNT WHEN DONE."
+    } catch {
+        $where = "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        writeText -type "error" -text "$($_.Exception.Message) [$where]"
+        log -msg "${where}: $($_.Exception.Message)" -lvl "ERROR"
+    }
+}

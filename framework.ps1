@@ -78,6 +78,7 @@ $global:commandMap = [ordered]@{
     "od version"                     = @("nuvia", "OpenDental", "getODVersion", "Get the OpenDental version.")
     "od config"                      = @("nuvia", "OpenDental", "getODConfig", "Get the OpenDental configuration.")
     "find od config"                 = @("nuvia", "OpenDental", "findODConfig", "Find the OpenDental config on another computer.")
+    "enable admin net share"         = @("nuvia", "OpenDental", "enableAdminNetShare", "Enable the built-in admin account and file sharing.")
     "od install 24341"               = @("nuvia", "OpenDental", "install24341", "Install OpenDental version 24341.")
     "dtx version"                    = @("nuvia", "DTX", "getDTXVersion", "Get the DTX Studio version.")
     "ezdent version"                 = @("nuvia", "Vatech", "getEZDentVersion", "Get the EZDent version number.")
@@ -91,6 +92,7 @@ $global:commandMap = [ordered]@{
     "clean vatech"                   = @("nuvia", "Vatech", "cleanVatech", "Clear up space on drive.")
     "onboard"                        = @("nuvia", "onboard", "init", "Onboard a Nuvia computer.")
     "debloat"                        = @("nuvia", "debloat", "debloat", "Debloat a Nuvia computer.")
+
 }
 
 function invokeScript {
