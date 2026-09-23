@@ -129,92 +129,95 @@ function install24341 {
 }
 
 function findODConfig {
-    try {
-        $targetComputer = readInput -prompt "Target Computer:"
-        $password = readInput -prompt "Target Computer Password:" -isSecure
+    $driveName = "ODTarget"
+    $targetComputer = $null
 
-        # Check 3: is the target reachable at all? ---
+    try {
+        # --- Input ---
+        $targetComputer = readInput -prompt "Target Computer:"
+        if ([string]::IsNullOrWhiteSpace($targetComputer)) {
+            throw "Target computer name cannot be empty."
+        }
+        $targetComputer = $targetComputer.Trim()
+
+        $password = readInput -prompt "Target Computer Password:" -isSecure
+        if (-not $password -or $password.Length -eq 0) {
+            throw "Password cannot be empty."
+        }
+
+        # --- Connectivity ---
         writeText -type "plain" -text "Testing connectivity to $targetComputer..."
         if (-not (Test-Connection -ComputerName $targetComputer -Count 2 -Quiet)) {
             throw "$targetComputer did not respond to ping. Check the name, that it's powered on, and on the network."
         }
 
-        # Check 4: is SMB (port 445) open? ---
         writeText -type "plain" -text "Testing SMB (port 445)..."
         $smb = Test-NetConnection -ComputerName $targetComputer -Port 445 -WarningAction SilentlyContinue
         if (-not $smb.TcpTestSucceeded) {
             throw "Port 445 is not reachable on $targetComputer. File sharing may be off or a firewall is blocking it."
         }
 
-        # authenticate and map the drive ---
-        $cred = New-Object System.Management.Automation.PSCredential(
-            "$targetComputer\Administrator", $password)
-
+        # --- Authenticate and map ---
         writeText -type "plain" -text "Connecting to \\$targetComputer\C$ ..."
-    } catch {
-        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
-        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
-    }
-    
-    try {
-        New-PSDrive -Name ODTarget -PSProvider FileSystem `
-            -Root "\\$targetComputer\C$" -Credential $cred -ErrorAction Stop | Out-Null
-    } catch {
-        throw "Could not connect to the admin share: $($_.Exception.Message)`n" +
-        "Common causes: the Administrator account is disabled, not an admin, " +
-        "wrong password, or remote UAC filtering (LocalAccountTokenFilterPolicy)."
-    }
+        $cred = New-Object System.Management.Automation.PSCredential("$targetComputer\Administrator", $password)
+        try {
+            New-PSDrive -Name $driveName -PSProvider FileSystem -Root "\\$targetComputer\C$" -Credential $cred -ErrorAction Stop | Out-Null
+        } catch {
+            throw ("Could not connect to the admin share: $($_.Exception.Message) " +
+                "Common causes: Administrator account disabled, wrong password, " +
+                "or remote UAC filtering (LocalAccountTokenFilterPolicy).")
+        }
 
-    try {
-        $source = "ODTarget:\Program Files (x86)\Open Dental\FreeDentalConfig.xml"
+        # --- Paths ---
+        $source = "${driveName}:\Program Files (x86)\Open Dental\FreeDentalConfig.xml"
         $destDir = "C:\Program Files (x86)\Open Dental"
         $dest = Join-Path $destDir "FreeDentalConfig.xml"
 
-        # --- Check 6: does the source file exist? ---
-        writeText -type "plain" -text "Checking source file..." -NoNewline
+        # --- Source check ---
+        writeText -type "plain" -text "Checking source file..."
         if (-not (Test-Path -LiteralPath $source)) {
             throw "Source not found: $source (is Open Dental installed on $targetComputer?)"
         }
         $srcInfo = Get-Item -LiteralPath $source
-        writeText -type "plain" -text "OK ($($srcInfo.Length) bytes)"
+        writeText -type "plain" -text "Source OK ($($srcInfo.Length) bytes)"
 
-        # --- Check 7: ensure destination folder exists ---
+        # --- Destination prep ---
         if (-not (Test-Path -LiteralPath $destDir)) {
             writeText -type "plain" -text "Creating destination folder $destDir"
-            New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+            New-Item -ItemType Directory -Path $destDir -Force -ErrorAction Stop | Out-Null
         }
 
-        # --- Check 8: warn before overwriting an existing local config ---
         if (Test-Path -LiteralPath $dest) {
             $backup = "$dest.bak_$(Get-Date -Format yyyyMMdd_HHmmss)"
             writeText -type "plain" -text "Existing config found; backing it up to $backup"
-            Copy-Item -LiteralPath $dest -Destination $backup -Force
+            Copy-Item -LiteralPath $dest -Destination $backup -Force -ErrorAction Stop
         }
 
-        # --- Perform the copy ---
-        writeText -type "plain" -text "Copying..." -NoNewline
-        Copy-Item -LiteralPath $source -Destination $dest -Force
-        writeText -type "plain" -text "Copy complete"
+        # --- Copy ---
+        writeText -type "plain" -text "Copying..."
+        Copy-Item -LiteralPath $source -Destination $dest -Force -ErrorAction Stop
 
-        # --- Check 9: verify the copy matches the source (size + hash) ---
-        writeText -type "plain" -text "Verifying copy..." -NoNewline
+        # --- Verify ---
+        writeText -type "plain" -text "Verifying copy..."
         $dstInfo = Get-Item -LiteralPath $dest
         $srcHash = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash
         $dstHash = (Get-FileHash -LiteralPath $dest   -Algorithm SHA256).Hash
         if ($srcInfo.Length -ne $dstInfo.Length -or $srcHash -ne $dstHash) {
             throw "Verification failed: the copied file does not match the source."
         }
-        writeText -type "plain" -text "OK (SHA256 match)"
 
-        writeText -type "success" -text "Success. Config copied from $targetComputer and verified."
+        writeText -type "success" -text "Success. Config copied from $targetComputer and verified (SHA256 match)."
     } catch {
-        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
-        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
+        $where = "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        writeText -type "error" -text "$($_.Exception.Message) [$where]"
+        log -msg "${where}: $($_.Exception.Message)" -lvl "ERROR"
     } finally {
-        # --- Always clean up the connection ---
-        if (Get-PSDrive -Name ODTarget -ErrorAction SilentlyContinue) {
-            Remove-PSDrive -Name ODTarget -ErrorAction SilentlyContinue
-            writeText -type "plain" -text "Disconnected from $targetComputer. DONT FORGET TO DISABLE THE ADMIN ON $targetComputer."
+        if (Get-PSDrive -Name $driveName -ErrorAction SilentlyContinue) {
+            Remove-PSDrive -Name $driveName -ErrorAction SilentlyContinue
+            writeText -type "plain" -text "Disconnected from $targetComputer."
+        }
+        if ($targetComputer) {
+            writeText -type "plain" -text "DON'T FORGET TO DISABLE THE ADMIN ACCOUNT ON $targetComputer."
         }
     }
 }
