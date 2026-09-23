@@ -135,15 +135,7 @@ function findODConfig {
     try {
         # --- Input ---
         $targetComputer = readInput -prompt "Target Computer:"
-        if ([string]::IsNullOrWhiteSpace($targetComputer)) {
-            throw "Target computer name cannot be empty."
-        }
-        $targetComputer = $targetComputer.Trim()
-
         $password = readInput -prompt "Target Computer Password:" -isSecure
-        if (-not $password -or $password.Length -eq 0) {
-            throw "Password cannot be empty."
-        }
 
         # --- Connectivity ---
         writeText -type "plain" -text "Testing connectivity to $targetComputer..."
@@ -161,7 +153,7 @@ function findODConfig {
         writeText -type "plain" -text "Connecting to \\$targetComputer\C$ ..."
         $cred = New-Object System.Management.Automation.PSCredential("$targetComputer\Administrator", $password)
         try {
-            New-PSDrive -Name $driveName -PSProvider FileSystem -Root "\\$targetComputer\C$" -Credential $cred -ErrorAction Stop | Out-Null
+            New-PSDrive -Name $driveName -PSProvider FileSystem -Root "\\$targetComputer\C$" -Credential $cred -Scope Global -ErrorAction Stop | Out-Null
         } catch {
             throw ("Could not connect to the admin share: $($_.Exception.Message) " +
                 "Common causes: Administrator account disabled, wrong password, " +
@@ -200,8 +192,8 @@ function findODConfig {
         # --- Verify ---
         writeText -type "plain" -text "Verifying copy..."
         $dstInfo = Get-Item -LiteralPath $dest
-        $srcHash = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash
-        $dstHash = (Get-FileHash -LiteralPath $dest   -Algorithm SHA256).Hash
+        $srcHash = (Get-FileHash -LiteralPath $source -Algorithm SHA256 -ErrorAction Stop).Hash
+        $dstHash = (Get-FileHash -LiteralPath $dest   -Algorithm SHA256 -ErrorAction Stop).Hash
         if ($srcInfo.Length -ne $dstInfo.Length -or $srcHash -ne $dstHash) {
             throw "Verification failed: the copied file does not match the source."
         }
