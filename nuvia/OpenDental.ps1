@@ -20,67 +20,59 @@ function odMenu {
             Default { readCommand }
         }
     } catch {
-        # Display error message and end the script
-        writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
 
 function getODVersion {
-    $odVersion = (Get-Command "C:\Program Files (x86)\Open Dental\OpenDental.exe" -ErrorAction SilentlyContinue).FileVersionInfo.ProductVersion
+    try {
+        $odVersion = (Get-Command "C:\Program Files (x86)\Open Dental\OpenDental.exe" -ErrorAction SilentlyContinue).FileVersionInfo.ProductVersion
 
-    if ($odVersion) {
-        writeText -type "plain" -text "OpenDental Version: $odVersion" -lineAfter
-    } else {
-        writeText -type "plain" -text "Could not find an installation of OD" -lineAfter
-        readCommand
-    }
+        if ($odVersion) {
+            writeText -type "plain" -text "OpenDental Version: $odVersion" -lineAfter
+        } else {
+            writeText -type "plain" -text "Could not find an installation of OD" -lineAfter
+            readCommand
+        }
 
-    # Define the paths to check
-    $dtxPaths = @(
-        "C:\Program Files\DTX Studio Clinic\DTXsync.exe",
-        "C:\Program Files\DTX Studio\DTXStudio.exe", # Common name
-        "C:\Program Files\DTX Studio Implant\DTXStudioImplant.exe", # Alternative
-        "C:\Program Files\DTX Studio Lab\DTXStudioLab.exe" # Alternative
-    )
+        # Define the paths to check
+        $dtxPaths = @(
+            "C:\Program Files\DTX Studio Clinic\DTXsync.exe",
+            "C:\Program Files\DTX Studio\DTXStudio.exe", # Common name
+            "C:\Program Files\DTX Studio Implant\DTXStudioImplant.exe", # Alternative
+            "C:\Program Files\DTX Studio Lab\DTXStudioLab.exe" # Alternative
+        )
 
-    $found = $false
-    foreach ($path in $dtxPaths) {
-        if (Test-Path $path) {
-            try {
-                $versionInfo = Get-ItemProperty -Path $path -ErrorAction Stop
-                $version = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($path).FileVersion
-                writeText -type "plain" -text "DTX Studio Version: $version" -lineAfter
-                $found = $true
-                break
-            } catch {
-                writeText -type "notice" -text "Could not read version information from $path" -lineAfter
+        $found = $false
+        foreach ($path in $dtxPaths) {
+            if (Test-Path $path) {
+                try {
+                    $versionInfo = Get-ItemProperty -Path $path -ErrorAction Stop
+                    $version = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($path).FileVersion
+                    writeText -type "plain" -text "DTX Studio Version: $version" -lineAfter
+                    $found = $true
+                    break
+                } catch {
+                    writeText -type "notice" -text "Could not read version information from $path" -lineAfter
+                }
             }
         }
-    }
 
-    if (-not $found) {
-        writeText -type "notice" -text "Could not find the DTX Studio executable in the default paths." -lineAfter
-    }
+        if (-not $found) {
+            writeText -type "notice" -text "Could not find the DTX Studio executable in the default paths." -lineAfter
+        }
 
-    getODConfig
+        getODConfig
+    } catch {
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
+    }
+    
 }
 
 function getODConfig {
-    $filePath = "C:\Program Files (x86)\Open Dental\FreeDentalConfig.xml"
-    
-    if (Test-Path $filePath) {
-        writeText -type "plain" -text "FreeDentalConfig.xml found:" -lineAfter
-        
-        # Force the content to be output properly
-        $content = Get-Content $filePath
-        foreach ($line in $content) {
-            Write-Host $line
-        }
-        # Add a blank line after
-        Write-Host ""
-    } else {
-        writeText -type "plain" -text "FreeDentalConfig.xml not found at: $filePath" -lineAfter
-    }
+    getODVersion
 }
 
 function install22361 {
@@ -131,7 +123,98 @@ function install24341 {
             writeText -type "notice" -text "OpenDental.exe already exists in: $tempDir. Skipping download and extraction."
         }
     } catch {
-        writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)" -lineAfter
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
+    }
+}
+
+function findODConfig {
+    try {
+        $targetComputer = readInput -prompt "Target Computer:"
+        $password = readInput -prompt "Target Computer Password:" -isSecure
+
+        # Check 3: is the target reachable at all? ---
+        writeText -type "plain" -text "Testing connectivity to $targetComputer..."
+        if (-not (Test-Connection -ComputerName $targetComputer -Count 2 -Quiet)) {
+            throw "$targetComputer did not respond to ping. Check the name, that it's powered on, and on the network."
+        }
+
+        # Check 4: is SMB (port 445) open? ---
+        writeText -type "plain" -text "Testing SMB (port 445)..."
+        $smb = Test-NetConnection -ComputerName $targetComputer -Port 445 -WarningAction SilentlyContinue
+        if (-not $smb.TcpTestSucceeded) {
+            throw "Port 445 is not reachable on $targetComputer. File sharing may be off or a firewall is blocking it."
+        }
+
+        # authenticate and map the drive ---
+        $cred = New-Object System.Management.Automation.PSCredential(
+            "$targetComputer\Administrator", $password)
+
+        writeText -type "plain" -text "Connecting to \\$targetComputer\C$ ..."
+    } catch {
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
     
+    try {
+        New-PSDrive -Name ODTarget -PSProvider FileSystem `
+            -Root "\\$targetComputer\C$" -Credential $cred -ErrorAction Stop | Out-Null
+    } catch {
+        throw "Could not connect to the admin share: $($_.Exception.Message)`n" +
+        "Common causes: the Administrator account is disabled, not an admin, " +
+        "wrong password, or remote UAC filtering (LocalAccountTokenFilterPolicy)."
+    }
+
+    try {
+        $source = "ODTarget:\Program Files (x86)\Open Dental\FreeDentalConfig.xml"
+        $destDir = "C:\Program Files (x86)\Open Dental"
+        $dest = Join-Path $destDir "FreeDentalConfig.xml"
+
+        # --- Check 6: does the source file exist? ---
+        writeText -type "plain" -text "Checking source file..." -NoNewline
+        if (-not (Test-Path -LiteralPath $source)) {
+            throw "Source not found: $source (is Open Dental installed on $targetComputer?)"
+        }
+        $srcInfo = Get-Item -LiteralPath $source
+        writeText -type "plain" -text "OK ($($srcInfo.Length) bytes)"
+
+        # --- Check 7: ensure destination folder exists ---
+        if (-not (Test-Path -LiteralPath $destDir)) {
+            writeText -type "plain" -text "Creating destination folder $destDir"
+            New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+        }
+
+        # --- Check 8: warn before overwriting an existing local config ---
+        if (Test-Path -LiteralPath $dest) {
+            $backup = "$dest.bak_$(Get-Date -Format yyyyMMdd_HHmmss)"
+            writeText -type "plain" -text "Existing config found; backing it up to $backup"
+            Copy-Item -LiteralPath $dest -Destination $backup -Force
+        }
+
+        # --- Perform the copy ---
+        writeText -type "plain" -text "Copying..." -NoNewline
+        Copy-Item -LiteralPath $source -Destination $dest -Force
+        writeText -type "plain" -text "Copy complete"
+
+        # --- Check 9: verify the copy matches the source (size + hash) ---
+        writeText -type "plain" -text "Verifying copy..." -NoNewline
+        $dstInfo = Get-Item -LiteralPath $dest
+        $srcHash = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash
+        $dstHash = (Get-FileHash -LiteralPath $dest   -Algorithm SHA256).Hash
+        if ($srcInfo.Length -ne $dstInfo.Length -or $srcHash -ne $dstHash) {
+            throw "Verification failed: the copied file does not match the source."
+        }
+        writeText -type "plain" -text "OK (SHA256 match)"
+
+        writeText -type "success" -text "Success. Config copied from $targetComputer and verified."
+    } catch {
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
+    } finally {
+        # --- Always clean up the connection ---
+        if (Get-PSDrive -Name ODTarget -ErrorAction SilentlyContinue) {
+            Remove-PSDrive -Name ODTarget -ErrorAction SilentlyContinue
+            writeText -type "plain" -text "Disconnected from $targetComputer. DONT FORGET TO DISABLE THE ADMIN ON $targetComputer."
+        }
+    }
 }
