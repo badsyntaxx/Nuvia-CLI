@@ -303,3 +303,49 @@ function enableAdminNetShare {
         log -msg "${where}: $($_.Exception.Message)" -lvl "ERROR"
     }
 }
+
+function disableAdminNetShare {
+    try {
+        # --- Find the built-in Administrator by SID ---
+        $admin = Get-LocalUser | Where-Object { $_.SID.Value -like "S-1-5-21-*-500" }
+        if (-not $admin) {
+            throw "Could not find the built-in Administrator account."
+        }
+
+        if (-not $admin.Enabled) {
+            writeText -type "success" -text "Account $($admin.Name) is already disabled. Nothing to do."
+            return
+        }
+
+        # --- Lockout safety: make sure another admin account remains ---
+        $otherAdmins = @(Get-LocalGroupMember -SID "S-1-5-32-544" -ErrorAction Stop |
+            Where-Object { $_.SID.Value -ne $admin.SID.Value })
+        $usableOthers = $otherAdmins | Where-Object {
+            $_.PrincipalSource -ne "Local" -or
+            (Get-LocalUser -SID $_.SID -ErrorAction SilentlyContinue).Enabled
+        }
+        if (-not $usableOthers) {
+            throw "No other enabled administrator account exists. Disabling $($admin.Name) could lock you out of admin access."
+        }
+
+        # --- Warn if we're currently signed in as this account ---
+        if ($env:USERNAME -eq $admin.Name) {
+            writeText -type "error" -text ("Warning: you are signed in as $($admin.Name). " +
+                "This session will keep working, but you won't be able to sign in with it again.")
+        }
+
+        # --- Disable and verify ---
+        writeText -type "plain" -text "Disabling $($admin.Name)..."
+        Disable-LocalUser -SID $admin.SID -ErrorAction Stop
+
+        if ((Get-LocalUser -SID $admin.SID).Enabled) {
+            throw "Account $($admin.Name) still shows as enabled after disabling."
+        }
+
+        writeText -type "success" -text "Account $($admin.Name) on $env:COMPUTERNAME is disabled."
+    } catch {
+        $where = "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
+        writeText -type "error" -text "$($_.Exception.Message) [$where]"
+        log -msg "${where}: $($_.Exception.Message)" -lvl "ERROR"
+    }
+}

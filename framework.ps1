@@ -79,6 +79,7 @@ $global:commandMap = [ordered]@{
     "od config"                      = @("nuvia", "OpenDental", "getODConfig", "Get the OpenDental configuration.")
     "find od config"                 = @("nuvia", "OpenDental", "findODConfig", "Find the OpenDental config on another computer.")
     "enable admin net share"         = @("nuvia", "OpenDental", "enableAdminNetShare", "Enable the built-in admin account and file sharing.")
+    "disable admin net share"        = @("nuvia", "OpenDental", "disableAdminNetShare", "Disable the built-in admin account.")
     "od install 24341"               = @("nuvia", "OpenDental", "install24341", "Install OpenDental version 24341.")
     "dtx version"                    = @("nuvia", "DTX", "getDTXVersion", "Get the DTX Studio version.")
     "ezdent version"                 = @("nuvia", "Vatech", "getEZDentVersion", "Get the EZDent version number.")
