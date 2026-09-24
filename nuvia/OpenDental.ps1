@@ -20,8 +20,7 @@ function odMenu {
             Default { readCommand }
         }
     } catch {
-        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
-        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
+        writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
     }
 }
 
@@ -65,8 +64,7 @@ function getODVersion {
 
         getODConfig
     } catch {
-        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
-        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
+        writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
     }
     
 }
@@ -123,8 +121,7 @@ function install24341 {
             writeText -type "notice" -text "OpenDental.exe already exists in: $tempDir. Skipping download and extraction."
         }
     } catch {
-        writeText -type "error" -text "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
-        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
+        writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
     }
 }
 
@@ -296,9 +293,7 @@ function enableAdminNetShare {
         writeText -type "success" -text "$env:COMPUTERNAME is ready. Connect as $env:COMPUTERNAME\$($admin.Name)."
         writeText -type "notice" -text "DON'T FORGET TO DISABLE THE ADMIN ACCOUNT WHEN DONE."
     } catch {
-        $where = "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
-        writeText -type "error" -text "$($_.Exception.Message) [$where]"
-        log -msg "${where}: $($_.Exception.Message)" -lvl "ERROR"
+        writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
     }
 }
 
@@ -342,8 +337,6 @@ function disableAdminNetShare {
 
         writeText -type "success" -text "Account $($admin.Name) on $env:COMPUTERNAME is disabled."
     } catch {
-        $where = "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
-        writeText -type "error" -text "$($_.Exception.Message) [$where]"
-        log -msg "${where}: $($_.Exception.Message)" -lvl "ERROR"
+        writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
     }
 }
