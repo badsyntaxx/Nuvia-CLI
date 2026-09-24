@@ -48,7 +48,7 @@ function getODVersion {
         foreach ($path in $dtxPaths) {
             if (Test-Path $path) {
                 try {
-                    $versionInfo = Get-ItemProperty -Path $path -ErrorAction Stop
+                    Get-ItemProperty -Path $path -ErrorAction Stop
                     $version = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($path).FileVersion
                     writeText -type "plain" -text "DTX Studio Version: $version" -lineAfter
                     $found = $true
