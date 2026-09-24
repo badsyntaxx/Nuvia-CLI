@@ -200,9 +200,7 @@ function findODConfig {
 
         writeText -type "success" -text "Success. Config copied from $targetComputer and verified (SHA256 match)."
     } catch {
-        $where = "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
-        writeText -type "error" -text "$($_.Exception.Message) [$where]"
-        log -msg "${where}: $($_.Exception.Message)" -lvl "ERROR"
+        writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
     } finally {
         if (Get-PSDrive -Name $driveName -ErrorAction SilentlyContinue) {
             Remove-PSDrive -Name $driveName -ErrorAction SilentlyContinue

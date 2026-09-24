@@ -313,7 +313,10 @@ function installApps {
                 addError -source "installApps-$($app.Name)" -message "No installer URL resolved"
                 continue
             }
-            installApp -url $app.Url -appName $app.Name -fileName $app.File -params $app.Params -outputPath "C:\Nuvia\Temp" | Out-Null
+
+            if (-not (installApp -url $app.Url -appName $app.Name -fileName $app.File -params $app.Params -outputPath "C:\Nuvia\Temp" | Out-Null)) {
+                addError -source "installApps-$($app.Name)" -message "$($app.Name) did not install." 
+            }
         }
 
         installJumpcloud
