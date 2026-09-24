@@ -209,7 +209,7 @@ function findODConfig {
             writeText -type "plain" -text "Disconnected from $targetComputer."
         }
         if ($targetComputer) {
-            writeText -type "plain" -text "DON'T FORGET TO DISABLE THE ADMIN ACCOUNT ON $targetComputer."
+            writeText -type "notice" -text "DON'T FORGET TO DISABLE THE ADMIN ACCOUNT ON $targetComputer."
         }
     }
 }
@@ -296,7 +296,7 @@ function enableAdminNetShare {
         }
 
         writeText -type "success" -text "$env:COMPUTERNAME is ready. Connect as $env:COMPUTERNAME\$($admin.Name)."
-        writeText -type "plain" -text "DON'T FORGET TO DISABLE THE ADMIN ACCOUNT WHEN DONE."
+        writeText -type "notice" -text "DON'T FORGET TO DISABLE THE ADMIN ACCOUNT WHEN DONE."
     } catch {
         $where = "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)"
         writeText -type "error" -text "$($_.Exception.Message) [$where]"
