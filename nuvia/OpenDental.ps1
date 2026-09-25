@@ -17,7 +17,7 @@ function odMenu {
             1 { getODConfig }
             2 { install22361 }
             6 { install24341 }
-            Default { readCommand }
+            Default { return }
         }
     } catch {
         writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
@@ -61,8 +61,6 @@ function getODVersion {
         if (-not $found) {
             writeText -type "notice" -text "Could not find the DTX Studio executable in the default paths." -lineAfter
         }
-
-        getODConfig
     } catch {
         writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
     }
