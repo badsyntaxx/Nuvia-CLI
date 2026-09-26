@@ -14,6 +14,12 @@ function installTscan {
     $driveMapped = $false
 
     try {
+        # --- Elevation check -------------------------------------------------------------
+        $principal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+        if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+            throw "This must be run as Administrator."
+        }
+
         # --- Local folders ---------------------------------------------------------------
         writeText -type "plain" -text "Preparing TScan folder..."
         writeText -type "plain" -text $tempPath
@@ -33,20 +39,21 @@ function installTscan {
         writeText -type "plain" -text "Example path for T-Scan installation files. You'll be prompted for the actual path:"
         writeText -type "plain" -text "\\SERVER\InTech\58550_T-Scan_v10_KALLIE_KEE_NUVIA_DENTAL_IMPLANT_CENTER" -lineAfter
         writeText -type "plain" -text "Example of the expected pathing for T-Scan network share:"
-        writeText -type "plain" -text "T-Scan SQL Server:   \\SERVER\TSCAN10"
+        writeText -type "plain" -text "T-Scan SQL Server:   SERVER\TSCAN10"
         writeText -type "plain" -text "Scans shared path:   \\SERVER\Scans" -lineAfter
 
         # --- Installer path --------------------------------------------------------------
         writeText -type "prompt" -text "What is the installer path?"
-        $networkPath = readInput -prompt "Path:"
-
+        $networkPath = [string](readInput -prompt "Path:")
+        if ([string]::IsNullOrWhiteSpace($networkPath)) {
+            throw "No installer path entered."
+        }
         # Strip quotes from "Copy as path" pastes and any trailing backslash
         $networkPath = $networkPath.Trim().Trim('"').TrimEnd('\')
 
         if ($networkPath -notmatch '^\\\\[^\\]+\\[^\\]+') {
             throw "Path must be a UNC path like \\SERVER\Share\Folder"
         }
-        
         $shareRoot = $Matches[0]   # e.g. \\SERVER\InTech - authenticate against the share root
 
         # --- Authenticate (no plain-text password on the command line) -------------------
@@ -100,13 +107,37 @@ function installTscan {
         }
 
         # --- Install ---------------------------------------------------------------------
-        $setup = Join-Path $tempPath "tekscan\setup.exe"
-        if (-not (Test-Path -PathType Leaf $setup)) {
-            throw "Installer not found: $setup"
+        # Search every subfolder for setup.exe, shallowest match first
+        $setupMatches = @(
+            Get-ChildItem -LiteralPath $tempPath -Filter "setup.exe" -File -Recurse -ErrorAction SilentlyContinue |
+            Sort-Object { ($_.FullName -split '\\').Count }, FullName
+        )
+
+        if ($setupMatches.Count -eq 0) {
+            throw "No setup.exe found anywhere under $tempPath. Check that the installer path was correct."
+        } elseif ($setupMatches.Count -eq 1) {
+            $setup = $setupMatches[0].FullName
+        } else {
+            writeText -type "plain" -text "Multiple setup.exe files found:"
+            for ($i = 0; $i -lt $setupMatches.Count; $i++) {
+                $relative = $setupMatches[$i].FullName.Substring($tempPath.Length + 1)
+                writeText -type "plain" -text "  [$($i + 1)] $relative"
+            }
+            writeText -type "prompt" -text "Which one is the T-Scan installer? (Enter for 1)"
+            $choice = ([string](readInput -prompt "Number:")).Trim()
+
+            $index = 1
+            if ($choice -and (-not [int]::TryParse($choice, [ref]$index) -or $index -lt 1 -or $index -gt $setupMatches.Count)) {
+                throw "Invalid selection: $choice"
+            }
+            $setup = $setupMatches[$index - 1].FullName
         }
+        writeText -type "plain" -text "Using installer: $setup"
 
         writeText -type "plain" -text "Installing T-Scan..."
-        $proc = Start-Process -FilePath $setup -ArgumentList $installerArgs -Wait -PassThru
+        # Run from the installer's own folder; many setups look for their files relative to the working directory
+        $proc = Start-Process -FilePath $setup -ArgumentList $installerArgs `
+            -WorkingDirectory (Split-Path -Parent $setup) -Wait -PassThru
 
         switch ($proc.ExitCode) {
             0 { writeText -type "plain" -text "T-Scan installed." -lineAfter }
