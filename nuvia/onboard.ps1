@@ -300,7 +300,7 @@ function installApps {
             }
         )
 
-        if ($computerType -in @("FD1", "FD2", "FD3", "OM")) {
+        if ($computerType -ne "" -and $computerType -in @("FD1", "FD2", "FD3", "OM")) {
             $appsToInstall += @{ 
                 Name   = "Sonos"
                 Url    = "https://www.sonos.com/redir/controller_software_pc2"
