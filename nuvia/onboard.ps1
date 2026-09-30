@@ -263,8 +263,8 @@ function optimize {
 }
 function installApps {
     param (
-        [Parameter(Mandatory = $true)][string]$computerType,
-        [Parameter(Mandatory = $true)][string]$ninjaLink
+        [string]$computerType = "",
+        [string]$ninjaLink = ""
     )
 
     try {
