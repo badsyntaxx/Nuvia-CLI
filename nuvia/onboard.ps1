@@ -5,6 +5,7 @@ function init {
     $script:errors = $([ordered]@{})
     $location = ""
     $computerType = ""
+    $ninjaLink = ""
 
     writeText -type "header" -text "Initializing Nuvia Onboarding Script"
     writeText -type "plain" -text "Hostname : $env:COMPUTERNAME"
@@ -318,7 +319,9 @@ function installApps {
             $null = installApp -url $app.Url -appName $app.Name -fileName $app.File -params $app.Params -outputPath "C:\Nuvia\Temp" | Out-Null
         }
 
-        installNinja -ninjaLink $ninjaLink
+        if (-not [string]::IsNullOrWhiteSpace($ninjaLink)) {
+            installNinja -ninjaLink $ninjaLink
+        }
 
         pinAppsToTaskbar
     } catch {
