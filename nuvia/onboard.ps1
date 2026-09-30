@@ -80,7 +80,7 @@ function init {
     }
 
     writeText -type "prompt" -text "Provide a ninja install link" -lineBefore
-    $ninjaLink = readInput -prompt "Url:"
+    $ninjaLink = readInput -prompt "Url:" -allowBlank
 
     createNuviaFolders
     debloat
