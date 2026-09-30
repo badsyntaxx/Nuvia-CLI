@@ -69,19 +69,19 @@ function init {
 
         writeText -type "prompt" -text "What type of computer is this? Example: DR1, FD1, EX2"
         $computerType = readInput -prompt "Computer type:" -validSet $validSet
-
         $computerType = $computerType.ToUpper()
 
         writeText -type "notice" -text "$location-$locationType-$computerType"
     }
 
+    writeText -type "prompt" -text "Provide a ninja install link" -lineBefore
+    $ninjaLink = readInput -prompt "Url:"
+
     createNuviaFolders
     debloat
     declutter
     optimize
-    if (-not [string]::IsNullOrWhiteSpace($computerType)) {
-        installApps -computerType $computerType
-    }
+    installApps -computerType $computerType -ninjaLink $ninjaLink
     normalizeEnvironment -location $location -locationType $locationType -computerType $computerType
     writeSummary
 
@@ -258,7 +258,8 @@ function optimize {
 }
 function installApps {
     param (
-        [Parameter(Mandatory = $true)][string]$computerType
+        [Parameter(Mandatory = $true)][string]$computerType,
+        [Parameter(Mandatory = $true)][string]$ninjaLink
     )
 
     try {
@@ -313,7 +314,7 @@ function installApps {
             $null = installApp -url $app.Url -appName $app.Name -fileName $app.File -params $app.Params -outputPath "C:\Nuvia\Temp" | Out-Null
         }
 
-        installJumpcloud
+        installNinja -ninjaLink $ninjaLink
 
         pinAppsToTaskbar
     } catch {
@@ -349,8 +350,6 @@ function writeSummary {
     writeText -type "plain" -text "Errors       :"
     writeText -type "list" -list $script:errors
 }
-
-
 
 # --- Helpers ------------------------------------------------
 function uninstallOneDrive {
@@ -1084,77 +1083,58 @@ function getBGInfo {
         writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
     }
 }
-function installJumpcloud {
+function installNinja {
+    param (
+        [Parameter(Mandatory = $true)][string]$ninjaLink
+    )
+
+    $serviceName = "NinjaRMMAgent"
+
     try {
-        writeText -type "plain" -text "Installing JumpCloud"
-        $agentPath = Join-Path ${env:ProgramFiles} "JumpCloud"
-        if (-not (Test-Path -Path "$($agentPath)\jumpcloud-agent.exe")) {
-            $url = "https://cdn02.jumpcloud.com/production/versions/2.179.2/jcagent-msi-signed.msi"
-            $installerPath = "C:\Nuvia\Temp\jcagent-msi-signed.msi"
-
-            (New-Object System.Net.WebClient).DownloadFile("$url", "$installerPath")
-       
-            $log = "C:\Nuvia\Logs\jcInstall.log";
-            $JumpCloudConnectKey = "jcc_eyJwdWJsaWNLaWNrc3RhcnRVcmwiOiJodHRwczovL2tpY2tzdGFydC5qdW1wY2xvdWQuY29tIiwicHJpdmF0ZUtpY2tzdGFydFVybCI6Imh0dHBzOi8vcHJpdmF0ZS1raWNrc3RhcnQuanVtcGNsb3VkLmNvbSIsImNvbm5lY3RLZXkiOiJkOGFmZTk1NTE2NzdjMzJhMDBkMTRhZmY3MjgwZjZiNDEzZWE5MmRlIn0g";
-                
-            # Correct MSIEXEC arguments - note the proper quoting
-            $installArgs = @(
-                "/i",
-                "`"$installerPath`"",
-                "/quiet",
-                "/norestart",
-                "/L*V",
-                "`"$log`"",
-                "JCINSTALLERARGUMENTS=`"-k $JumpCloudConnectKey`""
-            )
-                
-            "Starting installation with arguments: msiexec $installArgs" | Out-File -FilePath $log -Append
-                
-            $process = Start-Process -FilePath "msiexec" -ArgumentList $installArgs -PassThru -NoNewWindow -Wait
-
-            writeText -type "plain" -text "Installation process started (PID: $($process.Id))"
-            writeText -type "plain" -text "Waiting for agent service to start..."
-                
-            $startTime = Get-Date
-            $timeout = New-TimeSpan -Minutes 10
-            $animationChars = @('|', '/', '-', '\')
-            $counter = 0
-
-            while ((Get-Date) - $startTime -lt $timeout) {
-                $agentService = Get-Service -Name "jumpcloud-agent" -ErrorAction SilentlyContinue
-                    
-                if ($agentService -and $agentService.Status -eq "Running") {
-                    writeText -type "plain" -text "Installation completed in: $((Get-Date) - $startTime)"
-                    writeText -type "plain" -text "Service status: $($agentService.Status)"
-                    writeText -type "plain" -text "JumpCloud Agent installed and running successfully!"
-                    break
-                }
-                    
-                # Animated progress indicator
-                $animation = $animationChars[$counter % $animationChars.Length]
-                writeText -type "plain" -text "`rInstalling $animation (Elapsed: $((Get-Date) - $startTime))"
-                $counter++
-                Start-Sleep -Milliseconds 250
-            }
-                
-            if (-not $agentService -or $agentService.Status -ne "Running") {
-                Write-Warning "Installation timeout reached. Checking service status..."
-                $agentService = Get-Service -Name "jumpcloud-agent" -ErrorAction SilentlyContinue
-                if (-not $agentService) {
-                    throw "JumpCloud service not found after installation attempt."
-                    exit
-                } else {
-                    Write-Warning "JumpCloud service found but not running. Current status: $($agentService.Status)"
-                }
-                writeText -type "plain" -text "Please check the installation log at: $log"
-            }
-
-            $JumpCloudConnectKey = $null;
-        } else {
-            writeText -type "plain" -text "JumpCloud Agent Already Installed."
+        $service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
+        if ($null -ne $service -and $service.Status -eq "Running") {
+            $null = writeText -type "success" -text "$serviceName is already installed and running."
+            return $true
         }
+
+        # installApp skips the download if the agent is already registered,
+        # so a stopped-but-installed agent falls straight through to the service loop
+        $installed = installApp -url $ninjaLink -appName "NinjaRMMAgent" `
+            -fileName "NinjaOne-Agent-Nuvia-Inventory-WINDOWSDESKTOP-x86-64.msi" `
+            -params "/qn /norestart /l*v `"$env:SystemRoot\Temp\NinjaOne-Install.log`"" |
+        Select-Object -Last 1
+
+        # installApp already printed the reason
+        if ($installed -ne $true) { return $false }
+
+        $maxAttempts = 10
+        $waitSeconds = 5
+        $null = writeText -type "notice" -text "Waiting for $serviceName service to start..."
+
+        for ($i = 1; $i -le $maxAttempts; $i++) {
+            $service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
+
+            if ($null -eq $service) {
+                $null = writeText -type "notice" -text "Service not found yet. Attempt $i of $maxAttempts."
+            } else {
+                if ($service.Status -ne "Running") {
+                    $null = writeText -type "notice" -text "Attempt $i of $maxAttempts`: Service found but not running. Starting service..."
+                    Start-Service -Name $serviceName -ErrorAction SilentlyContinue
+                    $service.Refresh()
+                }
+                if ($service.Status -eq "Running") {
+                    $null = writeText -type "success" -text "NinjaOne is installed and the service is running." -lineAfter
+                    return $true
+                }
+            }
+
+            if ($i -lt $maxAttempts) { Start-Sleep -Seconds $waitSeconds }
+        }
+
+        throw "NinjaOne installed but the service failed to start after $($maxAttempts * $waitSeconds) seconds."
     } catch {
-        writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
+        $null = writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
+        return $false
     }
 }
 
@@ -1162,7 +1142,6 @@ function installJumpcloud {
 function isSystemContext {
     return ([Security.Principal.WindowsIdentity]::GetCurrent()).User.Value -eq 'S-1-5-18'
 }
-
 # Creates the full key path before writing. New-Item WITHOUT -Force fails when
 # the parent key is missing, which is what broke ...\Explorer\Advanced\People.
 function setRegValue {
@@ -1183,7 +1162,6 @@ function setRegValue {
         writeText -type "error" -text "setRegValue failed: $Path\$Name - $($_.Exception.Message)"
     }
 }
-
 # Returns every real user profile directory, plus Default so future users
 # inherit whatever we do. Use this instead of $env:USERPROFILE / $env:LOCALAPPDATA,
 # which point at C:\Windows\system32\config\systemprofile under SYSTEM.
@@ -1211,7 +1189,6 @@ function getUserProfiles {
 
     return $out
 }
-
 # Runs a scriptblock once per user hive, handing it that user's registry root
 # in place of HKCU:. Logged-on users are edited live via HKEY_USERS\<SID>;
 # everyone else has NTUSER.DAT loaded and unloaded around the call.
@@ -1265,7 +1242,6 @@ function invokeForEachUserHive {
         }
     }
 }
-
 # winget reaches interactive users through an App Execution Alias in
 # %LOCALAPPDATA%\Microsoft\WindowsApps, which SYSTEM has no copy of. Resolve
 # the real binary under Program Files\WindowsApps instead.

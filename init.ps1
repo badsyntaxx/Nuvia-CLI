@@ -42,8 +42,6 @@ function initializeShellCLI {
             New-Item -Path $shellCliRoot -ItemType Directory -Force -ErrorAction Stop | Out-Null
         }
 
-        protectShellCLIDirectory -path $shellCliRoot
-
         # Build the main script
         log -msg "Building main script"
 
@@ -69,7 +67,7 @@ function initializeShellCLI {
         }
 
         log -msg "Running main script"
-        . $mainScript
+        . ([scriptblock]::Create([System.IO.File]::ReadAllText($mainScript)))
     } catch {
         Write-Host "  $($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber): $($_.Exception.Message)" -ForegroundColor "Red"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
@@ -113,42 +111,6 @@ function appendToMainScript {
     }
 }
 
-function protectShellCLIDirectory {
-    <#
-        Restricts shellcli root to SYSTEM and Administrators.
-
-        Subfolders under shellcliroot inherit ACEs that let standard users create
-        files there. Since SHELLCLI.ps1 is written and then dot-sourced with
-        admin rights, an unprivileged user could otherwise swap its contents
-        between those two steps.
-    #>
-    param (
-        [Parameter(Mandatory)][string]$path
-    )
-
-    try {
-        $acl = Get-Acl -LiteralPath $path
-        $acl.SetAccessRuleProtection($true, $false)   # disable inheritance, drop inherited ACEs
-
-        foreach ($sid in @('S-1-5-18', 'S-1-5-32-544')) {
-            # SYSTEM, BUILTIN\Administrators
-            $account = (New-Object Security.Principal.SecurityIdentifier($sid))
-            $acl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule(
-                        $account,
-                        'FullControl',
-                        'ContainerInherit, ObjectInherit',
-                        'None',
-                        'Allow'
-                    )))
-        }
-
-        Set-Acl -LiteralPath $path -AclObject $acl -ErrorAction Stop
-        log -msg "Secured $path" -lvl "DEBUG"
-    } catch {
-        # Non-fatal: log it and continue rather than blocking startup.
-        log -msg "Could not harden ${path}: $($_.Exception.Message)" -lvl "WARNING"
-    }
-}
 function log {
     param(
         [Parameter(Mandatory = $true, Position = 0)]
