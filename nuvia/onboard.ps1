@@ -321,6 +321,8 @@ function installApps {
 
         if (-not [string]::IsNullOrWhiteSpace($ninjaLink)) {
             installNinja -ninjaLink $ninjaLink
+        } else {
+            writeText -type "plain" -text "Ninja link was blank. Skipping."
         }
 
         pinAppsToTaskbar
