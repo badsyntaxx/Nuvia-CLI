@@ -62,6 +62,10 @@ function init {
             "BKS",
             "BKU",
             "CAM",
+            "iCAM"
+            "iCAM1"
+            "iCAM2"
+            "iCAM3"
             "SCAN",
             "SCAN1",
             "SCAN2"
