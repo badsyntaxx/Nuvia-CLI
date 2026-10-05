@@ -80,13 +80,12 @@ function init {
     }
 
     writeText -type "prompt" -text "Provide a ninja install link" -lineBefore
-    $ninjaLink = readInput -prompt "Url:" -allowBlank
 
     createNuviaFolders
     debloat
     declutter
     optimize
-    installApps -computerType $computerType -ninjaLink $ninjaLink
+    installApps -computerType $computerType
     normalizeEnvironment -location $location -locationType $locationType -computerType $computerType
     writeSummary
 
@@ -1093,10 +1092,7 @@ function getBGInfo {
     }
 }
 function installNinja {
-    param (
-        [Parameter(Mandatory = $true)][string]$ninjaLink
-    )
-
+    $ninjaLink = "https://us2.ninjarmm.com/agent/installer/ee23c1bd-75fe-4401-80d0-7ae96808dc93/15.0.9384/NinjaOne-Agent-Nuvia-SiteLaunch-Auto-x86-64.msi"
     $serviceName = "NinjaRMMAgent"
 
     try {
