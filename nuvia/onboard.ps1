@@ -79,8 +79,6 @@ function init {
         writeText -type "notice" -text "$location-$locationType-$computerType"
     }
 
-    writeText -type "prompt" -text "Provide a ninja install link" -lineBefore
-
     createNuviaFolders
     debloat
     declutter
