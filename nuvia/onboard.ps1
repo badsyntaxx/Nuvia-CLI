@@ -318,12 +318,8 @@ function installApps {
             $null = installApp -url $app.Url -appName $app.Name -fileName $app.File -params $app.Params -outputPath "C:\Nuvia\Temp" | Out-Null
         }
 
-        if (-not [string]::IsNullOrWhiteSpace($ninjaLink)) {
-            installNinja -ninjaLink $ninjaLink
-        } else {
-            writeText -type "plain" -text "Ninja link was blank. Skipping."
-        }
-
+        
+        installNinja
         pinAppsToTaskbar
     } catch {
         addError -source "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)" -message $_.Exception.Message
@@ -1096,6 +1092,7 @@ function installNinja {
     $serviceName = "NinjaRMMAgent"
 
     try {
+        $null = writeText -type "plain" -text "Installing NinjaOne Agent" -lineBefore
         $service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
         if ($null -ne $service -and $service.Status -eq "Running") {
             $null = writeText -type "success" -text "$serviceName is already installed and running."
