@@ -102,7 +102,7 @@ function init {
 }
 function debloat {
     try {
-        writeText -type "header" -text "Debloating"
+        writeText -type "header" -text "Debloating" -lineBefore
         foreach ($lang in @("es-es", "fr-fr", "pt-br")) { 
             uninstallWin32App -AppName "Microsoft 365 - $lang" 
         }
