@@ -90,7 +90,10 @@ function getRemoteScript {
     $ProgressPreference = 'SilentlyContinue'
 
     try {
-        $base = 'https://raw.githubusercontent.com/badsyntaxx/shellcli/main'
+        $base = "https://raw.githubusercontent.com/badsyntaxx/Nuvia-CLI/main"
+        if ($directory -eq 'main' -or $directory -eq 'plugins') {
+            $base = "https://raw.githubusercontent.com/badsyntaxx/shellcli/main"
+        }
         $url = if ($directory) { "$base/$directory/$file.ps1" } else { "$base/$file.ps1" }
 
         # Older hosts may still default to TLS 1.0, which GitHub rejects.
