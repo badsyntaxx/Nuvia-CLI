@@ -1,6 +1,5 @@
 function initializeShellCLI {
     $shellCliRoot = Join-Path -Path $env:SystemDrive -ChildPath 'Nuvia\tools\shellcli'
-    $mainScript = Join-Path -Path $shellCliRoot -ChildPath 'SHELLCLI.ps1'
 
     try {
         # Elevation
@@ -13,7 +12,7 @@ function initializeShellCLI {
                     -WorkingDirectory $env:SystemRoot -ArgumentList @(
                     '-NoProfile'
                     '-ExecutionPolicy', 'Bypass'
-                    '-Command', 'irm n.shellcli.com | iex'
+                    '-Command', 'irm https://raw.githubusercontent.com/badsyntaxx/Nuvia-CLI/main/init.ps1 | iex'
                 )
             } catch {
                 # Thrown when the user cancels the UAC prompt (error 1223) or
@@ -23,8 +22,6 @@ function initializeShellCLI {
 
             return
         }
-
-        createNuviaFolders
 
         log -msg "Initializing ShellCLI"
 
@@ -42,70 +39,79 @@ function initializeShellCLI {
             New-Item -Path $shellCliRoot -ItemType Directory -Force -ErrorAction Stop | Out-Null
         }
 
-        # Build the main script
+        # Build the main script in memory. Nothing is written to disk and then
+        # executed, so execution policy never applies and there is no window in
+        # which a file could be swapped between being written and being run.
         log -msg "Building main script"
 
-        # Set-Content creates or truncates, and stamps the file with a UTF-8 BOM
-        # so Windows PowerShell 5.1 reads it back correctly.
-        Set-Content -LiteralPath $mainScript -Value '' -Encoding UTF8 -Force -ErrorAction Stop
-
-        if (-not (appendToMainScript -file 'framework')) {
+        $framework = getRemoteScript -file 'framework'
+        if ($null -eq $framework) {
             throw "Could not download framework.ps1"
         }
-        if (-not (appendToMainScript -directory 'nuvia' -file 'core')) {
-            throw "Could not download nuvia/core.ps1"
+
+        $core = getRemoteScript -directory 'main' -file 'core'
+        if ($null -eq $core) {
+            throw "Could not download main/core.ps1"
         }
 
+        # core is already defined by the build below. Seed the module cache so
+        # the first core command (help) does not download it a second time.
+        # framework.ps1 keeps an existing cache instead of resetting it.
+        $global:moduleCache = @{ 'main/core' = $core }
+
         # Bootstrap line that hands control to the CLI
-        Add-Content -LiteralPath $mainScript -Encoding UTF8 -ErrorAction Stop `
-            -Value 'invokeScript -script "startShell" -initialize $true'
+        $mainScript = $framework + "`n" + $core + "`n" + 'invokeScript -script "startShell" -initialize $true'
 
         # Cheap sanity check: a successful build is never this small
-        $builtSize = (Get-Item -LiteralPath $mainScript).Length
-        if ($builtSize -lt 256) {
-            throw "Main script built but looks truncated ($builtSize bytes)"
+        if ($mainScript.Length -lt 256) {
+            throw "Main script built but looks truncated ($($mainScript.Length) chars)"
         }
 
         log -msg "Running main script"
-        . ([scriptblock]::Create([System.IO.File]::ReadAllText($mainScript)))
+        . ([scriptblock]::Create($mainScript))
     } catch {
         Write-Host "  $($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber): $($_.Exception.Message)" -ForegroundColor "Red"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
     }
 }
 
-function appendToMainScript {
-    [OutputType([bool])]
+function getRemoteScript {
+    <#
+        Downloads one script from the repo and returns its source text.
+        Reports the error and returns $null if it cannot be obtained.
+    #>
+    [OutputType([string])]
     param (
         [Parameter(Mandatory = $false)][string]$directory,
         [Parameter(Mandatory)][string]$file
     )
 
-    $mainScript = Join-Path -Path $env:SystemDrive -ChildPath 'Nuvia\tools\shellcli\SHELLCLI.ps1'
     $oldProgress = $ProgressPreference
     $ProgressPreference = 'SilentlyContinue'
 
     try {
-        $base = 'https://raw.githubusercontent.com/badsyntaxx/Nuvia-CLI/main'
+        $base = 'https://raw.githubusercontent.com/badsyntaxx/shellcli/main'
         $url = if ($directory) { "$base/$directory/$file.ps1" } else { "$base/$file.ps1" }
 
         # Older hosts may still default to TLS 1.0, which GitHub rejects.
         [Net.ServicePointManager]::SecurityProtocol = `
             [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 
-        $src = (Invoke-WebRequest -Uri $url -UseBasicParsing -ErrorAction Stop).Content
+        # Windows PowerShell 5.1 does not ask for compression by itself. With
+        # the header GitHub sends gzip (~75% smaller) and .Content is decoded.
+        $src = (Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 20 -ErrorAction Stop `
+                -Headers @{ 'Accept-Encoding' = 'gzip' }).Content
 
         if ([string]::IsNullOrWhiteSpace($src)) {
             throw "Downloaded an empty response from $url"
         }
 
-        Add-Content -LiteralPath $mainScript -Value $src -Encoding UTF8 -ErrorAction Stop
-        log -msg "Appended $file.ps1 ($($src.Length) chars)" -lvl "DEBUG"
-        return $true
+        log -msg "Downloaded $file.ps1 ($($src.Length) chars)" -lvl "DEBUG"
+        return $src
     } catch {
         Write-Host "  $($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber): $($_.Exception.Message)" -ForegroundColor "Red"
         log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
-        return $false
+        return $null
     } finally {
         $ProgressPreference = $oldProgress
     }

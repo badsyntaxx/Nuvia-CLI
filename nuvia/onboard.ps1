@@ -118,6 +118,7 @@ function debloat {
             @{ Name = "Disney+"; Package = "Disney.37853FC22B2CE" },
             @{ Name = "Netflix"; Package = "4DF9E0F8.Netflix" },
             @{ Name = "Amazon Prime Video"; Package = "AmazonVideo.PrimeVideo" },
+            @{ Name = "Kindle"; Package = "AMZNMobileLLC.KindleforWindows8" },
             @{ Name = "Facebook"; Package = "Facebook.Facebook" },
             @{ Name = "TikTok"; Package = "BytedancePte.Ltd.TikTok" },
             @{ Name = "Instagram"; Package = "Facebook.InstagramBeta" },
