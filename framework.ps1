@@ -1205,7 +1205,7 @@ function getDownload {
             }
 
             if ($attempt -lt $maxAttempts -and $retryable) {
-                $null = log -msg "$($MyInvocation.MyCommand.Name)-$($errorLine): attempt $attempt failed: $errorMessage" -lvl "WARN"
+                $null = log -msg "$($MyInvocation.MyCommand.Name)-$($errorLine): attempt $attempt failed: $errorMessage" -lvl "WARNING"
                 $null = writeText -type "plain" -text "Retrying..."
                 Start-Sleep -Seconds 1
                 continue
@@ -1625,7 +1625,7 @@ function registerWingetForCurrentUser {
             -ErrorAction Stop
     } catch {
         # Expected under SYSTEM, where there is no meaningful user context.
-        log -msg "registerWingetForCurrentUser: $($_.Exception.Message)" -lvl "WARN"
+        log -msg "registerWingetForCurrentUser: $($_.Exception.Message)" -lvl "WARNING"
     }
 }
 function installWingetForAllUsers {
@@ -1753,7 +1753,7 @@ function installWingetForAllUsers {
             log -msg "installWingetForAllUsers: provisioned $($release.tag_name)." -lvl "INFO"
         } else {
             writeText -type "notice" -text "Provisioning succeeded but winget is not resolvable in this session. It will be available to users at next sign-in."
-            log -msg "installWingetForAllUsers: provisioned but not resolvable in current session." -lvl "WARN"
+            log -msg "installWingetForAllUsers: provisioned but not resolvable in current session." -lvl "WARNING"
         }
 
         # --- 10. Clean up ----------------------------------------------------------
