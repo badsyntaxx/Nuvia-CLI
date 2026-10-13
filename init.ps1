@@ -30,6 +30,8 @@ function initializeShellCLI {
         # A dev checkout loaded earlier in this window must not leak into this run.
         $global:shellcliDevRoot = $null
 
+        createNuviaFolders
+
         # Download everything up front, in memory: the config has to be known
         # before anything is written to disk. Nothing is ever written and then
         # executed, so execution policy never applies and there is no window in
