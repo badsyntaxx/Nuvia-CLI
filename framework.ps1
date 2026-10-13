@@ -1,100 +1,19 @@
 $global:moduleCache = @{}
-$global:commandMap = [ordered]@{
-    "?"                              = @("main", "core", "writeHelp", "List some help info.")
-    "help"                           = @("main", "core", "writeHelp", "List some help info.")
-    "menu"                           = @("main", "core", "readMenu", "Display the main menu.")
-    "commands"                       = @("main", "core", "listAllCommands", "List all available commands.")
-    "logs"                           = @("nuvia", "core", "readLog", "Output the last 50 lines of the log file.")
-    #-- CUSTOMIZATION COMMANDS --#
-    "toggle context menu"            = @("main", "common", "toggleContextMenu", "Toggle the context menu.")
-    "enable context menu"            = @("main", "common", "enableContextMenu", "Enable the context menu.")
-    "disable context menu"           = @("main", "common", "disableContextMenu", "Disable the context menu.")
-    "edit hostname"                  = @("main", "common", "editHostname", "Edit the hostname.")
-    "edit description"               = @("main", "common", "editDescription", "Edit the host description.")
-    #-- USER COMMANDS --#
-    "toggle admin"                   = @("main", "user", "toggleAdmin", "Toggle admin privileges.")
-    "enable admin"                   = @("main", "user", "enableAdmin", "Enable admin privileges.")
-    "disable admin"                  = @("main", "user", "disableAdmin", "Disable admin privileges.")
-    "users"                          = @("main", "user", "listUsers", "List all users.")
-    "user menu"                      = @("main", "user", "userMenu", "Display the user menu.")
-    "add user"                       = @("main", "user", "addUser", "Add a new user.")
-    "add local user"                 = @("main", "user", "addLocalUser", "Add a new local user.")
-    "add ad user"                    = @("main", "user", "addADUser", "Add a new Active Directory user.")
-    "remove user"                    = @("main", "user", "removeUser", "Remove a user.")
-    "edit user"                      = @("main", "user", "editUser", "Edit a user.")
-    "edit user name"                 = @("main", "user", "editUserName", "Edit a user's name.")
-    "edit user password"             = @("main", "user", "editUserPassword", "Edit a user's password.")
-    "edit user group"                = @("main", "user", "editUserGroup", "Edit a user's group.")
-    "unlock user"                    = @("main", "user", "unlockUser", "Unlock a user.")
-    #-- NETWORK COMMANDS --#
-    "network"                        = @("main", "network", "network", "Get net adapter info.")
-    "edit network"                   = @("main", "network", "editNetAdapter", "Edit the network adapter. ()ETA")
-    "wifi"                           = @("main", "network", "getWifiCreds", "Get WiFi credentials.")
-    #-- APPS COMMANDS --#
-    "get apps"                       = @("main", "apps", "getApps", "Display a menu of available apps.")
-    "get app"                        = @("main", "apps", "getApp", "Get an app by providing install details.")
-    "get browser apps"               = @("main", "apps", "getBrowserApps", "Display a menu of web browsers.")
-    "get diagnostic apps"            = @("main", "apps", "getDiagnosticApps", "Display a menu of PC diagnostic software.")
-    "get productivity apps"          = @("main", "apps", "getProductivityApps", "Display a menu of productivity apps.")
-    "get customization apps"         = @("main", "apps", "getCustomizationApps", "Display a menu of customization apps.")
-    #-- SYSTEM COMMANDS --#
-    "techmode 1"                     = @("main", "common", "techMode", "Enable tech mode.")
-    "techmode 0"                     = @("main", "common", "userMode", "Enable user mode.")
-    "fix icons"                      = @("main", "fix", "fixIcons", "Fix desktop icons.")
-    "disable hibernate file"         = @("main", "common", "disableHibernateFile", "Disable the hibernate file.")
-    "services"                       = @("main", "services", "listServices", "Display the services.")
-    "stop service"                   = @("main", "services", "stopService", "Stop a service.")
-    "start service"                  = @("main", "services", "startService", "Start a service.")
-    "restart service"                = @("main", "services", "restartService", "Restart a service.")
-    "service status"                 = @("main", "services", "getServiceStatus", "Check the status of a service.")
-    "service menu"                   = @("main", "services", "serviceMenu", "Display the service controller menu.")
-    "schedule task"                  = @("main", "task", "scheduleTask", "Schedule a task.(BETA)")
-    "update windows"                 = @("main", "fix", "updateWindows", "Update Windows.")
-    "clean temp files"               = @("main", "fix", "cleanTempFiles", "Clear temporary files.")
-    "repair windows"                 = @("main", "fix", "repairWindows", "Repair Windows.")
-    "install host gpu drivers on vm" = @("main", "gpu", "installHostGPUDriversOnVM", "Install host GPU drivers on VM.")
-    "partition gpu"                  = @("main", "gpu", "partitionGPU", "Partition the GPU.")
-    "generate encrypted password"    = @("main", "common", "generateEncryptedPassword", "Generate an encrypted password.")
-    "unlock local user"              = @("main", "user", "unlockLocalUser", "Unlock a locked local account.")
-    "find dc"                        = @("main", "common", "findDC", "Find the domain controller.")
-    "storage"                        = @("main", "common", "getStorage", "Display storage information.")
-    "stored creds"                   = @("main", "common", "showStoredCredentials", "Show Windows stored credentials.")
-    #-- PLUGIN COMMANDS --#
-    "plugins"                        = @("plugins", "core", "plugins", "List available plugins.")
-    "plugins menu"                   = @("plugins", "core", "readMenu", "Display the plugin menu.")
-    "plugins help"                   = @("plugins", "core", "writeHelp", "Display help information for plugins.")
-    "plugins ?"                      = @("plugins", "core", "writeHelp", "Display help information for plugins.")
-    "plugins massgravel"             = @("plugins", "massgravel", "massgravel", "Windows activation scripts.")
-    "plugins reclaim"                = @("plugins", "reclaim", "reclaim", "Disable telemetry and bloatware in Windows 11.")
-    #-- NUVIA COMMANDS --#
-    "nuv"                            = @("nuvia", "core", "nuvia", "Nuvia CLI plugin.")
-    "n?"                             = @("nuvia", "core", "writeHelp", "Nuvia CLI plugin.")
-    "n menu"                         = @("nuvia", "core", "readMenu", "Display the Nuvia CLI menu.")
-    "i jumpcloud"                    = @("nuvia", "Install JumpCloud", "installJumpCloud", "Install JumpCloud.")
-    "i ninja"                        = @("nuvia", "Ninja", "installNinja", "Install Ninja.")
-    "u ninja"                        = @("nuvia", "Ninja", "uninstallNinja", "Uninstall Ninja.")
-    "r ninja"                        = @("nuvia", "Ninja", "restartNinjaService", "Restart Ninja service (NRStreamer).")
-    "od menu"                        = @("nuvia", "OpenDental", "odMenu", "Display the OpenDental menu.")
-    "od version"                     = @("nuvia", "OpenDental", "getODVersion", "Get the OpenDental version.")
-    "od config"                      = @("nuvia", "OpenDental", "getODConfig", "Get the OpenDental configuration.")
-    "find od config"                 = @("nuvia", "OpenDental", "findODConfig", "Find the OpenDental config on another computer.")
-    "enable admin net share"         = @("nuvia", "OpenDental", "enableAdminNetShare", "Enable the built-in admin account and file sharing.")
-    "disable admin net share"        = @("nuvia", "OpenDental", "disableAdminNetShare", "Disable the built-in admin account.")
-    "od install 24341"               = @("nuvia", "OpenDental", "install24341", "Install OpenDental version 24341.")
-    "dtx version"                    = @("nuvia", "DTX", "getDTXVersion", "Get the DTX Studio version.")
-    "ezdent version"                 = @("nuvia", "Vatech", "getEZDentVersion", "Get the EZDent version number.")
-    "ezsever version"                = @("nuvia", "Vatech", "getEZServerVersion", "Get the EZServer version number.")
-    "vatech config"                  = @("nuvia", "Vatech", "getVTServerConfig", "Get the EZDent VTServerConfig.")
-    "i tscan"                        = @("nuvia", "TScan", "installTscan", "Install Tscan.")
-    "isr i apps"                     = @("nuvia", "Sales Install Apps", "isrInstallApps", "Install sales applications.")
-    "isr add bookmarks"              = @("nuvia", "Sales Add Bookmarks", "isrAddBookmarks", "Add sales bookmarks.")
-    "isr onboard"                    = @("nuvia", "Sales Onboard", "isrOnboard", "Onboard new sales team members.")
-    "i printer"                      = @("nuvia", "Get Printer Drivers", "getPrinterDrivers", "Get printer drivers.")
-    "clean vatech"                   = @("nuvia", "Vatech", "cleanVatech", "Clear up space on drive.")
-    "onboard"                        = @("nuvia", "onboard", "init", "Onboard a Nuvia computer.")
-    "debloat"                        = @("nuvia", "debloat", "debloat", "Debloat a Nuvia computer.")
-
+function getBuiltInCommands {
+    <#
+        The commands that are always available, even when config.json could not
+        be loaded. The "commands" section of config.json adds to these and can
+        override them.
+    #>
+    return [ordered]@{
+        "?"        = @("main", "core", "writeHelp", "List some help info.")
+        "help"     = @("main", "core", "writeHelp", "List some help info.")
+        "menu"     = @("main", "core", "readMenu", "Display the main menu.")
+        "commands" = @("main", "core", "listAllCommands", "List all available commands.")
+        "logs"     = @("main", "core", "readLog", "Output the last 50 lines of the log file.")
+    }
 }
+$global:commandMap = getBuiltInCommands
 
 function invokeScript {
     param (
@@ -134,10 +53,17 @@ function startShell {
         StackOverflowException.
     #>
     param (
-        [Parameter(Mandatory = $false)][string]$firstCommand = "n?"
+        [Parameter(Mandatory = $false)][string]$firstCommand = "help"
     )
 
     $pending = $firstCommand
+
+    # Config problems found during init are shown here, after the banner,
+    # because init's own output is wiped by the screen clear.
+    foreach ($warning in $global:shellcliConfigWarnings) {
+        writeText -type "notice" -text $warning
+    }
+    $global:shellcliConfigWarnings = @()
 
     while ($true) {
         try {
@@ -200,19 +126,13 @@ function runCommand {
         [Parameter(Mandatory)][string]$command
     )
 
-    try {
-        log -msg "Running command: $command"
+    log -msg "Running command: $command"
 
-        $filteredCommand = filterCommands -command $command
+    $filteredCommand = filterCommands -command $command
 
-        if ($filteredCommand -and $filteredCommand.Count -eq 4) {
-            dispatchCommand -filteredCommand $filteredCommand
-        } 
-    } catch {
-        writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
+    if ($filteredCommand -and $filteredCommand.Count -eq 4) {
+        dispatchCommand -filteredCommand $filteredCommand
     }
-
-    
 }
 function readCommand {
     <#
@@ -303,12 +223,351 @@ function tryInvokePassthrough {
 
     return $true
 }
+function getConfigDefaults {
+    <#
+        Built-in folder settings. Used for any key config.json leaves out or
+        gets wrong, and for everything when config.json could not be loaded.
+        %rootDirectory% stands for the root folder. Keep these in step with
+        config.json in the repo root.
+    #>
+    return [ordered]@{
+        rootDirectory     = '%ProgramData%\shellcli'
+        logDirectory      = '%rootDirectory%'
+        downloadDirectory = '%rootDirectory%\downloads'
+    }
+}
+function expandConfigPath {
+    <#
+        Turns a configured folder into a plain path: %rootDirectory% (any
+        case) becomes $root, environment variables are expanded, and forward
+        slashes are accepted so nobody has to double every backslash in JSON.
+    #>
+    param (
+        [Parameter(Mandatory = $false)][string]$value,
+        [Parameter(Mandatory = $false)][string]$root
+    )
+
+    $token = '%rootDirectory%'
+    $at = $value.IndexOf($token, [System.StringComparison]::OrdinalIgnoreCase)
+    while ($root -and $at -ge 0) {
+        $value = $value.Substring(0, $at) + $root + $value.Substring($at + $token.Length)
+        $at = $value.IndexOf($token, $at + $root.Length, [System.StringComparison]::OrdinalIgnoreCase)
+    }
+
+    return [Environment]::ExpandEnvironmentVariables($value.Trim()).Replace('/', '\')
+}
+function getDefaultFolder {
+    <#
+        One built-in default as a full path. $root is the root folder that
+        %rootDirectory% stands for (not needed for the root itself).
+    #>
+    param (
+        [Parameter(Mandatory)][string]$key,
+        [Parameter(Mandatory = $false)][string]$root
+    )
+
+    $defaults = getConfigDefaults
+    return (expandConfigPath -value $defaults[$key] -root $root).TrimEnd('\')
+}
+function addConfigWarning {
+    param (
+        [Parameter(Mandatory)][string]$text
+    )
+
+    $global:shellcliConfigWarnings = @(@($global:shellcliConfigWarnings) | Where-Object { $_ }) + $text
+}
+function testConfigPath {
+    <#
+        Returns a short reason a configured folder can't be used, or $null if
+        it is fine. $path has already been through expandConfigPath.
+    #>
+    param (
+        [Parameter(Mandatory)][string]$key,
+        [Parameter(Mandatory)][string]$path
+    )
+
+    if ($path -match '%') { return "contains an environment variable that is not defined" }
+    if ($path -notmatch '^([A-Za-z]:\\|\\\\[^\\]+\\[^\\]+)') { return "is not a full path (use something like D:\ShellCLI)" }
+    if ($path -match '[\[\]]') { return "contains [ or ], which are not supported in folder names" }
+
+    foreach ($segment in $path.Split('\')) {
+        if ($segment -and $segment -notin '.', '..' -and $segment -match '[ .]$') {
+            return "has a folder name ending in a space or dot"
+        }
+    }
+
+    try {
+        $full = [System.IO.Path]::GetFullPath($path).TrimEnd('\')
+    } catch {
+        return "is not a valid path"
+    }
+
+    if ($full -match '^[A-Za-z]:$') { return "is a drive root, not a folder" }
+
+    # A drive letter this computer does not have (D: on a machine without one)
+    if ($full -match '^[A-Za-z]:' -and -not (Test-Path -LiteralPath $full.Substring(0, 3))) {
+        return "is on a drive that is not available"
+    }
+
+    # Expand 8.3 short names (C:\PROGRA~1) so they cannot get past the system
+    # folder checks below. GetFullPath only does this for a path that exists,
+    # so expand the part that does and keep the rest as written.
+    if ($full -match '^[A-Za-z]:') {
+        $existing = $full
+        $rest = ''
+        while ($existing -and -not (Test-Path -LiteralPath $existing)) {
+            $rest = '\' + (Split-Path -Path $existing -Leaf) + $rest
+            $existing = Split-Path -Path $existing -Parent
+        }
+        if ($existing) { $full = [System.IO.Path]::GetFullPath($existing).TrimEnd('\') + $rest }
+    }
+
+    if ($key -eq 'rootDirectory') {
+        if ($full.StartsWith('\\')) { return "must be on a local drive, not a network share" }
+
+        # ShellCLI rewrites the permissions of this folder, so refuse anything
+        # inside a system location, and any system location or parent of one.
+        $trees = @(
+            $env:SystemRoot, $env:ProgramFiles, ${env:ProgramFiles(x86)}, $env:ProgramW6432,
+            (Join-Path -Path $env:SystemDrive -ChildPath 'Users')
+        ) | Where-Object { $_ }
+        $folders = @($env:ProgramData, $env:USERPROFILE, $env:PUBLIC) | Where-Object { $_ }
+
+        foreach ($location in @($trees) + @($folders)) {
+            $location = $location.TrimEnd('\')
+            if ($location -ieq $full -or $location.StartsWith("$full\", [System.StringComparison]::OrdinalIgnoreCase)) {
+                return "would change the permissions of '$location'"
+            }
+        }
+        foreach ($location in $trees) {
+            if ($full.StartsWith($location.TrimEnd('\') + '\', [System.StringComparison]::OrdinalIgnoreCase)) {
+                return "is inside the system folder '$location'"
+            }
+        }
+    }
+
+    return $null
+}
+function getConfiguredCommands {
+    <#
+        The built-in commands plus the valid entries of the "commands" section
+        of config.json ($section, as parsed). An entry looks like
+        "add user": { "directory": "main", "file": "user", "function": "addUser", "description": "..." }
+        A bad entry is skipped with a warning. Everything is checked because
+        the function name ends up in Invoke-Expression and the directory and
+        file names end up in a download URL.
+    #>
+    param (
+        [Parameter(Mandatory = $false)]$section,
+        [Parameter(Mandatory)][AllowEmptyCollection()][System.Collections.Generic.List[string]]$warnings
+    )
+
+    $map = getBuiltInCommands
+    if (-not $section) { return $map }
+
+    $skipped = 0
+    foreach ($entry in $section.PSObject.Properties) {
+        $name = ([string]$entry.Name).Trim().ToLower()
+        $item = $entry.Value
+        $problem = $null
+
+        if (-not $name -or $name -match '[\x00-\x1f]') {
+            $problem = "has no usable name"
+        } elseif ($item -isnot [System.Management.Automation.PSCustomObject]) {
+            $problem = "must be an object with directory, file, function and description"
+        } else {
+            $directory = [string]$item.directory
+            $file = [string]$item.file
+            $functionName = [string]$item.function
+            $description = [string]$item.description
+
+            if ($functionName -notmatch '^[A-Za-z_][A-Za-z0-9_-]*$') {
+                $problem = "has an invalid function name '$functionName'"
+            } elseif (($directory -or $file) -and ($directory -notmatch '^[A-Za-z0-9_-]+$' -or $file -notmatch '^[A-Za-z0-9_-]+$')) {
+                $problem = "needs a directory and a file made only of letters, digits, - and _"
+            }
+        }
+
+        if ($problem) {
+            $skipped++
+            if ($skipped -le 5) { $warnings.Add("config.json: command '$name' $problem. It was skipped.") }
+            continue
+        }
+
+        $map[$name] = @($directory, $file, $functionName, $description)
+    }
+
+    if ($skipped -gt 5) { $warnings.Add("config.json: $($skipped - 5) more commands were skipped.") }
+    return $map
+}
+function loadShellcliConfig {
+    <#
+        Builds $global:shellcliConfig (full paths) and $global:commandMap from
+        the text of config.json. A setting that is missing or unusable falls
+        back to its built-in default. Never throws and never logs; problems
+        are left in $global:shellcliConfigWarnings, which startShell shows
+        once and the caller can log. Does not touch the disk: see
+        ensureConfigFolder for that.
+    #>
+    param (
+        [Parameter(Mandatory = $false)][string]$json
+    )
+
+    $defaults = getConfigDefaults
+    $warnings = [System.Collections.Generic.List[string]]::new()
+    $parsed = $null
+
+    try {
+        if (-not [string]::IsNullOrWhiteSpace($json)) {
+            try {
+                # A BOM (Notepad adds one) would make ConvertFrom-Json fail.
+                $parsed = $json.TrimStart([char]0xFEFF) | ConvertFrom-Json -ErrorAction Stop
+            } catch {
+                $warnings.Add("config.json is not valid JSON ($($_.Exception.Message)). Using the default folders and only the built-in commands.")
+            }
+
+            if ($null -ne $parsed -and $parsed -isnot [System.Management.Automation.PSCustomObject]) {
+                $warnings.Add("config.json must contain a JSON object. Using the default folders and only the built-in commands.")
+                $parsed = $null
+            }
+        }
+
+        $known = @($defaults.Keys) + 'commands'
+        if ($parsed) {
+            foreach ($name in $parsed.PSObject.Properties.Name) {
+                if ($name -notin $known) { $warnings.Add("config.json has an unknown setting '$name'. It was ignored.") }
+            }
+        }
+
+        # Folders. The root comes first because the others may refer to it.
+        $resolved = [ordered]@{}
+        $root = $null
+        foreach ($key in $defaults.Keys) {
+            $path = $null
+            $property = if ($parsed) { $parsed.PSObject.Properties[$key] } else { $null }
+            $value = if ($property) { $property.Value } else { $null }
+
+            if ($null -ne $value -and $value -isnot [string]) {
+                $warnings.Add("config.json: $key must be text. Using the default.")
+            } elseif (-not [string]::IsNullOrWhiteSpace($value)) {
+                $candidate = expandConfigPath -value $value -root $root
+                $problem = testConfigPath -key $key -path $candidate
+
+                if ($problem) {
+                    $warnings.Add("config.json: $key '$value' $problem. Using the default.")
+                } else {
+                    $path = $candidate.TrimEnd('\')
+                }
+            }
+
+            if (-not $path) { $path = getDefaultFolder -key $key -root $root }
+            $resolved[$key] = $path
+            if ($key -eq 'rootDirectory') { $root = $path }
+        }
+
+        # The module cache always lives under the root folder.
+        $resolved['cacheDirectory'] = "$root\cache"
+
+        # Commands
+        $section = $null
+        if ($parsed) {
+            $property = $parsed.PSObject.Properties['commands']
+            if ($property -and $property.Value -is [System.Management.Automation.PSCustomObject]) {
+                $section = $property.Value
+            } elseif ($property -and $null -ne $property.Value) {
+                $warnings.Add("config.json: commands must be an object. Only the built-in commands are available.")
+            } else {
+                $warnings.Add("config.json has no commands. Only the built-in commands are available.")
+            }
+        }
+        $commands = getConfiguredCommands -section $section -warnings $warnings
+    } catch {
+        $root = getDefaultFolder -key rootDirectory
+        $resolved = [ordered]@{
+            rootDirectory     = $root
+            logDirectory      = getDefaultFolder -key logDirectory -root $root
+            downloadDirectory = getDefaultFolder -key downloadDirectory -root $root
+            cacheDirectory    = "$root\cache"
+        }
+        $commands = getBuiltInCommands
+        $warnings.Add("config.json could not be applied ($($_.Exception.Message)). Using the default folders and only the built-in commands.")
+    }
+
+    $global:shellcliConfig = $resolved
+    $global:shellcliConfigWarnings = @($warnings)
+    $global:commandMap = $commands
+    $global:shellcliLogFailed = $false
+}
+function getConfigPath {
+    <#
+        Returns one of the configured folders as a full path:
+        root, log, cache or download.
+    #>
+    param (
+        [Parameter(Mandatory)][ValidateSet('root', 'log', 'cache', 'download')][string]$name
+    )
+
+    # Nothing loaded (standalone use, or a log line before init has run):
+    # fall back to the built-in defaults.
+    if (-not $global:shellcliConfig) { loadShellcliConfig }
+
+    return $global:shellcliConfig["${name}Directory"]
+}
+function testConfigFolder {
+    <#
+        Creates the folder if needed and proves it can be written to.
+        Returns $null when it is usable, otherwise a short reason.
+    #>
+    param (
+        [Parameter(Mandatory)][string]$path
+    )
+
+    try {
+        if (-not (Test-Path -LiteralPath $path -PathType Container)) {
+            $null = New-Item -Path $path -ItemType Directory -Force -ErrorAction Stop
+        }
+
+        # New-Item reports success without creating anything when a parent is a file.
+        if (-not (Test-Path -LiteralPath $path -PathType Container)) { return "could not be created" }
+
+        $probe = Join-Path -Path $path -ChildPath ('.write-test-' + [guid]::NewGuid().ToString('N'))
+        [System.IO.File]::WriteAllText($probe, 'x')
+        [System.IO.File]::Delete($probe)
+        return $null
+    } catch {
+        return "cannot be used ($($_.Exception.Message))"
+    }
+}
+function ensureConfigFolder {
+    <#
+        Makes sure a configured folder exists and can be written to. If it
+        can't, queues a warning and switches that setting to its default.
+        Throws only when the default folder is unusable too.
+    #>
+    param (
+        [Parameter(Mandatory)][ValidateSet('rootDirectory', 'logDirectory', 'downloadDirectory')][string]$key
+    )
+
+    if (-not $global:shellcliConfig) { loadShellcliConfig }
+
+    $path = $global:shellcliConfig[$key]
+    $problem = testConfigFolder -path $path
+    if (-not $problem) { return }
+
+    $default = getDefaultFolder -key $key -root $global:shellcliConfig['rootDirectory']
+    addConfigWarning "config.json: $key '$path' $problem. Using '$default'."
+    $global:shellcliConfig[$key] = $default
+    if ($key -eq 'rootDirectory') { $global:shellcliConfig['cacheDirectory'] = "$default\cache" }
+
+    $problem = testConfigFolder -path $default
+    if ($problem) { throw "The default $key '$default' $problem." }
+}
 function getModuleCachePath {
     param (
         [Parameter(Mandatory)][string]$key
     )
 
-    $cacheDir = Join-Path -Path $env:SystemDrive -ChildPath 'Nuvia\tools\shellcli\cache'
+    $cacheDir = getConfigPath -name cache
     if (-not (Test-Path -LiteralPath $cacheDir)) {
         New-Item -Path $cacheDir -ItemType Directory -Force -ErrorAction Stop | Out-Null
     }
@@ -326,95 +585,96 @@ function getModuleSource {
         [Parameter(Mandatory)][string]$file
     )
 
+    $key = if ($directory) { "$directory/$file" } else { $file }
+
+    if ($global:shellcliDevRoot) {
+        $rel = if ($directory) { "$directory\$file.ps1" } else { "$file.ps1" }
+        $path = Join-Path $global:shellcliDevRoot $rel
+        if (-not (Test-Path -LiteralPath $path)) {
+            writeText -type "error" -text "DEV: $rel not found at $path"
+            return $null
+        }
+        # No memory or disk cache in dev, so edits take effect on the next command.
+        return [System.IO.File]::ReadAllText($path)
+    }
+
+    if ($global:moduleCache.ContainsKey($key)) {
+        log -msg "Module '$key' served from memory." -lvl "DEBUG"
+        return $global:moduleCache[$key]
+    }
+
+    $base = 'https://raw.githubusercontent.com/badsyntaxx/Nuvia-CLI/main'
+    $url = if ($directory) { "$base/$directory/$file.ps1" } else { "$base/$file.ps1" }
+    $cachePath = getModuleCachePath -key $key
+
+    $oldProgress = $ProgressPreference
+    $ProgressPreference = 'SilentlyContinue'
+
     try {
-        $key = if ($directory) { "$directory/$file" } else { $file }
+        [Net.ServicePointManager]::SecurityProtocol = `
+            [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 
-        if ($global:shellcliDevRoot) {
-            $rel = if ($directory) { "$directory\$file.ps1" } else { "$file.ps1" }
-            $path = Join-Path $global:shellcliDevRoot $rel
-            if (-not (Test-Path -LiteralPath $path)) {
-                writeText -type "error" -text "DEV: $rel not found at $path"
-                return $null
-            }
-            # No memory or disk cache in dev, so edits take effect on the next command.
-            return [System.IO.File]::ReadAllText($path)
+        # Windows PowerShell 5.1 does not ask for compression by itself. With
+        # the header GitHub sends gzip (~75% smaller) and the body still comes
+        # back decoded, so RawContentStream below is plain UTF-8 text.
+        $resp = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 20 -ErrorAction Stop `
+            -Headers @{ 'Accept-Encoding' = 'gzip' }
+
+        # Decode UTF-8 explicitly rather than trusting the response header.
+        $src = [System.Text.Encoding]::UTF8.GetString($resp.RawContentStream.ToArray())
+
+        if ([string]::IsNullOrWhiteSpace($src)) { throw "Empty response body from $url" }
+
+        # Reject unparseable content before it reaches Invoke-Expression.
+        $parseErrors = $null
+        [void][System.Management.Automation.Language.Parser]::ParseInput(
+            $src, [ref]$null, [ref]$parseErrors)
+
+        if ($parseErrors -and $parseErrors.Count -gt 0) {
+            throw "Module '$key' failed to parse: $($parseErrors[0].Message)"
         }
 
-        if ($global:moduleCache.ContainsKey($key)) {
-            log -msg "Module '$key' served from memory." -lvl "DEBUG"
-            return $global:moduleCache[$key]
-        }
-
-        $base = "https://raw.githubusercontent.com/badsyntaxx/Nuvia-CLI/main"
-        if ($directory -eq 'main' -or $directory -eq 'plugins') {
-            $base = "https://raw.githubusercontent.com/badsyntaxx/shellcli/main"
-        }
-
-        $url = if ($directory) { "$base/$directory/$file.ps1" } else { "$base/$file.ps1" }
-
-        $cachePath = getModuleCachePath -key $key
-
-        $oldProgress = $ProgressPreference
-        $ProgressPreference = 'SilentlyContinue'
+        $global:moduleCache[$key] = $src
 
         try {
-            [Net.ServicePointManager]::SecurityProtocol = `
-                [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+            $utf8Bom = New-Object System.Text.UTF8Encoding($true)
+            [System.IO.File]::WriteAllText($cachePath, $src, $utf8Bom)
+        } catch {
+            log -msg "Disk cache write failed for '$key': $($_.Exception.Message)" -lvl "WARNING"
+        }
 
-            $resp = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 20 -ErrorAction Stop
+        log -msg "Module '$key' downloaded ($($src.Length) chars)." -lvl "DEBUG"
+        return $src
+    } catch {
+        log -msg "Download of '$key' failed: $($_.Exception.Message)" -lvl "WARNING"
+    } finally {
+        $ProgressPreference = $oldProgress
+    }
 
-            # Decode UTF-8 explicitly rather than trusting the response header.
-            $src = [System.Text.Encoding]::UTF8.GetString($resp.RawContentStream.ToArray())
+    if (Test-Path -LiteralPath $cachePath) {
+        try {
+            $src = [System.IO.File]::ReadAllText($cachePath)
 
-            if ([string]::IsNullOrWhiteSpace($src)) { throw "Empty response body from $url" }
-
-            # Reject unparseable content before it reaches Invoke-Expression.
+            # A half-written or damaged cache file must not reach Invoke-Expression.
             $parseErrors = $null
             [void][System.Management.Automation.Language.Parser]::ParseInput(
                 $src, [ref]$null, [ref]$parseErrors)
 
             if ($parseErrors -and $parseErrors.Count -gt 0) {
-                throw "Module '$key' failed to parse: $($parseErrors[0].Message)"
+                log -msg "Disk cache for '$key' is damaged and was ignored: $($parseErrors[0].Message)" -lvl "WARNING"
+            } elseif (-not [string]::IsNullOrWhiteSpace($src)) {
+                $global:moduleCache[$key] = $src
+                $age = (Get-Date) - (Get-Item -LiteralPath $cachePath).LastWriteTime
+                writeText -type "notice" -text "Offline - using cached '$key' from $([int]$age.TotalDays) day(s) ago."
+                return $src
             }
-
-            $global:moduleCache[$key] = $src
-
-            try {
-                $utf8Bom = New-Object System.Text.UTF8Encoding($true)
-                [System.IO.File]::WriteAllText($cachePath, $src, $utf8Bom)
-            } catch {
-                log -msg "Disk cache write failed for '$key': $($_.Exception.Message)" -lvl "WARNING"
-            }
-
-            log -msg "Module '$key' downloaded ($($src.Length) chars)." -lvl "DEBUG"
-            return $src
         } catch {
-            log -msg "Download of '$key' failed: $($_.Exception.Message)" -lvl "WARNING"
-        } finally {
-            $ProgressPreference = $oldProgress
+            log -msg "Disk cache read failed for '$key': $($_.Exception.Message)" -lvl "ERROR"
         }
-
-        if (Test-Path -LiteralPath $cachePath) {
-            try {
-                $src = [System.IO.File]::ReadAllText($cachePath)
-                if (-not [string]::IsNullOrWhiteSpace($src)) {
-                    $global:moduleCache[$key] = $src
-                    $age = (Get-Date) - (Get-Item -LiteralPath $cachePath).LastWriteTime
-                    writeText -type "notice" -text "Offline - using cached '$key' from $([int]$age.TotalDays) day(s) ago."
-                    return $src
-                }
-            } catch {
-                log -msg "Disk cache read failed for '$key': $($_.Exception.Message)" -lvl "ERROR"
-            }
-        }
-
-        log -msg "Module '$key' unavailable from network and cache." -lvl "ERROR"
-        return $null 
-    } catch {
-        writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
     }
 
-    
+    log -msg "Module '$key' unavailable from network and cache." -lvl "ERROR"
+    return $null
 }
 function dispatchCommand {
     param (
@@ -455,19 +715,24 @@ function log {
     )
 
     try {      
+        # One failure switches logging off for the rest of the session, so an
+        # unusable log folder gives one error instead of one per line of output.
+        if ($global:shellcliLogFailed) { return }
+
         # Define log directory
-        $logDirectory = "$env:SystemDrive\Nuvia\Logs\shellcli"
-        
+        $logDirectory = getConfigPath -name log
+
         # Create log directory if it doesn't exist
-        if (-not (Test-Path -Path $logDirectory)) {
+        if (-not (Test-Path -LiteralPath $logDirectory)) {
             try {
                 New-Item -Path $logDirectory -ItemType Directory -Force -ErrorAction Stop | Out-Null
             } catch {
-                Write-Error "Failed to create log directory: $_"
+                $global:shellcliLogFailed = $true
+                Write-Error "Failed to create log directory (logging is off for this session): $_"
                 return
             }
         }
-        
+
         # Define log file path
         $dateStamp = Get-Date -Format "yyyy-MM-dd"
         $logFileName = "${dateStamp}.log"
@@ -476,11 +741,12 @@ function log {
         # Format log entry
         $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
         $logEntry = "[$timestamp] [$lvl] $msg"
-            
+
         # Write to log file
-        Add-Content -Path $logFilePath -Value $logEntry -ErrorAction Stop
+        Add-Content -LiteralPath $logFilePath -Value $logEntry -ErrorAction Stop
     } catch {
-        Write-Error "Failed to write log entry: $_"
+        $global:shellcliLogFailed = $true
+        Write-Error "Failed to write log entry (logging is off for this session): $_"
     }
 }
 function writeText {
@@ -662,7 +928,7 @@ function readInput {
         if ($allowBlank -eq $false) {
             if ($userInput -eq "" -or $userInput.Length -eq 0) { 
                 writeText -type "notice" -text "Input was blank, exiting." 
-                readCommand
+                return
             } 
         }
 
@@ -962,7 +1228,7 @@ function selectUser {
         $choice = readOption -options $accounts -prompt $prompt -returnKey
 
         if ($choice -eq "Cancel") {
-            readCommand
+            return
         }
 
         # Get user data using the selected username
@@ -988,7 +1254,8 @@ function getDownload {
         [parameter(Mandatory)]
         [string]$url,
         # A full file path, or a folder (existing, or ending in '\' or '/') to keep the
-        # remote filename. Omit to save into the current location with the remote filename.
+        # remote filename. Omit to save into the configured download folder
+        # (downloadDirectory in config.json) with the remote filename.
         [parameter(Mandatory = $false)]
         [string]$target = "",
         # Return the saved file's full path on success instead of $true
@@ -1069,6 +1336,9 @@ function getDownload {
         }
     }
     Process {
+        # No target given: the configured download folder, remote filename kept
+        if ($target -eq "") { $target = "$(getConfigPath -name download)\" }
+
         # $null = ... keeps helper output from polluting the function's return value
         $null = log -msg "Downloading file from $url to $target"
 
@@ -1078,8 +1348,7 @@ function getDownload {
         # once the response headers are available.
         $outFile = $null
         try {
-            $targetIsFolder = ($target -eq "") -or ($target -match '[\\/]$')
-            if ($target -eq "") { $target = "." }
+            $targetIsFolder = $target -match '[\\/]$'
             $target = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($target)
             if (Test-Path -LiteralPath $target -PathType Container) { $targetIsFolder = $true }
 
@@ -1310,8 +1579,17 @@ function installApp {
         [parameter(Mandatory = $true)][string]$appName,
         [parameter(Mandatory = $false)][string]$fileName,
         [parameter(Mandatory = $false)][string]$params = "",
-        [parameter(Mandatory = $false)][string]$outputPath = "$env:ProgramData\shellcli"
+        # Where the installer is downloaded; defaults to downloadDirectory in config.json
+        [parameter(Mandatory = $false)][string]$outputPath = ""
     )
+
+    if ([string]::IsNullOrWhiteSpace($outputPath)) { $outputPath = getConfigPath -name download }
+
+    # Every run downloads into a folder of its own and deletes only that folder
+    # afterwards. The installer's name comes from the server, so downloading
+    # straight into a shared folder could overwrite, then delete, someone's file.
+    $scratch = Join-Path -Path $outputPath -ChildPath ('install-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+    $outputPath = $scratch
 
     # Exit codes that mean the install worked: 0 = success,
     # 1641 = success and a reboot was initiated, 3010 = success, reboot required
@@ -1393,19 +1671,19 @@ function installApp {
         $null = writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
     } finally {
         # Runs on success AND failure, so failed installers don't pile up
-        if ($installerPath -and (Test-Path -LiteralPath $installerPath)) {
+        if (Test-Path -LiteralPath $scratch) {
             $deadline = (Get-Date).AddSeconds(10)
             do {
                 try {
-                    Remove-Item -LiteralPath $installerPath -Force -ErrorAction Stop
+                    Remove-Item -LiteralPath $scratch -Recurse -Force -ErrorAction Stop
                     break
                 } catch {
                     Start-Sleep -Seconds 1
                 }
             } while ((Get-Date) -lt $deadline)
 
-            if (Test-Path -LiteralPath $installerPath) {
-                $null = writeText -type "notice" -text "Could not remove installer at $installerPath. This is harmless."
+            if (Test-Path -LiteralPath $scratch) {
+                $null = writeText -type "notice" -text "Could not remove the installer folder $scratch. This is harmless."
             }
         }
     }
@@ -1648,7 +1926,7 @@ function installWingetForAllUsers {
         }
 
         # Scratch space -------------------------------------------------
-        $work = Join-Path $env:SystemDrive "shellcli\wingetProvision"
+        $work = Join-Path (getConfigPath -name download) "wingetProvision"
         if (Test-Path $work) { Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue }
         New-Item -ItemType Directory -Path $work -Force | Out-Null
 

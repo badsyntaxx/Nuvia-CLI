@@ -1,6 +1,3 @@
-$global:commandMap = @{
-    "n?" = @("nuvia", "Core", "writeHelp", "List some help info.")
-}
 function initializeShellCLI {
     try {
         if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
@@ -13,8 +10,25 @@ function initializeShellCLI {
         $global:shellcliDevRoot = $PSScriptRoot
         $global:moduleCache = @{}
 
-        foreach ($f in 'framework.ps1', 'nuvia\core.ps1') {
+        foreach ($f in 'framework.ps1', 'main\core.ps1') {
             . ([scriptblock]::Create([System.IO.File]::ReadAllText((Join-Path $PSScriptRoot $f))))
+        }
+
+        # The local config.json, so folder and command changes can be tried
+        # without pushing.
+        $configPath = Join-Path $PSScriptRoot 'config.json'
+        $configText = $null
+        if (Test-Path -LiteralPath $configPath) { $configText = [System.IO.File]::ReadAllText($configPath) }
+
+        loadShellcliConfig -json $configText
+        if ($null -eq $configText) {
+            addConfigWarning "DEV: no config.json in $PSScriptRoot. Using the default folders and only the built-in commands."
+        }
+
+        # Same folder checks as init.ps1 (without locking the root down), so a
+        # bad folder in the local config falls back instead of breaking logging.
+        foreach ($key in 'rootDirectory', 'logDirectory', 'downloadDirectory') {
+            ensureConfigFolder -key $key
         }
 
         writeText -type "notice" -text "DEV MODE - loading modules from $PSScriptRoot"
@@ -34,11 +48,12 @@ function log {
     )
 
     try {      
-        # Define log directory
-        $logDirectory = "$env:SystemDrive\Nuvia\Logs\shellcli"
-        
+        # Define log directory: the configured one once the config is loaded,
+        # the default before that (this copy runs before the framework exists)
+        $logDirectory = if ($global:shellcliConfig) { $global:shellcliConfig.logDirectory } else { Join-Path -Path $env:ProgramData -ChildPath 'shellcli' }
+
         # Create log directory if it doesn't exist
-        if (-not (Test-Path -Path $logDirectory)) {
+        if (-not (Test-Path -LiteralPath $logDirectory)) {
             try {
                 New-Item -Path $logDirectory -ItemType Directory -Force -ErrorAction Stop | Out-Null
             } catch {
@@ -57,37 +72,10 @@ function log {
         $logEntry = "[$timestamp] [$lvl] $msg"
             
         # Write to log file
-        Add-Content -Path $logFilePath -Value $logEntry -ErrorAction Stop
+        Add-Content -LiteralPath $logFilePath -Value $logEntry -ErrorAction Stop
     } catch {
         Write-Error "Failed to write log entry: $_"
     }
-}
-function createNuviaFolders {
-    [CmdletBinding()]
-    param(
-        [string]$RootPath = 'C:\Nuvia'
-    )
-
-    $subFolders = @('Temp', 'Tools', 'Backups', 'Logs', 'State')
-
-    log -msg "Setting up Nuvia folders at $RootPath..."
-
-    # 1. Folders (idempotent)
-    foreach ($path in @($RootPath) + ($subFolders | ForEach-Object { Join-Path $RootPath $_ })) {
-        if (Test-Path -LiteralPath $path) { continue }
-        New-Item -Path $path -ItemType Directory -Force -ErrorAction Stop | Out-Null
-        log -msg "Created $path"
-    }
-
-    # 2. Hide the root (cosmetic only)
-    $item = Get-Item -LiteralPath $RootPath -Force
-    $item.Attributes = $item.Attributes -bor [System.IO.FileAttributes]::Hidden
-
-    # 3. Environment variable
-    [Environment]::SetEnvironmentVariable('na', $RootPath, 'Machine')
-    $env:na = $RootPath
-
-    log -msg "Environment variable 'na' set to $RootPath (restart other shells to pick it up)."
 }
 
 initializeShellCLI
