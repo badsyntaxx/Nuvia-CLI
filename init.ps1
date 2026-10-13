@@ -1,8 +1,9 @@
 # The one address ShellCLI cannot take from config.json, because config.json is
-# itself downloaded from here. The elevated relaunch fetches this script from
-# here too, and it is the fallback for module downloads when config.json names
-# no repository. A fork changes this line (and the repository in config.json).
-$global:shellcliBootstrapBase = 'https://raw.githubusercontent.com/badsyntaxx/Nuvia-CLI/main'.TrimEnd('/')
+# itself downloaded from here, along with framework.ps1 and main/core.ps1. The
+# elevated relaunch fetches this script from here too. The command modules
+# come from the repository named in config.json, never from this address.
+# A fork changes this line (and the repository in config.json).
+$global:shellcliBootstrapBase = 'https://raw.githubusercontent.com/badsyntaxx/shellcli/main'.TrimEnd('/')
 
 function initializeShellCLI {
     try {
@@ -16,7 +17,8 @@ function initializeShellCLI {
                     -WorkingDirectory $env:SystemRoot -ArgumentList @(
                     '-NoProfile'
                     '-ExecutionPolicy', 'Bypass'
-                    '-Command', "irm '$($global:shellcliBootstrapBase)/init.ps1' | iex"
+                    # The flag keeps this window open after a failed start, so the error can be read.
+                    '-Command', "`$global:shellcliPauseOnError = `$true; irm '$($global:shellcliBootstrapBase)/init.ps1' | iex"
                 )
             } catch {
                 # Thrown when the user cancels the UAC prompt (error 1223) or
@@ -27,8 +29,9 @@ function initializeShellCLI {
             return
         }
 
-        # A dev checkout loaded earlier in this window must not leak into this run.
+        # A dev checkout or a config loaded earlier in this window must not leak into this run.
         $global:shellcliDevRoot = $null
+        $global:shellcliConfig = $null
 
         createNuviaFolders
 
@@ -46,9 +49,11 @@ function initializeShellCLI {
             throw "Could not download main/core.ps1"
         }
 
-        # Optional: without it ShellCLI uses its default folders and only the
-        # built-in commands.
-        $configText = getRemoteFile -file 'config.json' -optional
+        # config.json is required. There are no defaults to fall back on.
+        $configText = getRemoteFile -file 'config.json'
+        if ($null -eq $configText) {
+            throw "Could not download config.json"
+        }
 
         # Cheap sanity check: a successful download is never this small
         if (($framework.Length + $core.Length) -lt 256) {
@@ -64,10 +69,8 @@ function initializeShellCLI {
         # download it a second time.
         $global:moduleCache = @{ 'main/core' = $core }
 
+        # Throws, listing every problem, if config.json is not usable.
         loadShellcliConfig -json $configText
-        if ($null -eq $configText) {
-            addConfigWarning "Could not download config.json. Using the default folders and only the built-in commands."
-        }
 
         # What runs here is downloaded and run as administrator: say so when the
         # address it came from is not https (this address is not otherwise checked).
@@ -87,9 +90,8 @@ function initializeShellCLI {
         }
 
         # The root folder comes first: create it and lock it down before
-        # anything else is put in it. A configured folder that cannot be used
-        # falls back to its default, with a warning, instead of stopping startup.
-        $rootExisted = Test-Path -LiteralPath (getConfigPath -name root) -PathType Container
+        # anything else is put in it. A configured folder that cannot be created
+        # or written to stops startup with an error: nothing replaces it.
         ensureConfigFolder -key rootDirectory
         $shellCliRoot = getConfigPath -name root
 
@@ -120,22 +122,34 @@ function initializeShellCLI {
         log -msg "Running main script"
         invokeScript -script "startShell" -initialize $true
     } catch {
-        Write-Host "  $($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber): $($_.Exception.Message)" -ForegroundColor "Red"
-        log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
+        $detail = "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber): $($_.Exception.Message)"
+
+        Write-Host
+        Write-Host "  ShellCLI could not start:" -ForegroundColor "Red"
+        foreach ($line in ($_.Exception.Message -split "`r?`n")) {
+            Write-Host "  $line" -ForegroundColor "Red"
+        }
+
+        # Only written if config.json was loaded, and never allowed to add noise of its own.
+        log -msg $detail -lvl "ERROR" 2>$null
+
+        # In the window opened by the elevated relaunch, wait so the error stays readable.
+        if ($global:shellcliPauseOnError) {
+            Write-Host
+            [void](Read-Host "  Press Enter to close")
+        }
     }
 }
 
 function getRemoteFile {
     <#
-        Downloads one file from the repo and returns its text.
-        Reports the error and returns $null if it cannot be obtained. With
-        -optional the failure is only logged, because the caller has a fallback.
+        Downloads one file from the bootstrap address and returns its text.
+        Reports the error and returns $null if it cannot be obtained.
     #>
     [OutputType([string])]
     param (
         [Parameter(Mandatory = $false)][string]$directory,
-        [Parameter(Mandatory)][string]$file,   # with its extension, e.g. framework.ps1
-        [Parameter(Mandatory = $false)][switch]$optional
+        [Parameter(Mandatory)][string]$file   # with its extension, e.g. framework.ps1
     )
 
     $oldProgress = $ProgressPreference
@@ -164,54 +178,12 @@ function getRemoteFile {
 
         return $src
     } catch {
-        # Nothing is logged on success or for an optional file: the log folder
-        # is not known until the config has been read, and logging earlier
-        # would create the default folder even when another one is configured.
-        if (-not $optional) {
-            Write-Host "  $($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber): $($_.Exception.Message)" -ForegroundColor "Red"
-            log -msg "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber):$($_.Exception.Message)" -lvl "ERROR"
-        }
+        # Nothing is logged here: the log folder comes from config.json, which
+        # is one of the things this downloads. initializeShellCLI reports the failure.
+        Write-Host "  $($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber): $($_.Exception.Message)" -ForegroundColor "Red"
         return $null
     } finally {
         $ProgressPreference = $oldProgress
-    }
-}
-
-function protectShellCLIDirectory {
-    <#
-        Restricts the ShellCLI root folder (rootDirectory in config.json) to
-        SYSTEM and Administrators.
-
-        Subfolders under ProgramData inherit ACEs that let standard users create
-        files there. Installers and cached modules are written here and then
-        run (or read back and evaluated) with admin rights, so an unprivileged
-        user could otherwise swap their contents in between.
-    #>
-    param (
-        [Parameter(Mandatory)][string]$path
-    )
-
-    try {
-        $acl = Get-Acl -LiteralPath $path -ErrorAction Stop
-        $acl.SetAccessRuleProtection($true, $false)   # disable inheritance, drop inherited ACEs
-
-        foreach ($sid in @('S-1-5-18', 'S-1-5-32-544')) {
-            # SYSTEM, BUILTIN\Administrators
-            $account = (New-Object Security.Principal.SecurityIdentifier($sid))
-            $acl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule(
-                        $account,
-                        'FullControl',
-                        'ContainerInherit, ObjectInherit',
-                        'None',
-                        'Allow'
-                    )))
-        }
-
-        Set-Acl -LiteralPath $path -AclObject $acl -ErrorAction Stop
-        log -msg "Secured $path" -lvl "DEBUG"
-    } catch {
-        # Non-fatal: tell the user and continue rather than blocking startup.
-        addConfigWarning "Could not restrict access to ${path} ($($_.Exception.Message)). Cached modules and installers are run from it."
     }
 }
 
@@ -225,9 +197,10 @@ function log {
     )
 
     try {      
-        # Define log directory: the configured one once the config is loaded,
-        # the default before that (this copy runs before the framework exists)
-        $logDirectory = if ($global:shellcliConfig) { $global:shellcliConfig.logDirectory } else { Join-Path -Path $env:ProgramData -ChildPath 'shellcli' }
+        # The log folder comes from config.json. Until that is loaded there is no
+        # log folder, and none is invented. (This copy runs before the framework exists.)
+        if (-not $global:shellcliConfig) { return }
+        $logDirectory = $global:shellcliConfig.logDirectory
 
         # Create log directory if it doesn't exist
         if (-not (Test-Path -LiteralPath $logDirectory)) {
@@ -300,7 +273,6 @@ function createNuviaFolders {
 
     log -msg "Environment variable 'na' set to $RootPath (restart other shells to pick it up)."
 }
-
 
 # Invoke the root of Shell CLI
 initializeShellCLI

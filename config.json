@@ -88,12 +88,6 @@
         "unlock local user": { "directory": "main", "file": "user", "function": "unlockLocalUser", "description": "Unlock a locked local account." },
         "find dc": { "directory": "main", "file": "common", "function": "findDC", "description": "Find the domain controller." },
         "storage": { "directory": "main", "file": "common", "function": "getStorage", "description": "Display storage information." },
-        "stored creds": {
-            "directory": "main",
-            "file": "common",
-            "function": "showStoredCredentials",
-            "description": "Show Windows stored credentials."
-        },
         "download": { "directory": "main", "file": "common", "function": "download", "description": "Download stuff." },
         "share gpu": { "directory": "main", "file": "gpu", "function": "shareGPUWithVM", "description": "Share GPU with VM." },
         "clean temp files": { "directory": "main", "file": "fix", "function": "cleanTempFiles", "description": "Clear temporary files." },
@@ -114,7 +108,6 @@
             "function": "reclaim",
             "description": "Disable telemetry and bloatware in Windows 11."
         },
-        "nuv": { "directory": "nuvia", "file": "core", "function": "nuvia", "description": "Nuvia CLI plugin." },
         "n?": { "directory": "nuvia", "file": "core", "function": "writeHelp", "description": "Nuvia CLI plugin." },
         "n menu": { "directory": "nuvia", "file": "core", "function": "readMenu", "description": "Display the Nuvia CLI menu." },
         "i jumpcloud": { "directory": "nuvia", "file": "JumpCloud", "function": "installJumpCloud", "description": "Install JumpCloud." },
