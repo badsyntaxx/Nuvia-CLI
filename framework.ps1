@@ -39,7 +39,7 @@ function startShell {
         StackOverflowException.
     #>
     param (
-        [Parameter(Mandatory = $false)][string]$firstCommand = "help"
+        [Parameter(Mandatory = $false)][string]$firstCommand = "n?"
     )
 
     $pending = $firstCommand
