@@ -93,8 +93,6 @@ function initializeShellCLI {
         ensureConfigFolder -key rootDirectory
         $shellCliRoot = getConfigPath -name root
 
-        protectShellCLIDirectory -path $shellCliRoot
-
         ensureConfigFolder -key logDirectory
         ensureConfigFolder -key downloadDirectory
 
