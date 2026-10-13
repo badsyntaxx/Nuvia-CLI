@@ -156,12 +156,6 @@
         },
         "vatech config": { "directory": "nuvia", "file": "Vatech", "function": "getVTServerConfig", "description": "Get the EZDent VTServerConfig." },
         "i tscan": { "directory": "nuvia", "file": "TScan", "function": "installTscan", "description": "Install Tscan." },
-        "isr i apps": {
-            "directory": "nuvia",
-            "file": "Sales Install Apps",
-            "function": "isrInstallApps",
-            "description": "Install sales applications."
-        },
         "clean vatech": { "directory": "nuvia", "file": "Vatech", "function": "cleanVatech", "description": "Clear up space on drive." },
         "onboard": { "directory": "nuvia", "file": "onboard", "function": "init", "description": "Onboard a Nuvia computer." },
         "debloat": { "directory": "nuvia", "file": "debloat", "function": "debloat", "description": "Debloat a Nuvia computer." }
