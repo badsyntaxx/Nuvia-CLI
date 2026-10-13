@@ -93,11 +93,7 @@ function initializeShellCLI {
         ensureConfigFolder -key rootDirectory
         $shellCliRoot = getConfigPath -name root
 
-        if (testShellcliRootIsOurs -path $shellCliRoot -existedBefore $rootExisted) {
-            protectShellCLIDirectory -path $shellCliRoot
-        } else {
-            addConfigWarning "rootDirectory '$shellCliRoot' already holds other files, so its permissions were left alone. ShellCLI runs cached modules and installers from it: use a folder only ShellCLI uses."
-        }
+        protectShellCLIDirectory -path $shellCliRoot
 
         ensureConfigFolder -key logDirectory
         ensureConfigFolder -key downloadDirectory
@@ -219,32 +215,6 @@ function protectShellCLIDirectory {
         # Non-fatal: tell the user and continue rather than blocking startup.
         addConfigWarning "Could not restrict access to ${path} ($($_.Exception.Message)). Cached modules and installers are run from it."
     }
-}
-function testShellcliRootIsOurs {
-    <#
-        True when ShellCLI may take over the permissions of the root folder:
-        it is the default root, it did not exist before this run, or it holds
-        only things ShellCLI puts there. Anything else is somebody else's
-        folder, and removing its inherited permissions could lock people out.
-    #>
-    [OutputType([bool])]
-    param (
-        [Parameter(Mandatory)][string]$path,
-        [Parameter(Mandatory)][bool]$existedBefore
-    )
-
-    if (-not $existedBefore) { return $true }
-    if ($path -ieq (getDefaultFolder -key rootDirectory)) { return $true }
-
-    foreach ($item in @(Get-ChildItem -LiteralPath $path -Force -ErrorAction SilentlyContinue)) {
-        # Only names ShellCLI itself creates: the cache and downloads folders,
-        # its daily logs (2026-01-31.log) and a leftover write-test file.
-        if ($item.Name -notmatch '^(cache|downloads|\d{4}-\d{2}-\d{2}\.log|\.write-test-[0-9a-f]+)$') {
-            return $false
-        }
-    }
-
-    return $true
 }
 
 function log {
