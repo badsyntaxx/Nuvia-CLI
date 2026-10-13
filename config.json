@@ -1,4 +1,6 @@
 {
+    "repository": "https://github.com/badsyntaxx/Nuvia-CLI",
+    "branch": "main",
     "rootDirectory": "%SYSTEMDRIVE%\\Nuvia",
     "logDirectory": "%rootDirectory%\\Logs\\ShellCLI",
     "downloadDirectory": "%rootDirectory%\\Temp",
