@@ -1,7 +1,7 @@
 {
     "rootDirectory": "%SYSTEMDRIVE%\\Nuvia",
     "logDirectory": "%rootDirectory%\\Logs\\ShellCLI",
-    "downloadDirectory": "%rootDirectory%\\Nuvia\\Temp",
+    "downloadDirectory": "%rootDirectory%\\Temp",
     "commands": {
         "?": { "directory": "main", "file": "core", "function": "writeHelp", "description": "List some help info." },
         "help": { "directory": "main", "file": "core", "function": "writeHelp", "description": "List some help info." },
