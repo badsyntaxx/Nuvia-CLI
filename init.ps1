@@ -305,5 +305,34 @@ function getJoinedDomain {
     }
 }
 
+function createNuviaFolders {
+    [CmdletBinding()]
+    param(
+        [string]$RootPath = 'C:\Nuvia'
+    )
+
+    $subFolders = @('Temp', 'Tools', 'Backups', 'Logs', 'State')
+
+    log -msg "Setting up Nuvia folders at $RootPath..."
+
+    # 1. Folders (idempotent)
+    foreach ($path in @($RootPath) + ($subFolders | ForEach-Object { Join-Path $RootPath $_ })) {
+        if (Test-Path -LiteralPath $path) { continue }
+        New-Item -Path $path -ItemType Directory -Force -ErrorAction Stop | Out-Null
+        log -msg "Created $path"
+    }
+
+    # 2. Hide the root (cosmetic only)
+    $item = Get-Item -LiteralPath $RootPath -Force
+    $item.Attributes = $item.Attributes -bor [System.IO.FileAttributes]::Hidden
+
+    # 3. Environment variable
+    [Environment]::SetEnvironmentVariable('na', $RootPath, 'Machine')
+    $env:na = $RootPath
+
+    log -msg "Environment variable 'na' set to $RootPath (restart other shells to pick it up)."
+}
+
+
 # Invoke the root of Shell CLI
 initializeShellCLI
