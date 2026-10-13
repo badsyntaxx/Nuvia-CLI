@@ -3,7 +3,7 @@
 # elevated relaunch fetches this script from here too. The command modules
 # come from the repository named in config.json, never from this address.
 # A fork changes this line (and the repository in config.json).
-$global:shellcliBootstrapBase = 'https://raw.githubusercontent.com/badsyntaxx/shellcli/main'.TrimEnd('/')
+$global:shellcliBootstrapBase = 'https://raw.githubusercontent.com/badsyntaxx/Nuvia-CLI/main'.TrimEnd('/')
 
 function initializeShellCLI {
     try {
