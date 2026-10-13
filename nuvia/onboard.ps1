@@ -254,6 +254,7 @@ function optimize {
         disableXboxFeatures
         disableGameModeAndGameBar
         disableSearchAppInStore 
+        chromeMemorySaver
     } catch {
         addError -source "$($MyInvocation.MyCommand.Name)" -message $_.Exception.Message
         writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
@@ -1136,6 +1137,53 @@ function installNinja {
     } catch {
         $null = writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
         return $false
+    }
+}
+function chromeMemorySaver {
+    param(
+        [switch]$Remove
+    )
+
+    try {
+        $ErrorActionPreference = 'Stop'
+
+        $keyPath = 'HKLM:\SOFTWARE\Policies\Google\Chrome'
+
+        $policies = [ordered]@{
+            'HighEfficiencyModeEnabled' = 1
+            'MemorySaverModeSavings'    = 2
+        }
+
+        $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+        ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+        if (-not $isAdmin) {
+            throw 'This script must run elevated (Run as Administrator) or as SYSTEM.'
+        }
+
+        if ($Remove) {
+            foreach ($name in $policies.Keys) {
+                if (Get-ItemProperty -Path $keyPath -Name $name -ErrorAction SilentlyContinue) {
+                    Remove-ItemProperty -Path $keyPath -Name $name
+                    writeText -type "plain" -text "Removed $name from $keyPath"
+                } else {
+                    writeText -type "plain" -text "$name is not set in $keyPath; nothing to remove"
+                }
+            }
+        } else {
+            # Keep this guard: on the registry provider, New-Item -Force against an existing
+            # key deletes and recreates it, which would wipe every other Chrome policy here.
+            if (-not (Test-Path -Path $keyPath)) {
+                New-Item -Path $keyPath -Force | Out-Null
+            }
+            foreach ($name in $policies.Keys) {
+                New-ItemProperty -Path $keyPath -Name $name -Value $policies[$name] -PropertyType DWord -Force | Out-Null
+                writeText -type "plain" -text "Set $name = $($policies[$name]) in $keyPath"
+            }
+        }
+
+        writeText -type "success" -text "Chrome applies this within 15 minutes without a restart. To apply now: chrome://policy > Reload policies."
+    } catch {
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
     }
 }
 
