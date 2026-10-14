@@ -271,25 +271,18 @@ function installApps {
 
         $appsToInstall = @(
             @{ 
-                Name   = "Adobe Acrobat"
-                Url    = (getAdobeReaderUrl)
-                File   = "AcroRdrDCx64_MUI.exe"
-                Params = "/sAll /rs /msi EULA_ACCEPT=YES ALLUSERS=1" 
-            }
-
-            @{ 
                 Name   = "Google Chrome"
                 Url    = "https://dl.google.com/dl/chrome/install/googlechromestandaloneenterprise64.msi"
                 File   = "GoogleChromeStandaloneEnterprise64.msi"
                 Params = "/qn /norestart" 
             }
 
-            @{ 
+            <# @{ 
                 Name   = "Cliq"
                 Url    = "https://downloads.zohocdn.com/chat-desktop/windows/Cliq-1.8.4-x64.msi"
                 File   = "Cliq-x64.msi"
                 Params = "/qn /norestart" 
-            }
+            } #>
 
             @{ 
                 Name   = "Dropbox"
@@ -298,6 +291,30 @@ function installApps {
                 Params = "/qn /norestart" 
             }
         )
+
+        if ($computerType -ne "" -and $computerType -in @("IOS", 
+                "MM", 
+                "MM1", 
+                "MM2", 
+                "SED1", 
+                "SED2", 
+                "SED3", 
+                "CAM",
+                "iCAM",
+                "iCAM1",
+                "iCAM2",
+                "iCAM3",
+                "SCAN",
+                "SCAN1",
+                "SCAN2",
+                "PANO")) {
+            $appsToInstall += @{ 
+                Name   = "Adobe Acrobat"
+                Url    = (getAdobeReaderUrl)
+                File   = "AcroRdrDCx64_MUI.exe"
+                Params = "/sAll /rs /msi EULA_ACCEPT=YES ALLUSERS=1" 
+            }
+        }
 
         if ($computerType -ne "" -and $computerType -in @("FD1", "FD2", "FD3", "OM")) {
             $appsToInstall += @{ 
