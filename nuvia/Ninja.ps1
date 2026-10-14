@@ -95,7 +95,6 @@ function removeNinjaRMM {
     } catch {
         writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
     }
-    
 }
 function stopNinjaProcess {
     writeText -type "plain" -text "Stopping Ninja processes..."

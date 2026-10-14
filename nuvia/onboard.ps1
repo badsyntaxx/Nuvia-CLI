@@ -69,7 +69,8 @@ function init {
             "iCAM3"
             "SCAN",
             "SCAN1",
-            "SCAN2"
+            "SCAN2",
+            "PANO"
         )
 
         writeText -type "prompt" -text "What type of computer is this? Example: DR1, FD1, EX2"
