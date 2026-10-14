@@ -39,8 +39,13 @@ function startShell {
         StackOverflowException.
     #>
     param (
-        [Parameter(Mandatory = $false)][string]$firstCommand = "n?"
+        # What to run first. Left out, it is the starterCommand of config.json;
+        # an empty string starts at the prompt without running anything.
+        [Parameter(Mandatory = $false)][string]$firstCommand
     )
+
+    if (-not $global:shellcliConfig) { throw "ShellCLI's config.json has not been loaded." }
+    if (-not $PSBoundParameters.ContainsKey('firstCommand')) { $firstCommand = $global:shellcliConfig['starterCommand'] }
 
     $pending = $firstCommand
 
@@ -224,20 +229,29 @@ function tryInvokePassthrough {
 }
 function expandConfigPath {
     <#
-        Turns a configured folder into a plain path: %rootDirectory% (any
-        case) becomes $root, environment variables are expanded, and forward
-        slashes are accepted so nobody has to double every backslash in JSON.
+        Turns a configured folder into a plain path. A name between percent
+        signs that is one of the folders in $known (a dictionary of setting
+        name -> path, such as rootDirectory or logDirectory) becomes that
+        folder's path, in any case. Environment variables are expanded, and
+        forward slashes are accepted so nobody has to double every backslash
+        in JSON.
     #>
     param (
         [Parameter(Mandatory = $false)][string]$value,
-        [Parameter(Mandatory = $false)][string]$root
+        [Parameter(Mandatory = $false)]$known
     )
 
-    $token = '%rootDirectory%'
-    $at = $value.IndexOf($token, [System.StringComparison]::OrdinalIgnoreCase)
-    while ($root -and $at -ge 0) {
-        $value = $value.Substring(0, $at) + $root + $value.Substring($at + $token.Length)
-        $at = $value.IndexOf($token, $at + $root.Length, [System.StringComparison]::OrdinalIgnoreCase)
+    if ($known) {
+        foreach ($key in @($known.Keys)) {
+            $token = "%$key%"
+            $folder = [string]$known[$key]
+
+            $at = $value.IndexOf($token, [System.StringComparison]::OrdinalIgnoreCase)
+            while ($folder -and $at -ge 0) {
+                $value = $value.Substring(0, $at) + $folder + $value.Substring($at + $token.Length)
+                $at = $value.IndexOf($token, $at + $folder.Length, [System.StringComparison]::OrdinalIgnoreCase)
+            }
+        }
     }
 
     return [Environment]::ExpandEnvironmentVariables($value.Trim()).Replace('/', '\')
@@ -365,6 +379,9 @@ function getConfiguredCommands {
             $problem = "is listed twice"
         } elseif ($item -isnot [System.Management.Automation.PSCustomObject]) {
             $problem = "must be an object with directory, file, function and description"
+        } elseif ($badField = @('directory', 'file', 'function', 'description') | Where-Object { $null -ne $item.$_ -and $item.$_ -isnot [string] } | Select-Object -First 1) {
+            # Text only: [string]@("main") would otherwise pass for "main".
+            $problem = "has a $badField that is not text"
         } else {
             $directory = [string]$item.directory
             $file = [string]$item.file
@@ -425,43 +442,169 @@ function loadShellcliConfig {
     $problems = [System.Collections.Generic.List[string]]::new()
     $resolved = [ordered]@{}
 
-    $known = 'repository', 'branch', 'rootDirectory', 'logDirectory', 'downloadDirectory', 'commands'
+    # Every setting named <something>Directory is a folder, and any number of
+    # them can be added to config.json without touching the code: each one is
+    # checked, created at startup (see init.ps1) and available as
+    # getConfigPath -name <something>. The ones below are what ShellCLI itself
+    # uses, so they have to be there.
+    $requiredFolders = 'rootDirectory', 'logDirectory', 'cacheDirectory', 'tempDirectory'
+    $folderKeys = @($parsed.PSObject.Properties.Name | Where-Object { $_ -cmatch '\A[a-z][A-Za-z0-9]{0,40}Directory\z' })
+
+    $otherSettings = 'repository', 'branch', 'starterCommand', 'commands'
     foreach ($name in $parsed.PSObject.Properties.Name) {
-        if ($name -notin $known) { $problems.Add("unknown setting '$name'") }
+        if ($name -notin $otherSettings -and $name -cnotin $folderKeys) {
+            $problems.Add("unknown setting '$name' (a folder setting is named like logDirectory: lower case first, ending in Directory)")
+        }
+    }
+    foreach ($key in $requiredFolders) {
+        if ($key -cnotin $folderKeys) { $problems.Add("$key is missing") }
     }
 
-    # Folders. The root comes first because the others may refer to it.
-    $root = $null
-    foreach ($key in 'rootDirectory', 'logDirectory', 'downloadDirectory') {
-        $property = $parsed.PSObject.Properties[$key]
-        $value = if ($property) { $property.Value } else { $null }
+    # Folders may refer to each other (%logDirectory%), in any order, and the
+    # root is no different from the rest. They are worked out dependency first:
+    # a folder is resolved only after every folder it refers to. A folder that
+    # refers to itself, or folders that refer to each other in a circle, are
+    # errors. A folder that cannot be used is reported once, not again for every
+    # folder that depends on it.
+    $texts = @{}
+    $needs = @{}
+    $failed = [System.Collections.Generic.List[string]]::new()
+    foreach ($key in $folderKeys) {
+        $value = $parsed.PSObject.Properties[$key].Value
 
         if ($null -eq $value -or ($value -is [string] -and [string]::IsNullOrWhiteSpace($value))) {
             $problems.Add("$key is missing")
-        } elseif ($value -isnot [string]) {
+            $failed.Add($key)
+            continue
+        }
+        if ($value -isnot [string]) {
             $problems.Add("$key must be text")
-        } elseif ($key -ne 'rootDirectory' -and -not $root -and $value -match '(?i)%rootDirectory%') {
-            # Refers to a root folder that is itself unusable, which is already reported.
-        } else {
-            $candidate = expandConfigPath -value $value -root $root
-            $problem = testConfigPath -key $key -path $candidate
-            if ($problem) {
-                $problems.Add("$key '$value' $problem")
-            } else {
-                $resolved[$key] = $candidate.TrimEnd('\')
-                if ($key -eq 'rootDirectory') { $root = $resolved[$key] }
+            $failed.Add($key)
+            continue
+        }
+
+        $texts[$key] = $value
+        $needs[$key] = @()
+        foreach ($match in [regex]::Matches($value, '%([A-Za-z][A-Za-z0-9]*Directory)%')) {
+            $name = $match.Groups[1].Value
+            $target = @($folderKeys | Where-Object { $_ -ieq $name }) | Select-Object -First 1
+            if ($target) {
+                $needs[$key] += $target
+            } elseif ($key -notin $failed) {
+                $problems.Add("$key refers to %$name%, which is not a folder in config.json")
+                $failed.Add($key)
             }
         }
     }
 
-    # The module cache always lives under the root folder.
-    if ($root) { $resolved['cacheDirectory'] = "$root\cache" }
+    $values = @{}
+    $pending = [System.Collections.Generic.List[string]]::new()
+    foreach ($key in $folderKeys) {
+        if ($texts.ContainsKey($key) -and $key -notin $failed) { $pending.Add($key) }
+    }
+
+    $progress = $true
+    while ($pending.Count -gt 0 -and $progress) {
+        $progress = $false
+        foreach ($key in @($pending)) {
+            $deps = @($needs[$key])
+
+            # Depends on a folder that cannot be used, which is already reported.
+            if (@($deps | Where-Object { $_ -in $failed }).Count -gt 0) {
+                $failed.Add($key)
+                [void]$pending.Remove($key)
+                $progress = $true
+                continue
+            }
+
+            # Still waiting for a folder it refers to.
+            if (@($deps | Where-Object { -not $values.ContainsKey($_) }).Count -gt 0) { continue }
+
+            $candidate = expandConfigPath -value $texts[$key] -known $values
+            $problem = testConfigPath -key $key -path $candidate
+            if ($problem) {
+                $problems.Add("$key '$($texts[$key])' $problem")
+                $failed.Add($key)
+            } else {
+                $values[$key] = $candidate.TrimEnd('\')
+            }
+            [void]$pending.Remove($key)
+            $progress = $true
+        }
+    }
+
+    # What is left waits on itself. Take away the folders that only wait for
+    # others (nothing else refers to them) so that just the circle is named.
+    if ($pending.Count -gt 0) {
+        $circle = @($pending)
+        $changed = $true
+        while ($changed -and $circle.Count -gt 0) {
+            $changed = $false
+            foreach ($member in @($circle)) {
+                $referredTo = $false
+                foreach ($other in $circle) {
+                    if (@($needs[$other]) -contains $member) { $referredTo = $true; break }
+                }
+                if (-not $referredTo) {
+                    $circle = @($circle | Where-Object { $_ -ne $member })
+                    $changed = $true
+                }
+            }
+        }
+
+        if ($circle.Count -eq 0) {
+            $problems.Add("the folders $($pending -join ', ') could not be worked out")
+        }
+
+        # One message per circle: group the folders that are connected to each other.
+        $left = [System.Collections.Generic.List[string]]::new()
+        foreach ($member in $circle) { $left.Add($member) }
+        while ($left.Count -gt 0) {
+            $group = @($left[0])
+            $left.RemoveAt(0)
+
+            $grew = $true
+            while ($grew) {
+                $grew = $false
+                foreach ($member in @($left)) {
+                    $linked = $false
+                    foreach ($inGroup in $group) {
+                        if ((@($needs[$inGroup]) -contains $member) -or (@($needs[$member]) -contains $inGroup)) { $linked = $true; break }
+                    }
+                    if ($linked) {
+                        $group += $member
+                        [void]$left.Remove($member)
+                        $grew = $true
+                    }
+                }
+            }
+
+            $group = @($group | Sort-Object { [array]::IndexOf($folderKeys, $_) })
+            if ($group.Count -eq 1) {
+                $problems.Add("$($group[0]) refers to itself")
+            } else {
+                $problems.Add("$($group -join ', ') refer to each other in a circle, so none of them can be worked out")
+            }
+        }
+    }
+
+    # Creation order, which is not the order they were resolved in: the root
+    # first (init.ps1 locks it down before anything else exists), then the
+    # others as they are listed.
+    $creationOrder = @($folderKeys | Where-Object { $_ -ceq 'rootDirectory' }) + @($folderKeys | Where-Object { $_ -cne 'rootDirectory' })
+    foreach ($key in $creationOrder) {
+        if ($values.ContainsKey($key)) { $resolved[$key] = $values[$key] }
+    }
 
     # Repository: where the modules are downloaded from
     $property = $parsed.PSObject.Properties['repository']
-    $repository = if ($property) { $property.Value } else { $null }
+    # (Assigned directly: the result of an if expression would turn a one-element
+    # JSON array into its single element, and ["x"] would pass for "x".)
+    $repository = $null
+    if ($property) { $repository = $property.Value }
     $property = $parsed.PSObject.Properties['branch']
-    $branch = if ($property) { $property.Value } else { $null }
+    $branch = $null
+    if ($property) { $branch = $property.Value }
 
     if ($null -eq $repository -or ($repository -is [string] -and [string]::IsNullOrWhiteSpace($repository))) {
         $problems.Add("repository is missing")
@@ -491,6 +634,26 @@ function loadShellcliConfig {
         $commands = getConfiguredCommands -section $property.Value -problems $problems
     }
 
+    # The starter command: what runs when ShellCLI starts. It must be one of the commands.
+    $property = $parsed.PSObject.Properties['starterCommand']
+    $starter = $null
+    if ($property) { $starter = $property.Value }
+
+    if ($null -eq $starter -or ($starter -is [string] -and [string]::IsNullOrWhiteSpace($starter))) {
+        $problems.Add("starterCommand is missing")
+    } elseif ($starter -isnot [string]) {
+        $problems.Add("starterCommand must be text")
+    } else {
+        $starterName = normalizeCommandName -text $starter
+        if ($commands -and -not $commands.Contains($starterName)) {
+            $shown = $starterName -replace '[^\x20-\x7e]', '?'
+            if ($shown.Length -gt 40) { $shown = $shown.Substring(0, 40) + '...' }
+            $problems.Add("starterCommand '$shown' is not one of the commands in config.json")
+        } else {
+            $resolved['starterCommand'] = $starterName
+        }
+    }
+
     if ($problems.Count -gt 0) {
         throw ("config.json cannot be used:`n" + (($problems | ForEach-Object { "  - $_" }) -join "`n"))
     }
@@ -502,59 +665,54 @@ function loadShellcliConfig {
 }
 function getConfigPath {
     <#
-        Returns one of the configured folders as a full path:
-        root, log, cache or download. Throws when config.json has not been
-        loaded: there is no default.
+        Returns a configured folder as a full path, by the first part of its
+        setting name: -name log is logDirectory in config.json, -name temp is
+        tempDirectory, -name backup would be backupDirectory. Any folder listed
+        in config.json works. Throws when config.json has not been loaded, or
+        has no such folder: there is no default.
     #>
     param (
-        [Parameter(Mandatory)][ValidateSet('root', 'log', 'cache', 'download')][string]$name
+        [Parameter(Mandatory)][ValidatePattern('\A[a-z][A-Za-z0-9]*\z')][string]$name
     )
 
     if (-not $global:shellcliConfig) { throw "ShellCLI's config.json has not been loaded." }
 
-    return $global:shellcliConfig["${name}Directory"]
-}
-function testConfigFolder {
-    <#
-        Creates the folder if needed and proves it can be written to.
-        Returns $null when it is usable, otherwise a short reason.
-    #>
-    param (
-        [Parameter(Mandatory)][string]$path
-    )
-
-    try {
-        if (-not (Test-Path -LiteralPath $path -PathType Container)) {
-            $null = New-Item -Path $path -ItemType Directory -Force -ErrorAction Stop
-        }
-
-        # New-Item reports success without creating anything when a parent is a file.
-        if (-not (Test-Path -LiteralPath $path -PathType Container)) { return "could not be created" }
-
-        $probe = Join-Path -Path $path -ChildPath ('.write-test-' + [guid]::NewGuid().ToString('N'))
-        [System.IO.File]::WriteAllText($probe, 'x')
-
-        # A folder that lets files be created but not deleted is still usable.
-        try { [System.IO.File]::Delete($probe) } catch { }
-        return $null
-    } catch {
-        return "cannot be used ($($_.Exception.Message))"
+    $key = "${name}Directory"
+    if (-not $global:shellcliConfig.Contains($key)) {
+        throw "config.json has no $key setting. Add one, for example ""$key"": ""%rootDirectory%\\$name""."
     }
+
+    return $global:shellcliConfig[$key]
+}
+function getConfigDirectoryKeys {
+    <#
+        The setting names of all the folders in config.json, in the order they
+        have to be created: the root first, then the others as they are listed.
+    #>
+    if (-not $global:shellcliConfig) { throw "ShellCLI's config.json has not been loaded." }
+
+    return @($global:shellcliConfig.Keys | Where-Object { $_ -like '*Directory' })
 }
 function ensureConfigFolder {
     <#
-        Makes sure a configured folder exists and can be written to. Throws
-        when it cannot: the setting is not replaced by anything else.
+        Creates a configured folder, exactly as config.json has it, if it is
+        not there yet. Nothing else is checked or written: no test file and no
+        permissions. Throws, naming the setting, if it cannot be created.
     #>
     param (
-        [Parameter(Mandatory)][ValidateSet('rootDirectory', 'logDirectory', 'downloadDirectory')][string]$key
+        [Parameter(Mandatory)][ValidatePattern('\A[a-z][A-Za-z0-9]*Directory\z')][string]$key
     )
 
     if (-not $global:shellcliConfig) { throw "ShellCLI's config.json has not been loaded." }
+    if (-not $global:shellcliConfig.Contains($key)) { throw "config.json has no $key setting." }
 
     $path = $global:shellcliConfig[$key]
-    $problem = testConfigFolder -path $path
-    if ($problem) { throw "config.json: $key '$path' $problem." }
+    try {
+        # Unlike New-Item, this fails when a parent is a file instead of quietly doing nothing.
+        [void][System.IO.Directory]::CreateDirectory($path)
+    } catch {
+        throw "config.json: $key '$path' could not be created ($($_.Exception.Message))."
+    }
 }
 function resolveRepositoryBase {
     <#
@@ -1424,7 +1582,7 @@ function getDownload {
         [string]$url,
         # A full file path, or a folder (existing, or ending in '\' or '/') to keep the
         # remote filename. Omit to save into the configured download folder
-        # (downloadDirectory in config.json) with the remote filename.
+        # (tempDirectory in config.json) with the remote filename.
         [parameter(Mandatory = $false)]
         [string]$target = "",
         # Return the saved file's full path on success instead of $true
@@ -1506,7 +1664,7 @@ function getDownload {
     }
     Process {
         # No target given: the configured download folder, remote filename kept
-        if ($target -eq "") { $target = "$(getConfigPath -name download)\" }
+        if ($target -eq "") { $target = "$(getConfigPath -name temp)\" }
 
         # $null = ... keeps helper output from polluting the function's return value
         $null = log -msg "Downloading file from $url to $target"
@@ -1748,11 +1906,11 @@ function installApp {
         [parameter(Mandatory = $true)][string]$appName,
         [parameter(Mandatory = $false)][string]$fileName,
         [parameter(Mandatory = $false)][string]$params = "",
-        # Where the installer is downloaded; defaults to downloadDirectory in config.json
+        # Where the installer is downloaded; defaults to tempDirectory in config.json
         [parameter(Mandatory = $false)][string]$outputPath = ""
     )
 
-    if ([string]::IsNullOrWhiteSpace($outputPath)) { $outputPath = getConfigPath -name download }
+    if ([string]::IsNullOrWhiteSpace($outputPath)) { $outputPath = getConfigPath -name temp }
 
     # Every run downloads into a folder of its own and deletes only that folder
     # afterwards. The installer's name comes from the server, so downloading
@@ -2095,7 +2253,7 @@ function installWingetForAllUsers {
         }
 
         # Scratch space -------------------------------------------------
-        $work = Join-Path (getConfigPath -name download) "wingetProvision"
+        $work = Join-Path (getConfigPath -name temp) "wingetProvision"
         if (Test-Path $work) { Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue }
         New-Item -ItemType Directory -Path $work -Force | Out-Null
 

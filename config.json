@@ -1,9 +1,15 @@
 {
     "repository": "https://github.com/badsyntaxx/Nuvia-CLI",
     "branch": "main",
-    "rootDirectory": "%SYSTEMDRIVE%\\Nuvia",
-    "logDirectory": "%rootDirectory%\\Logs\\ShellCLI",
-    "downloadDirectory": "%rootDirectory%\\Temp",
+    "nuviaDirectory": "%SYSTEMDRIVE%\\Nuvia",
+    "rootDirectory": "%nuviaDirectory%\\Tools\\ShellCLI",
+    "logDirectory": "%nuviaDirectory%\\Logs\\ShellCLI",
+    "tempDirectory": "%nuviaDirectory%\\Temp",
+    "toolsDirectory": "%nuviaDirectory%\\Tools",
+    "stateDirectory": "%nuviaDirectory%\\State",
+    "backupsDirectory": "%nuviaDirectory%\\Backups",
+    "cacheDirectory": "%rootDirectory%\\Cache",
+    "starterCommand": "n?",
     "commands": {
         "?": { "directory": "main", "file": "core", "function": "writeHelp", "description": "List some help info." },
         "help": { "directory": "main", "file": "core", "function": "writeHelp", "description": "List some help info." },

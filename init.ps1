@@ -40,8 +40,6 @@ function initializeShellCLI {
         $global:shellcliDevRoot = $null
         $global:shellcliConfig = $null
 
-        createNuviaFolders
-
         # Download everything up front, in memory: the config has to be known
         # before anything is written to disk. Nothing is ever written and then
         # executed, so execution policy never applies and there is no window in
@@ -72,8 +70,8 @@ function initializeShellCLI {
         . ([scriptblock]::Create($framework + "`n" + $core))
 
         # The framework just reset the module cache. core is already defined,
-        # so seed the cache with it and the first core command (help) does not
-        # download it a second time.
+        # so seed the cache with it and the first core command (help, usually)
+        # does not download it a second time.
         $global:moduleCache = @{ 'main/core' = $core }
 
         # Throws, listing every problem, if config.json is not usable.
@@ -95,13 +93,21 @@ function initializeShellCLI {
         }
 
         # The root folder comes first: create it and lock it down before
-        # anything else is put in it. A configured folder that cannot be created
-        # or written to stops startup with an error: nothing replaces it.
+        # anything else is put in it. Folders are created exactly as config.json
+        # has them, and one that cannot be created stops startup with an error.
         ensureConfigFolder -key rootDirectory
         $shellCliRoot = getConfigPath -name root
 
-        ensureConfigFolder -key logDirectory
-        ensureConfigFolder -key downloadDirectory
+        protectShellCLIDirectory -path $shellCliRoot
+
+        # Every other folder in config.json is created only now, after the root is
+        # locked down: a folder inside it then inherits the restricted permissions
+        # from the start. One created earlier would begin with the permissions of
+        # its parent, and a file planted in it before the lock-down would stay.
+        # Nothing here names a folder, so adding one to config.json needs no code.
+        foreach ($key in @(getConfigDirectoryKeys | Where-Object { $_ -ne 'rootDirectory' })) {
+            ensureConfigFolder -key $key
+        }
 
         foreach ($warning in $global:shellcliConfigWarnings) {
             log -msg $warning -lvl "WARNING"
@@ -109,7 +115,7 @@ function initializeShellCLI {
 
         log -msg "Initializing ShellCLI"
         log -msg "Downloaded framework.ps1 ($($framework.Length) chars), core.ps1 ($($core.Length) chars), config.json ($("$configText".Length) chars)" -lvl "DEBUG"
-        log -msg "Folders: root=$shellCliRoot log=$(getConfigPath -name log) download=$(getConfigPath -name download)" -lvl "DEBUG"
+        log -msg ("Folders: " + ((@(getConfigDirectoryKeys) | ForEach-Object { "$_=$($global:shellcliConfig[$_])" }) -join ' ')) -lvl "DEBUG"
         log -msg "Commands: $($global:commandMap.Count)" -lvl "DEBUG"
         if (Get-Command getModuleBase -ErrorAction SilentlyContinue) {
             log -msg "Modules are downloaded from $(getModuleBase)" -lvl "DEBUG"
@@ -192,6 +198,44 @@ function getRemoteFile {
     }
 }
 
+function protectShellCLIDirectory {
+    <#
+        Restricts the ShellCLI root folder (rootDirectory in config.json) to
+        SYSTEM and Administrators.
+
+        Subfolders under ProgramData inherit ACEs that let standard users create
+        files there. Installers and cached modules are written here and then
+        run (or read back and evaluated) with admin rights, so an unprivileged
+        user could otherwise swap their contents in between.
+    #>
+    param (
+        [Parameter(Mandatory)][string]$path
+    )
+
+    try {
+        $acl = Get-Acl -LiteralPath $path -ErrorAction Stop
+        $acl.SetAccessRuleProtection($true, $false)   # disable inheritance, drop inherited ACEs
+
+        foreach ($sid in @('S-1-5-18', 'S-1-5-32-544')) {
+            # SYSTEM, BUILTIN\Administrators
+            $account = (New-Object Security.Principal.SecurityIdentifier($sid))
+            $acl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule(
+                        $account,
+                        'FullControl',
+                        'ContainerInherit, ObjectInherit',
+                        'None',
+                        'Allow'
+                    )))
+        }
+
+        Set-Acl -LiteralPath $path -AclObject $acl -ErrorAction Stop
+        log -msg "Secured $path" -lvl "DEBUG"
+    } catch {
+        # Non-fatal: tell the user and continue rather than blocking startup.
+        addConfigWarning "Could not restrict access to ${path} ($($_.Exception.Message)). Cached modules and installers are run from it."
+    }
+}
+
 function log {
     param(
         [Parameter(Mandatory = $true, Position = 0)]
@@ -249,34 +293,6 @@ function getJoinedDomain {
         log -msg "Could not determine domain membership: $($_.Exception.Message)" -lvl "WARNING"
         return $null
     }
-}
-
-function createNuviaFolders {
-    [CmdletBinding()]
-    param(
-        [string]$RootPath = 'C:\Nuvia'
-    )
-
-    $subFolders = @('Temp', 'Tools', 'Backups', 'Logs', 'State')
-
-    log -msg "Setting up Nuvia folders at $RootPath..."
-
-    # 1. Folders (idempotent)
-    foreach ($path in @($RootPath) + ($subFolders | ForEach-Object { Join-Path $RootPath $_ })) {
-        if (Test-Path -LiteralPath $path) { continue }
-        New-Item -Path $path -ItemType Directory -Force -ErrorAction Stop | Out-Null
-        log -msg "Created $path"
-    }
-
-    # 2. Hide the root (cosmetic only)
-    $item = Get-Item -LiteralPath $RootPath -Force
-    $item.Attributes = $item.Attributes -bor [System.IO.FileAttributes]::Hidden
-
-    # 3. Environment variable
-    [Environment]::SetEnvironmentVariable('na', $RootPath, 'Machine')
-    $env:na = $RootPath
-
-    log -msg "Environment variable 'na' set to $RootPath (restart other shells to pick it up)."
 }
 
 # Invoke the root of Shell CLI
