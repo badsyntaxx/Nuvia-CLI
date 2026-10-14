@@ -98,7 +98,7 @@ function initializeShellCLI {
         ensureConfigFolder -key rootDirectory
         $shellCliRoot = getConfigPath -name root
 
-        protectShellCLIDirectory -path $shellCliRoot
+        hideNuviaFolder
 
         # Every other folder in config.json is created only now, after the root is
         # locked down: a folder inside it then inherits the restricted permissions
@@ -151,7 +151,6 @@ function initializeShellCLI {
         }
     }
 }
-
 function getRemoteFile {
     <#
         Downloads one file from the bootstrap address and returns its text.
@@ -197,45 +196,6 @@ function getRemoteFile {
         $ProgressPreference = $oldProgress
     }
 }
-
-function protectShellCLIDirectory {
-    <#
-        Restricts the ShellCLI root folder (rootDirectory in config.json) to
-        SYSTEM and Administrators.
-
-        Subfolders under ProgramData inherit ACEs that let standard users create
-        files there. Installers and cached modules are written here and then
-        run (or read back and evaluated) with admin rights, so an unprivileged
-        user could otherwise swap their contents in between.
-    #>
-    param (
-        [Parameter(Mandatory)][string]$path
-    )
-
-    try {
-        $acl = Get-Acl -LiteralPath $path -ErrorAction Stop
-        $acl.SetAccessRuleProtection($true, $false)   # disable inheritance, drop inherited ACEs
-
-        foreach ($sid in @('S-1-5-18', 'S-1-5-32-544')) {
-            # SYSTEM, BUILTIN\Administrators
-            $account = (New-Object Security.Principal.SecurityIdentifier($sid))
-            $acl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule(
-                        $account,
-                        'FullControl',
-                        'ContainerInherit, ObjectInherit',
-                        'None',
-                        'Allow'
-                    )))
-        }
-
-        Set-Acl -LiteralPath $path -AclObject $acl -ErrorAction Stop
-        log -msg "Secured $path" -lvl "DEBUG"
-    } catch {
-        # Non-fatal: tell the user and continue rather than blocking startup.
-        addConfigWarning "Could not restrict access to ${path} ($($_.Exception.Message)). Cached modules and installers are run from it."
-    }
-}
-
 function log {
     param(
         [Parameter(Mandatory = $true, Position = 0)]
@@ -276,7 +236,6 @@ function log {
         Write-Error "Failed to write log entry: $_"
     }
 }
-
 function getJoinedDomain {
     <#
         Returns the AD domain name if this machine is domain joined, otherwise $null.
@@ -293,6 +252,17 @@ function getJoinedDomain {
         log -msg "Could not determine domain membership: $($_.Exception.Message)" -lvl "WARNING"
         return $null
     }
+}
+function hideNuviaFolder {
+    param(
+        [string]$RootPath = 'C:\Nuvia'
+    )
+
+    $item = Get-Item -LiteralPath $RootPath -Force
+    $item.Attributes = $item.Attributes -bor [System.IO.FileAttributes]::Hidden
+    [Environment]::SetEnvironmentVariable('na', $RootPath, 'Machine')
+    $env:na = $RootPath
+    log -msg "Environment variable 'na' set to $RootPath (restart other shells to pick it up)."
 }
 
 # Invoke the root of Shell CLI
