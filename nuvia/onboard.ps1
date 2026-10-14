@@ -80,7 +80,6 @@ function init {
         writeText -type "notice" -text "$location-$locationType-$computerType"
     }
 
-    createNuviaFolders
     debloat
     declutter
     optimize
