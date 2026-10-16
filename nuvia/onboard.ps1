@@ -1162,6 +1162,8 @@ function chromeMemorySaver {
     )
 
     try {
+        writeText -type "plain" -text "Configuring Chrome Memory Saver Mode"
+
         $ErrorActionPreference = 'Stop'
 
         $keyPath = 'HKLM:\SOFTWARE\Policies\Google\Chrome'
