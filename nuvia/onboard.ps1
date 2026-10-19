@@ -1,11 +1,11 @@
 function init {
+    $logDirectory = getConfigPath -name log
     $script:scriptStarted = Get-Date
     $stamp = $script:scriptStarted.ToString('yyyy-MM-dd_HH-mm-ss')
-    $script:logPath = "$env:SystemDrive\Nuvia\logs\shellcli\$stamp.log"
+    $script:logPath = "$logDirectory\$stamp.log"
     $script:errors = $([ordered]@{})
     $location = ""
     $computerType = ""
-    $ninjaLink = ""
 
     writeText -type "header" -text "Initializing Nuvia Onboarding Script"
     writeText -type "plain" -text "Hostname : $env:COMPUTERNAME"
