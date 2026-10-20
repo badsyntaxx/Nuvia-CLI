@@ -1,0 +1,737 @@
+function userMenu {
+    $choice = readOption -options $([ordered]@{
+            "users"        = "List all users on the system."
+            "toggle admin" = "Toggle the Windows built in administrator account."
+            "add user"     = "Add a user to the system."
+            "remove user"  = "Remove a user from the system."
+            "edit user"    = "Edit a users."
+            "unlock user"  = "Unlock a user account."
+            "Cancel"       = "Select nothing and exit this menu."
+        }) -prompt "Select a function:"
+
+    switch ($choice) {
+        0 { listUsers }
+        1 { toggleAdmin }
+        2 { addUser }
+        3 { removeUser }
+        4 { editUser }
+        5 { unlockUser }
+        6 { readCommand }
+    }
+}
+function addUser {
+    try {
+        $choice = readOption -options $([ordered]@{
+                "Add local user"  = "Add a local user to the system."
+                "Add domain user" = "Add a domain user to the system."
+                "Cancel"          = "Do nothing and exit this function."
+            }) -prompt "Select a user account type:" -lineAfter
+
+        switch ($choice) {
+            0 { addLocalUser }
+            1 { addADUser }
+            2 { readCommand }
+        }
+    } catch {
+        writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
+    }
+}
+function addLocalUser {
+    try {
+        writeText -type "prompt" -text "Enter user credentials."
+
+        $name = readInput -prompt "Username:" -Validate "^(\s*|[a-zA-Z0-9 ._\-]{1,64})$" -CheckExistingUser
+        $password = readInput -prompt "Password:" -isSecure -lineAfter
+        $group = readOption -options $([ordered]@{
+                "Administrators" = "Set this user's group membership to administrators."
+                "Users"          = "Set this user's group membership to standard users."
+            }) -prompt "Select a user group:" -returnKey
+
+        # Create the new local user and add to the specified group
+        New-LocalUser $name -Password $password -description "Local User" -AccountNeverExpires -PasswordNeverExpires -ErrorAction Stop | Out-Null
+
+        $newUser = Get-LocalUser -Name $name
+        if ($null -eq $newUser) {
+            # User creation failed, exit with error
+            writeText -type 'error' -text "Failed to create user $name. Please check the logs for details."
+        }
+
+        Add-LocalGroupMember -Group $group -Member $name -ErrorAction Stop | Out-Null
+
+        # There is a powershell bug with Get-LocalGroupMember So we can't do a manual check.
+        <# if ((Get-LocalGroupMember -Group $group -Name $name).Count -gt 0) {
+            writeText -type "success" -text "$name has been assigned to the $group group." -lineAfter
+        } else {
+            writeText -type 'error' -text  "$($_.Exception.Message)"
+        } #>
+
+        $password = $null
+
+        # Because of the bug listed above we just assume success if the script is still executing at this point.
+        writeText -type "success" -text "Local user ($name) was created and added to the ($group) group."
+    } catch {
+        writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
+    }
+}
+function addADUser {
+    try {
+        if (-not (Get-WmiObject Win32_ComputerSystem | Where-Object { $_.DomainRole -eq 4 -or $_.DomainRole -eq 5 })) {
+            writeText -type 'notice' -text "This machine is NOT a Domain Controller."
+            readCommand
+        }
+
+        $name = readInput -prompt "Enter a user name:" -Validate "^([a-zA-Z0-9 _\-]{1,64})$"  -CheckExistingUser
+        $nameParts = $name -split ' '
+        $GivenName = $nameParts[0]
+        $Surname = $nameParts[-1]
+        $samAccountName = readInput -prompt "Enter a sam name:" -Validate "^([a-zA-Z0-9 _\-]{1,20})$"  -CheckExistingUser
+        $password = readInput -prompt "Enter a password:" -isSecure
+        $choice = readOption -options $([ordered]@{
+                "Administrator" = "Create admin user"
+                "Standard user" = "Create standard user"
+            }) -prompt "Set group membership"
+        $domainName = $env:USERDNSDOMAIN
+        
+        if ($choice -eq 0) { 
+            $group = 'Administrators' 
+        } else { 
+            $group = "Users" 
+        }
+
+        New-ADUser -Name $name 
+        -SamAccountName $samAccountName 
+        -GivenName $GivenName
+        -Surname $Surname
+        -UserPrincipalName "$samAccountName@$domainName.com" 
+        -AccountPassword $password 
+        -Enabled $true
+
+        Add-LocalGroupMember -Group $group -Member $name -ErrorAction Stop
+
+        $data = getUserData -Username $name
+
+        $password = $null
+
+        writeText -type "table" -Table $data -lineAfter
+
+        writeText -type "success" -text "The user account was created."
+    } catch {
+        writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
+    }
+}
+function editUser {
+    try {
+        $user = selectUser -lineAfter
+
+        $choice = readOption -options $([ordered]@{
+                "Edit user name"     = "Edit an existing users name."
+                "Edit user password" = "Edit an existing users password."
+                "Edit user group"    = "Edit an existing users group membership."
+                "Cancel"             = "Do nothing and exit this function."
+            }) -prompt "What would you like to edit?" -lineAfter
+
+        switch ($choice) {
+            0 { editUserName -user $user }
+            1 { editUserPassword -user $user }
+            2 { editUserGroup -user $user }
+            3 { readCommand }
+        }
+    } catch {
+        writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
+    }
+}
+function editUserName {
+    param (
+        [parameter(Mandatory = $false)]
+        [System.Collections.Specialized.OrderedDictionary]$user
+    )
+        
+    try {
+        if (-not $user) { 
+            $user = selectUser -prompt "Which name would you like to edit?" -lineAfter
+        }
+
+        writeText -type "prompt" -text "Enter a new username."
+
+        if ($user["Source"] -eq "MicrosoftAccount") { 
+            writeText -type "notice" -text "Cannot edit Microsoft accounts."
+        }
+
+        if ($user["Source"] -eq "Local") { 
+            $newName = readInput -prompt "Username:" -Validate "^(\s*|[a-zA-Z0-9 ._\-]{1,64})$" -CheckExistingUser
+    
+            Rename-LocalUser -Name $user["Name"] -NewName $newName
+
+            $newUser = Get-LocalUser -Name $newName
+
+            if ($null -ne $newUser) { 
+                writeText -type "success" -text "Account name $($user['Name']) changed to $newName."
+            } else {
+                writeText -type "error" -text "Unknown error."
+            }
+        } else { 
+            writeText -type "notice" -text "Editing domain users doesn't work yet."
+        }
+    } catch {
+        writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
+    }
+}
+function editUserPassword {
+    param (
+        [parameter(Mandatory = $false)]
+        [System.Collections.Specialized.OrderedDictionary]$user
+    )
+
+    try {
+        log -msg "Editing a local users password on this PC."
+
+        if (-not $user) { 
+            $user = selectUser -prompt "Select a user to edit the password for." -lineAfter
+        }
+
+        writeText -type "prompt" -text "Enter a new password."
+
+        if ($user["Source"] -eq "MicrosoftAccount") { 
+            writeText -type "notice" -text "Cannot edit Microsoft accounts."
+        }
+
+        if ($user["Source"] -eq "Local") { 
+            $password = readInput -prompt "Password:" -isSecure:$true -allowBlank:$true
+
+            # Set-LocalUser reports failures as non-terminating errors, so without
+            # -ErrorAction Stop the catch below never runs and "changed" is printed anyway.
+            try {
+                Get-LocalUser -Name $user["Name"] -ErrorAction Stop | Set-LocalUser -Password $password -PasswordNeverExpires $true -ErrorAction Stop
+            } catch {
+                if ($_.Exception.GetType().Name -ne 'InvalidPasswordException') { throw }
+
+                # Windows gives no reason with this exception, so say what the policy asks for.
+                writeText -type "error" -text "Windows rejected the password for $($user['Name']). It does not meet this computer's password policy."
+                foreach ($requirement in (getPasswordPolicyRequirements)) {
+                    writeText -type "plain" -text "  - $requirement"
+                }
+                $password = $null
+                return
+            }
+
+            if ($password.Length -eq 0) {
+                $message = "Password for user $($user['Name']) was removed." 
+            } else { 
+                $message = "Password for user $($user['Name']) changed." 
+            }
+
+            $password = $null
+
+            writeText -Type "success" -text $message
+        } else { 
+            writeText -type "plain" -text "Editing domain users doesn't work yet."
+        }
+    } catch {
+        writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
+    }
+}
+function getPasswordPolicyRequirements {
+    <#
+        Returns the local password rules as sentences. The exception for a
+        rejected password carries no reason, so the policy is read from the
+        security database (secedit) to tell the user what to change.
+    #>
+    $file = Join-Path (getConfigPath -name temp) "secpol-$([guid]::NewGuid().ToString('N')).inf"
+    $policy = @{}
+
+    try {
+        & secedit.exe /export /cfg $file /areas SECURITYPOLICY | Out-Null
+        foreach ($line in (Get-Content -LiteralPath $file -ErrorAction Stop)) {
+            if ($line -match '^\s*(MinimumPasswordLength|PasswordComplexity|PasswordHistorySize)\s*=\s*(\d+)\s*$') {
+                $policy[$Matches[1]] = [int]$Matches[2]
+            }
+        }
+    } catch {
+        log -msg "Could not read the password policy: $($_.Exception.Message)" -lvl "WARNING"
+    } finally {
+        Remove-Item -LiteralPath $file -Force -ErrorAction SilentlyContinue
+    }
+
+    $requirements = @()
+    if ($policy['MinimumPasswordLength'] -gt 0) { $requirements += "At least $($policy['MinimumPasswordLength']) characters long." }
+    if ($policy['PasswordComplexity'] -eq 1) { $requirements += "Must meet complexity rules: 3 of upper case, lower case, digits and symbols, and no part of the user name." }
+    if ($policy['PasswordHistorySize'] -gt 0) { $requirements += "Cannot repeat any of the last $($policy['PasswordHistorySize']) passwords." }
+
+    if ($policy.Count -eq 0) {
+        $requirements += "The policy could not be read. Check minimum length, complexity and password history in Local Security Policy."
+    } elseif ($requirements.Count -eq 0) {
+        $requirements += "The policy has no length, complexity or history rule, so a blank password may be blocked by another setting (try a longer one)."
+    }
+
+    return $requirements
+}
+function editUserGroup {
+    param (
+        [parameter(Mandatory = $false)]
+        [System.Collections.Specialized.OrderedDictionary]$user
+    )
+
+    try {
+        if (-not $user) { 
+            $user = selectUser -prompt "Select a user to edit the password for." -lineAfter
+        }
+
+        if ($user["Source"] -eq "MicrosoftAccount") { 
+            writeText -type "notice" -text "Cannot edit Microsoft accounts."
+        }
+
+        if ($user["Source"] -eq "Local") { 
+            $choice = readOption -options $([ordered]@{
+                    "Add"    = "Add this user to more groups"
+                    "Remove" = "Remove this user from certain groups"
+                    "Cancel" = "Do nothing and exit this function."
+                }) -prompt "Do you want to add or remove this user from groups?" -lineAfter
+
+            switch ($choice) {
+                0 { addGroups -username $user["Name"] }
+                1 { removeGroups -username $user["Name"] }
+                2 { readCommand }
+            }
+
+            writeText -type "success" -text "Group membership updated."
+        } else { 
+            writeText -type "plain" -text "Editing domain users doesn't work yet."
+        }
+    } catch {
+        writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
+    }
+} 
+function addGroups {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$username
+    )
+    
+    $default = Get-LocalGroup | ForEach-Object {
+        $description = $_.Description
+        @{ $_.Name = $description }
+    } | Sort-Object -Property Name
+
+    $groups = [ordered]@{}
+    foreach ($group in $default) { 
+        # $groups += $group
+        switch ($group.Keys) {
+            "Performance Monitor Users" { $groups["$($group.Keys)"] = "Access local performance counter data." }
+            "Power Users" { $groups["$($group.Keys)"] = "Limited administrative privileges." }
+            "Network Configuration Operators" { $groups["$($group.Keys)"] = "Privileges for managing network configuration." }
+            "Performance Log Users" { $groups["$($group.Keys)"] = "Schedule performance counter logging." }
+            "Remote Desktop Users" { $groups["$($group.Keys)"] = "Log on remotely." }
+            "System Managed Accounts Group" { $groups["$($group.Keys)"] = "Managed by the system." }
+            "Users" { $groups["$($group.Keys)"] = "Prevented from making system-wide changes." }
+            "Remote Management Users" { $groups["$($group.Keys)"] = "Access WMI resources over management protocols." }
+            "Replicator" { $groups["$($group.Keys)"] = "Supports file replication in a domain." }
+            "IIS_IUSRS" { $groups["$($group.Keys)"] = "Used by Internet Information Services (IIS)." }
+            "Backup Operators" { $groups["$($group.Keys)"] = "Override security restrictions for backup purposes." }
+            "Cryptographic Operators" { $groups["$($group.Keys)"] = "Perform cryptographic operations." }
+            "Access Control Assistance Operators" { $groups["$($group.Keys)"] = "Remotely query authorization attributes and permissions." }
+            "Administrators" { $groups["$($group.Keys)"] = "Complete, unrestricted access to the computer/domain." }
+            "Device Owners" { $groups["$($group.Keys)"] = "Can change system-wide settings." }
+            "Guests" { $groups["$($group.Keys)"] = "Similar access to members of the Users group by default." }
+            "Hyper-V Administrators" { $groups["$($group.Keys)"] = "Complete and unrestricted access to all Hyper-V features." }
+            "Distributed COM Users" { $groups["$($group.Keys)"] = "Authorized for Distributed Component Object Model (DCOM) operations." }
+        }
+    }
+
+    $groups["Cancel"] = "Select nothing and exit this function."
+    $selectedGroups = @()
+    $selectedGroups += readOption -options $groups -prompt "Select a group:" -returnKey
+
+    if ($selectedGroups -eq "Cancel") {
+        readCommand
+    }
+
+    $groupsList = [ordered]@{}
+    $groupsList["Done"] = "Stop selecting groups and move to the next step."
+    $groupsList += $groups
+
+    while ($selectedGroups -notcontains 'Done') {
+        $availableGroups = [ordered]@{}
+        foreach ($key in $groupsList.Keys) {
+            if ($selectedGroups -notcontains $key) {
+                $availableGroups[$key] = $groupsList[$key]
+            }
+        }
+
+        $selectedGroups += readOption -options $availableGroups -prompt "Select another group or 'Done':" -ReturnKey
+        if ($selectedGroups -eq "Cancel") {
+            readCommand
+        }
+    }
+
+    foreach ($group in $selectedGroups) {
+        if ($group -ne "Done") {
+            Add-LocalGroupMember -Group $group -Member $username -ErrorAction SilentlyContinue | Out-Null 
+            log -msg "The user ($username) has been added to the group $group."
+        }
+    }
+}
+function removeGroups {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$username
+    )
+
+    try {
+        $groups = [ordered]@{}
+
+        $allGroups = Get-LocalGroup
+
+        # Check each group for the user's membership
+        foreach ($group in $allGroups) {
+            try {
+                $members = Get-LocalGroupMember -Group $group.Name -ErrorAction Stop
+                $isMember = $members | Where-Object {
+                    $_.Name -eq $Username -or 
+                    $_.SID.Value -eq $Username -or 
+                    $_ -eq $Username -or 
+                    $_ -like "*\$Username"
+                }
+            
+                if ($isMember) {
+                    $description = $group.Description
+                    if ($description.Length -gt 72) { 
+                        $description = $description.Substring(0, 72) + "..." 
+                    }
+                    $groups[$group.Name] = $description
+                }
+            } catch {
+                # If there's an error (e.g., access denied), we skip this group
+                Write-Verbose "Couldn't check membership for group $($group.Name): $_"
+            }
+        }
+
+        # $groups
+
+        foreach ($group in $groups) { 
+            switch ($group.Name) {
+                "Performance Monitor Users" { $groups["$($group.Name)"] = "Access local performance counter data." }
+                "Power Users" { $groups["$($group.Name)"] = "Limited administrative privileges." }
+                "Network Configuration Operators" { $groups["$($group.Name)"] = "Privileges for managing network configuration." }
+                "Performance Log Users" { $groups["$($group.Name)"] = "Schedule performance counter logging." }
+                "Remote Desktop Users" { $groups["$($group.Name)"] = "Log on remotely." }
+                "System Managed Accounts Group" { $groups["$($group.Name)"] = "Managed by the system." }
+                "Users" { $groups["$($group.Name)"] = "Prevented from making system-wide changes." }
+                "Remote Management Users" { $groups["$($group.Name)"] = "Access WMI resources over management protocols." }
+                "Replicator" { $groups["$($group.Name)"] = "Supports file replication in a domain." }
+                "IIS_IUSRS" { $groups["$($group.Name)"] = "Used by Internet Information Services (IIS)." }
+                "Backup Operators" { $groups["$($group.Name)"] = "Override security restrictions for backup purposes." }
+                "Cryptographic Operators" { $groups["$($group.Name)"] = "Perform cryptographic operations." }
+                "Access Control Assistance Operators" { $groups["$($group.Name)"] = "Remotely query authorization attributes and permissions." }
+                "Administrators" { $groups["$($group.Name)"] = "Complete, unrestricted access to the computer/domain." }
+                "Device Owners" { $groups["$($group.Name)"] = "Can change system-wide settings." }
+                "Guests" { $groups["$($group.Name)"] = "Similar access to members of the Users group by default." }
+                "Hyper-V Administrators" { $groups["$($group.Name)"] = "Complete and unrestricted access to all Hyper-V features." }
+                "Distributed COM Users" { $groups["$($group.Name)"] = "Authorized for Distributed Component Object Model (DCOM) operations." }
+            }
+        }
+
+        if ($groups.Count -eq 0) {
+            Write-Host "The user $Username is not a member of any local groups, or we don't have permission to check."
+        }
+
+        # Add a "Cancel" option
+        $groups["Cancel"] = "Select nothing and exit this function."
+
+        $selectedGroups = @()
+        $selectedGroups += readOption -options $groups -prompt "Select a group:" -returnKey
+
+        if ($selectedGroups -eq "Cancel") {
+            readCommand
+        }
+
+        $groupsList = [ordered]@{}
+        $groupsList["Done"] = "Stop selecting groups and move to the next step."
+        $groupsList += $groups
+
+        while ($selectedGroups -notcontains 'Done') {
+            $availableGroups = [ordered]@{}
+
+            foreach ($key in $groupsList.Keys) {
+                if ($selectedGroups -notcontains $key) {
+                    $availableGroups[$key] = $groupsList[$key]
+                }
+            }
+
+            $selectedGroups += readOption -options $availableGroups -prompt "Select another group or 'Done':" -ReturnKey
+
+            if ($selectedGroups -eq "Cancel") {
+                readCommand
+            }
+        }
+
+        foreach ($group in $selectedGroups) {
+            if ($group -ne "Done") {
+                Remove-LocalGroupMember -Group $group -Member $username -ErrorAction SilentlyContinue
+                log -msg "The user ($username) has been removed from the group $group."
+            }
+        }
+    } catch {
+        writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
+    }
+}
+function removeUser {
+    try {
+        $user = selectUser -prompt "Select an account to remove." -lineAfter
+        $userSid = (Get-LocalUser $user["Name"]).Sid
+        $userProfile = Get-CimInstance Win32_UserProfile -Filter "SID = '$userSid'"
+        $dir = $userProfile.LocalPath
+
+        $choice = readOption -options $([ordered]@{
+                "Delete" = "Also delete the users data."
+                "Keep"   = "Do not delete the users data."
+                "Cancel" = "Do not delete anything and exit this function."
+            }) -prompt "Do you also want to delete the users data?"
+
+        if ($choice -eq 2) {
+            return
+        }
+
+        Remove-LocalUser -Name $user["Name"] | Out-Null
+
+        $response = "The user ($($user['Name'])) has been removed."
+        if ($choice -eq 0 -and $dir) { 
+            try {
+                # Attempt to take ownership and grant full control
+                $acl = Get-Acl $dir
+                $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+                    [System.Security.Principal.WindowsIdentity]::GetCurrent().User, 
+                    "FullControl", 
+                    "ContainerInherit,ObjectInherit", 
+                    "None", 
+                    "Allow"
+                )
+                $acl.SetAccessRule($rule)
+                Set-Acl $dir $acl
+
+                # Remove files with full permissions
+                Remove-Item -Path $dir -Recurse -Force -ErrorAction Stop
+                
+                # Verify profile folder deletion
+                $profileStillExists = Get-CimInstance Win32_UserProfile -Filter "SID = '$userSid'" -ErrorAction SilentlyContinue
+
+                if ($null -eq $profileStillExists) {
+                    $response += " as well as their data."
+                } else {
+                    writeText -type 'error' -text "Unable to delete user data for unknown reasons."
+                    $response += " but their data could not be fully deleted."
+                }
+            } catch {
+                writeText -type 'error' -text "Failed to delete user profile folder: $($_.Exception.Message)"
+                $response += " but their data could not be deleted."
+            }
+        } elseif ($choice -eq 1) {
+            $response += " but not their data."
+        }
+
+        writeText -type 'success' -text $response
+    } catch {
+        writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
+    }
+}
+function listUsers {
+    try {
+        # Initialize empty array to store user names
+        $userNames = @()
+
+        # Get all local users on the system
+        $localUsers = Get-LocalUser
+
+        # Define a list of accounts to exclude from selection
+        $excludedAccounts = @("DefaultAccount", "WDAGUtilityAccount", "Guest", "defaultuser0")
+
+        # Check if the "Administrator" account is disabled and add it to excluded list if so
+        $adminEnabled = Get-LocalUser -Name "Administrator" | Select-Object -ExpandProperty Enabled
+        if (!$adminEnabled) { 
+            $excludedAccounts += "Administrator" 
+        }
+
+        # Filter local users to exclude predefined accounts
+        foreach ($user in $localUsers) {
+            if ($user.Name -notin $excludedAccounts) { 
+                $userNames += $user.Name 
+            }
+        }
+
+        # Create an ordered dictionary to store username and group information
+        $accounts = [ordered]@{}
+        
+        # Get all local groups once (more efficient)
+        $allGroups = Get-LocalGroup
+        
+        foreach ($name in $userNames) {
+            # Get details for the current username
+            $username = Get-LocalUser -Name $name
+            
+            $groupNames = @()
+            
+            # Check each group for membership
+            foreach ($group in $allGroups) {
+                try {
+                    # Use -ErrorAction Stop to catch errors from Get-LocalGroupMember
+                    $members = Get-LocalGroupMember -Group $group.Name -ErrorAction Stop
+                    
+                    # Check if the user's SID is in the group members
+                    if ($username.SID -in ($members | Select-Object -ExpandProperty SID)) {
+                        $groupNames += $group.Name
+                    }
+                } catch {
+                    # Skip groups that cause errors (like built-in groups with permission issues)
+                    # Optionally log which groups failed
+                    # Write-Verbose "Could not enumerate members for group: $($group.Name)"
+                    log -msg "Could not enumerate members for group: $($group.Name)" -lvl "ERROR"
+                    continue
+                }
+            }
+            
+            # Convert groups to a semicolon-separated string
+            $groupString = $groupNames -join ';'
+
+            # Get the users source
+            $source = Get-LocalUser -Name $username | Select-Object -ExpandProperty PrincipalSource
+
+            # Add username and group string to the dictionary
+            $accounts["$username"] = "$source | $groupString"
+        }
+
+        # Display user data as a list
+        writeText -type "table" -Table $accounts
+    } catch {
+        writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
+    }
+}
+function toggleAdmin {
+    try {
+        $choice = readOption -options $([ordered]@{
+                "Enable"  = "Enable the built-in administrator account."
+                "Disable" = "Disable the built-in administrator account."
+                "Cancel"  = "Do nothing and exit this function."
+            }) -prompt "Choose an option:" -lineAfter
+
+        switch ($choice) {
+            0 { enableAdmin }
+            1 { disableAdmin }
+            2 { readCommand }
+        }
+    } catch {
+        writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
+    }
+}
+function enableAdmin {
+    try { 
+        $admin = Get-LocalUser -Name "Administrator"
+        
+        if ($admin.Enabled) { 
+            writeText -text "Administrator account is already enabled."
+        } else { 
+            Get-LocalUser -Name "Administrator" | Enable-LocalUser 
+
+            $admin = Get-LocalUser -Name "Administrator"
+
+            if ($admin.Enabled) { 
+                writeText -type "success" -text "The local Administrator account is enabled."
+            } else { 
+                writeText -type "error" -text "Could not enable administrator account."
+            }
+        }
+    } catch {
+        writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
+    }
+}
+function disableAdmin {
+    try { 
+        $admin = Get-LocalUser -Name "Administrator"
+        
+        if ($admin.Enabled) { 
+            Get-LocalUser -Name "Administrator" | Disable-LocalUser 
+
+            $admin = Get-LocalUser -Name "Administrator"
+
+            if ($admin.Enabled) { 
+                writeText -type "error" -text "Could not disable administrator account."
+            } else { 
+                writeText -type "success" -text "The local Administrator account is disabled."
+            }
+        } else { 
+            writeText -text "The local Administrator account is already disabled."
+        }
+    } catch {
+        writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
+    }
+}
+function unlockUser {
+    try {
+        # Create a menu with options and descriptions using an ordered hashtable
+        $choice = readOption -options $([ordered]@{
+                "Unlock local user" = "View the user management menu."
+                "unlock AD user"    = "Edit this computers name and description."
+                "Cancel"            = "Select nothing and exit this menu."
+            }) -prompt "Select a function." -lineAfter
+
+        switch ($choice) {
+            0 { unlockLocalUser }
+            1 { unlockADUser }
+            2 { readCommand }
+        }
+    } catch {
+        writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
+    }
+    
+}
+function unlockLocalUser {
+    $user = selectUser -lineAfter
+
+    try {
+        if ($user.AccountLocked) {
+            writeText -type "plain" -text "User $($user["Name"]) is currently locked. Unlocking..."
+            Unlock-LocalUser -Name $user["Name"]
+        
+            # Verify unlock was successful
+            $updatedUser = Get-LocalUser -Name $user["Name"]
+            if (-not $updatedUser.AccountLocked) {
+                writeText -type "success" -text "User $($user["Name"]) successfully unlocked!"
+            } else {
+                writeText -type "error" -text "Failed to unlock user $($user["Name"])"
+            }
+        } else {
+            writeText -type "plain" -text "User $($user["Name"]) is not locked."
+        }
+    } catch {
+        writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
+    }
+}
+function unlockADUser {
+    if (-not (Get-WmiObject Win32_ComputerSystem | Where-Object { $_.DomainRole -eq 4 -or $_.DomainRole -eq 5 })) {
+        writeText -type 'notice' -text "This machine is NOT a Domain Controller."
+        readCommand
+    }
+        
+    writeText -type "text" -text "This function is not yet implemented."
+}
+function getUsers {
+    Write-Host "Getting user profiles..."
+
+    $profiles = Get-CimInstance -ClassName Win32_UserProfile
+
+    foreach ($p in $profiles) {
+        try {
+            $sid = New-Object System.Security.Principal.SecurityIdentifier($p.SID)
+            $account = $sid.Translate([System.Security.Principal.NTAccount])
+
+            $user = [PSCustomObject]@{
+                UserName  = $account.Value          # DOMAIN\user or COMPUTER\user
+                SID       = $p.SID
+                Loaded    = $p.Loaded
+                LocalPath = $p.LocalPath
+            }
+
+            Write-Host "User: $($user.UserName), SID: $($user.SID), Loaded: $($user.Loaded), LocalPath: $($user.LocalPath)"
+        } catch {
+            Write-Host "Could not resolve SID $($p.SID): $($_.Exception.Message)"
+        }
+    }
+}
