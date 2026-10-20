@@ -335,8 +335,9 @@ function installApps {
             $null = installApp -url $app.Url -appName $app.Name -fileName $app.File -params $app.Params -outputPath "C:\Nuvia\Temp" | Out-Null
         }
 
-        
-        installNinja
+        if ((installNinja | Select-Object -Last 1) -ne $true) {
+            addError -source "installApps-NinjaOne" -message "NinjaOne agent did not install or start"
+        }
         pinAppsToTaskbar
     } catch {
         addError -source "$($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber)" -message $_.Exception.Message
@@ -492,16 +493,17 @@ function uninstallOneDrive {
 
         writeText -type "plain" -text "Cleaning up OneDrive folders and registry entries"
 
-        # Machine-wide paths, then per-profile paths. The old version used
+        # Machine-wide paths, then per-profile app data. The old version used
         # $env:LOCALAPPDATA and $env:USERPROFILE, which under SYSTEM resolved to
         # the systemprofile and Default folders instead of real users.
+        # The user's synced "OneDrive" folder is deliberately left alone: it can
+        # hold the only local copy of their files.
         $oneDrivePaths = @(
             "$env:SystemDrive\Microsoft OneDrive",
             "$env:SYSTEMDRIVE\OneDriveTemp"
         )
         foreach ($u in (getUserProfiles)) {
             $oneDrivePaths += "$($u.Path)\AppData\Local\Microsoft\OneDrive"
-            $oneDrivePaths += "$($u.Path)\OneDrive"
         }
 
         $removedCount = 0
@@ -692,7 +694,7 @@ function disableTelemetry {
             "Microsoft\Windows\Customer Experience Improvement Program\UsbCeip",
             "Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector"
         )) {
-        Disable-ScheduledTask -TaskName $t -ErrorAction SilentlyContinue | Out-Null
+        setTaskEnabled -Task $t -Enabled $false
     }
 }
 function disableWiFiSense {
@@ -736,8 +738,8 @@ function disableFeedback {
         param($root, $user)
         setRegValue -Path "$root\SOFTWARE\Microsoft\Siuf\Rules" -Name "NumberOfSIUFInPeriod" -Value 0
     }
-    Disable-ScheduledTask -TaskName "Microsoft\Windows\Feedback\Siuf\DmClient" -ErrorAction SilentlyContinue | Out-Null
-    Disable-ScheduledTask -TaskName "Microsoft\Windows\Feedback\Siuf\DmClientOnScenarioDownload" -ErrorAction SilentlyContinue | Out-Null
+    setTaskEnabled -Task "Microsoft\Windows\Feedback\Siuf\DmClient" -Enabled $false
+    setTaskEnabled -Task "Microsoft\Windows\Feedback\Siuf\DmClientOnScenarioDownload" -Enabled $false
 }
 function disableAdvertisingID {
     writeText -type "plain" -text "Disabling Advertising ID..."
@@ -761,11 +763,11 @@ function disableCortana {
 function enableErrorReporting {
     writeText -type "plain" -text "Enabling Error reporting..."
     Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting" -Name "Disabled" -ErrorAction SilentlyContinue
-    Enable-ScheduledTask -TaskName "Microsoft\Windows\Windows Error Reporting\QueueReporting" -ErrorAction SilentlyContinue | Out-Null
+    setTaskEnabled -Task "Microsoft\Windows\Windows Error Reporting\QueueReporting" -Enabled $true
 }
 function disableAutoLogger {
     writeText -type "plain" -text "Removing AutoLogger file and restricting directory..."
-    $autoLoggerDir = "$env:SystemDrive\Microsoft\Diagnosis\ETLLogs\AutoLogger"
+    $autoLoggerDir = "$env:ProgramData\Microsoft\Diagnosis\ETLLogs\AutoLogger"
     if (Test-Path "$autoLoggerDir\AutoLogger-Diagtrack-Listener.etl") {
         Remove-Item -Path "$autoLoggerDir\AutoLogger-Diagtrack-Listener.etl" -Force -ErrorAction SilentlyContinue
     }
@@ -981,26 +983,25 @@ function pinAppsToTaskbar {
   <CustomTaskbarLayoutCollection PinListPlacement="Replace">
     <defaultlayout:TaskbarLayout>
       <taskbar:TaskbarPinList>
-        <taskbar:DesktopApp DesktopApplicationLinkPath="%APPDATA%\Microsoft\Windows\Start Menu\Programs\File Explorer.lnk"/>
-        <taskbar:DesktopApp DesktopApplicationLinkPath="%PROGRAMFILES%\Google\Chrome\Application\chrome.exe"/>
+        <taskbar:DesktopApp DesktopApplicationID="Microsoft.Windows.Explorer"/>
+        <taskbar:DesktopApp DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\Google Chrome.lnk"/>
       </taskbar:TaskbarPinList>
     </defaultlayout:TaskbarLayout>
   </CustomTaskbarLayoutCollection>
 </LayoutModificationTemplate>
 "@
 
-        # Write to every profile, not $env:LOCALAPPDATA (= systemprofile under SYSTEM)
-        $written = 0
-        foreach ($prof in (getUserProfiles)) {
-            $shellDir = "$($prof.Path)\AppData\Local\Microsoft\Windows\Shell"
-            if (-not (Test-Path $shellDir)) {
-                New-Item -Path $shellDir -ItemType Directory -Force | Out-Null
-            }
-            $layoutXml | Out-File -FilePath (Join-Path $shellDir 'LayoutModification.xml') -Encoding UTF8 -Force
-            $written++
+        # Windows applies LayoutModification.xml only when a profile is first
+        # created, from the Default profile. Writing it into existing profiles
+        # has no effect, so only Default is written (not $env:LOCALAPPDATA,
+        # which is systemprofile under SYSTEM).
+        $shellDir = Join-Path $env:SystemDrive 'Users\Default\AppData\Local\Microsoft\Windows\Shell'
+        if (-not (Test-Path $shellDir)) {
+            New-Item -Path $shellDir -ItemType Directory -Force | Out-Null
         }
+        $layoutXml | Out-File -FilePath (Join-Path $shellDir 'LayoutModification.xml') -Encoding UTF8 -Force
 
-        writeText -type "success" -text "Taskbar layout written for $written profile(s)."
+        writeText -type "success" -text "Taskbar layout written to the Default profile (applies to users who sign in for the first time)."
     } catch {
         writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
     }
@@ -1021,30 +1022,21 @@ function editHostname {
         $hostname = "$($location)-$($locationType)-$($computerType)"
         writeText -type "plain" -text "New Hostname:     $hostname"
 
-        if ($hostname -eq "") { 
-            $hostname = $currentHostname 
-        } 
+        if ($location -notmatch '^[A-Za-z0-9]+$') {
+            throw "Invalid location '$location'. Hostname not changed."
+        }
+        if ($hostname.Length -gt 15) {
+            throw "Hostname '$hostname' is longer than the 15 character NetBIOS limit. Hostname not changed."
+        }
 
-        if ($hostname -ne "") {
-            Remove-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -name "Hostname" -ErrorAction SilentlyContinue
-            Remove-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -name "NV Hostname" -ErrorAction SilentlyContinue
-            Set-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Control\Computername\Computername" -name "Computername" -value $hostname
-            Set-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Control\Computername\ActiveComputername" -name "Computername" -value $hostname
-            Set-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -name "Hostname" -value $hostname
-            Set-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -name "NV Hostname" -value  $hostname
-            Set-ItemProperty -path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -name "AltDefaultDomainName" -value $hostname
-            Set-ItemProperty -path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -name "DefaultDomainName" -value $hostname
-            $env:COMPUTERNAME = $hostname
-        } 
-
-        $hostnameChanged = $currentHostname -ne $env:COMPUTERNAME
-
-        if ($hostnameChanged) {
-            writeText -type "success" -text "Hostname changed."
-        } else {
+        if ($hostname -ieq $currentHostname) {
             writeText -type "success" -text "Hostname unchanged."
+        } else {
+            Rename-Computer -NewName $hostname -Force -ErrorAction Stop
+            writeText -type "success" -text "Hostname changed. It takes effect after a restart."
         }
     } catch {
+        addError -source "$($MyInvocation.MyCommand.Name)" -message $_.Exception.Message
         writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
     }
 }
@@ -1054,14 +1046,20 @@ function getBGInfo {
 
         $url = "https://drive.google.com/uc?export=download&id=1XAP5hAgu3k9067NvoZb2YU6TiPr9I68H"
 
-        # Set the wallpaper properties
-        Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name WallPaper -Value "" 
-        Set-ItemProperty -Path "HKCU:\Control Panel\Colors" -Name Background -Value "0 0 0" 
+        # Set the wallpaper properties for every user (HKCU is systemprofile under SYSTEM)
+        invokeForEachUserHive {
+            param($root, $user)
+            setRegValue -Path "$root\Control Panel\Desktop" -Name "WallPaper" -Value "" -Type String
+            setRegValue -Path "$root\Control Panel\Colors" -Name "Background" -Value "0 0 0" -Type String
+        }
 
         $download = getDownload -url $url -target "$env:SystemDrive\Nuvia\temp\BGInfo.zip"
 
-        if ($download -eq $true) { 
-            Expand-Archive -LiteralPath "$env:SystemDrive\Nuvia\temp\BGInfo.zip" -DestinationPath "$env:SystemDrive\Nuvia\temp\"
+        if ($download -ne $true) {
+            addError -source "getBGInfo" -message "BGInfo download failed"
+            writeText -type "error" -text "BGInfo download failed. Skipping background."
+        } else {
+            Expand-Archive -LiteralPath "$env:SystemDrive\Nuvia\temp\BGInfo.zip" -DestinationPath "$env:SystemDrive\Nuvia\temp\" -Force
 
             # Test if the extracted folder exists
             if (Test-Path "$env:SystemDrive\Nuvia\temp\BGInfo") {
@@ -1101,6 +1099,7 @@ function getBGInfo {
             writeText -type "success" -text "BGInfo installed and should be applied."
         }
     } catch {
+        addError -source "$($MyInvocation.MyCommand.Name)" -message $_.Exception.Message
         writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
     }
 }
@@ -1234,6 +1233,25 @@ function getAdobeReaderUrl {
 }
 
 # --- SYSTEM-context helpers ------------------------------------------------
+# The ScheduledTasks cmdlets take the folder and the task name separately; a
+# combined "Folder\Task" -TaskName silently matches nothing.
+function setTaskEnabled {
+    param(
+        [Parameter(Mandatory)][string]$Task,
+        [Parameter(Mandatory)][bool]$Enabled
+    )
+    $taskPath = "\" + (Split-Path $Task -Parent).Trim('\') + "\"
+    $taskName = Split-Path $Task -Leaf
+    try {
+        if ($Enabled) {
+            Enable-ScheduledTask -TaskPath $taskPath -TaskName $taskName -ErrorAction Stop | Out-Null
+        } else {
+            Disable-ScheduledTask -TaskPath $taskPath -TaskName $taskName -ErrorAction Stop | Out-Null
+        }
+    } catch {
+        writeText -type "notice" -text "Scheduled task $taskPath$taskName not changed: $($_.Exception.Message)"
+    }
+}
 function isSystemContext {
     return ([Security.Principal.WindowsIdentity]::GetCurrent()).User.Value -eq 'S-1-5-18'
 }
