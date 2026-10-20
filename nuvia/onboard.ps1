@@ -335,6 +335,8 @@ function installApps {
             $null = installApp -url $app.Url -appName $app.Name -fileName $app.File -params $app.Params -outputPath "C:\Nuvia\Temp" | Out-Null
         }
 
+        setDefaultBrowser
+
         if ((installNinja | Select-Object -Last 1) -ne $true) {
             addError -source "installApps-NinjaOne" -message "NinjaOne agent did not install or start"
         }
@@ -1204,6 +1206,47 @@ function chromeMemorySaver {
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
     }
 }
+function setDefaultBrowser {
+    # Windows protects each user's existing browser choice with a hash, so it
+    # can't be set from a script. What does work is importing a default app
+    # associations file: it applies to every profile on its first sign-in
+    # (not to users who already picked a browser). The Chrome policy below also
+    # makes Chrome offer itself as the default for users who already exist.
+    try {
+        writeText -type "plain" -text "Setting Google Chrome as the default browser" -lineBefore
+
+        $chromeExe = "C:\Program Files\Google\Chrome\Application\chrome.exe"
+        if (-not (Test-Path $chromeExe)) {
+            throw "Chrome is not installed at $chromeExe"
+        }
+
+        $xmlDir = getConfigPath -name temp
+        if (-not (Test-Path $xmlDir)) { New-Item -Path $xmlDir -ItemType Directory -Force | Out-Null }
+        $xmlPath = Join-Path $xmlDir "DefaultBrowser.xml"
+
+        @"
+<?xml version="1.0" encoding="UTF-8"?>
+<DefaultAssociations>
+  <Association Identifier="http" ProgId="ChromeHTML" ApplicationName="Google Chrome" />
+  <Association Identifier="https" ProgId="ChromeHTML" ApplicationName="Google Chrome" />
+  <Association Identifier=".htm" ProgId="ChromeHTML" ApplicationName="Google Chrome" />
+  <Association Identifier=".html" ProgId="ChromeHTML" ApplicationName="Google Chrome" />
+</DefaultAssociations>
+"@ | Out-File -FilePath $xmlPath -Encoding UTF8 -Force
+
+        & dism.exe /Online /Import-DefaultAppAssociations:"$xmlPath" | Out-Null
+        $exit = $LASTEXITCODE
+        Remove-Item -Path $xmlPath -Force -ErrorAction SilentlyContinue
+        if ($exit -ne 0) { throw "dism exited with code $exit" }
+
+        setRegValue -Path "HKLM:\SOFTWARE\Policies\Google\Chrome" -Name "DefaultBrowserSettingEnabled" -Value 1
+
+        writeText -type "success" -text "Chrome set as the default browser for new users. Existing users may be prompted by Chrome."
+    } catch {
+        addError -source "$($MyInvocation.MyCommand.Name)" -message $_.Exception.Message
+        writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
+    }
+}
 function addError {
     param(
         [Parameter(Mandatory)][string]$source,
@@ -1272,6 +1315,7 @@ function setRegValue {
         New-ItemProperty -LiteralPath $Path -Name $Name -Value $Value `
             -PropertyType $Type -Force -ErrorAction Stop | Out-Null
     } catch {
+        if ($script:errors) { addError -source "setRegValue-$Name" -message "$Path - $($_.Exception.Message)" }
         writeText -type "error" -text "setRegValue failed: $Path\$Name - $($_.Exception.Message)"
     }
 }
