@@ -1205,6 +1205,33 @@ function chromeMemorySaver {
         writeText -type "error" -text "$($MyInvocation.MyCommand.Name): $($_.InvocationInfo.ScriptLineNumber)-$($_.Exception.Message)"
     }
 }
+function addError {
+    param(
+        [Parameter(Mandatory)][string]$source,
+        [Parameter(Mandatory)][string]$message
+    )
+    $key = $source
+    $i = 1
+    while ($script:errors.Contains($key)) { $i++; $key = "$source ($i)" }
+    $script:errors[$key] = $message
+}
+function getAdobeReaderUrl {
+    $fallback = "https://ardownload3.adobe.com/pub/adobe/acrobat/win/AcrobatDC/2600221901/AcroRdrDCx642600221901_MUI.exe"
+    try {
+        [Net.ServicePointManager]::SecurityProtocol =
+        [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+
+        $api = "https://rdc.adobe.io/reader/products?lang=mui&site=enterprise&os=Windows%2011&api_key=dc-get-adobereader-cdn"
+        $v = ((Invoke-RestMethod -Uri $api -TimeoutSec 20 -ErrorAction Stop).products.reader |
+            Where-Object { $_.displayName -match "64bit" }).version -replace '\.', ''
+
+        if (-not $v) { return $fallback }
+        return "https://ardownload3.adobe.com/pub/adobe/acrobat/win/AcrobatDC/$v/AcroRdrDCx64${v}_MUI.exe"
+    } catch {
+        writeText -type "notice" -text "Could not resolve current Adobe version, using pinned build."
+        return $fallback
+    }
+}
 
 # --- SYSTEM-context helpers ------------------------------------------------
 function isSystemContext {
@@ -1308,49 +1335,5 @@ function invokeForEachUserHive {
                 & reg.exe unload "HKU\$tempKey" 2>&1 | Out-Null
             }
         }
-    }
-}
-# winget reaches interactive users through an App Execution Alias in
-# %LOCALAPPDATA%\Microsoft\WindowsApps, which SYSTEM has no copy of. Resolve
-# the real binary under Program Files\WindowsApps instead.
-function getWingetPath {
-    $cmd = Get-Command winget.exe -ErrorAction SilentlyContinue
-    if ($cmd -and (Test-Path $cmd.Source)) { return $cmd.Source }
-
-    $candidates = Get-ChildItem -Path "$env:ProgramFiles\WindowsApps" -Directory -Force -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -like 'Microsoft.DesktopAppInstaller_*_*__8wekyb3d8bbwe' } |
-    Sort-Object -Property Name -Descending
-
-    foreach ($c in $candidates) {
-        $exe = Join-Path $c.FullName 'winget.exe'
-        if (Test-Path $exe) { return $exe }
-    }
-    return $null
-}
-function addError {
-    param(
-        [Parameter(Mandatory)][string]$source,
-        [Parameter(Mandatory)][string]$message
-    )
-    $key = $source
-    $i = 1
-    while ($script:errors.Contains($key)) { $i++; $key = "$source ($i)" }
-    $script:errors[$key] = $message
-}
-function getAdobeReaderUrl {
-    $fallback = "https://ardownload3.adobe.com/pub/adobe/acrobat/win/AcrobatDC/2600221901/AcroRdrDCx642600221901_MUI.exe"
-    try {
-        [Net.ServicePointManager]::SecurityProtocol =
-        [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-
-        $api = "https://rdc.adobe.io/reader/products?lang=mui&site=enterprise&os=Windows%2011&api_key=dc-get-adobereader-cdn"
-        $v = ((Invoke-RestMethod -Uri $api -TimeoutSec 20 -ErrorAction Stop).products.reader |
-            Where-Object { $_.displayName -match "64bit" }).version -replace '\.', ''
-
-        if (-not $v) { return $fallback }
-        return "https://ardownload3.adobe.com/pub/adobe/acrobat/win/AcrobatDC/$v/AcroRdrDCx64${v}_MUI.exe"
-    } catch {
-        writeText -type "notice" -text "Could not resolve current Adobe version, using pinned build."
-        return $fallback
     }
 }
