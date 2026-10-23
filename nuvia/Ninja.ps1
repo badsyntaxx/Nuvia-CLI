@@ -55,13 +55,6 @@ function installNinja {
     }
 }
 function uninstallNinja {
-    $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
-    ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    if (-not $isAdmin) {
-        writeText -type "error" -text "Uninstalling Ninja requires an elevated (Run as Administrator) session."
-        return
-    }
-
     removeNinjaRMM
     removeNinjaRemote
     findMissingProductKeyNames

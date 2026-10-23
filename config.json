@@ -117,9 +117,14 @@
         "n?": { "directory": "nuvia", "file": "core", "function": "writeHelp", "description": "Nuvia CLI plugin." },
         "n menu": { "directory": "nuvia", "file": "core", "function": "readMenu", "description": "Display the Nuvia CLI menu." },
         "i jumpcloud": { "directory": "nuvia", "file": "JumpCloud", "function": "installJumpCloud", "description": "Install JumpCloud." },
-        "i ninja": { "directory": "nuvia", "file": "Ninja", "function": "installNinja", "description": "Install Ninja." },
-        "u ninja": { "directory": "nuvia", "file": "Ninja", "function": "uninstallNinja", "description": "Uninstall Ninja." },
-        "r ninja": { "directory": "nuvia", "file": "Ninja", "function": "restartNinjaService", "description": "Restart Ninja service (NRStreamer)." },
+        "install ninja": { "directory": "nuvia", "file": "Ninja", "function": "installNinja", "description": "Install Ninja." },
+        "uninstall ninja": { "directory": "nuvia", "file": "Ninja", "function": "uninstallNinja", "description": "Uninstall Ninja." },
+        "restart ninja": {
+            "directory": "nuvia",
+            "file": "Ninja",
+            "function": "restartNinjaService",
+            "description": "Restart Ninja service (NRStreamer)."
+        },
         "od menu": { "directory": "nuvia", "file": "OpenDental", "function": "odMenu", "description": "Display the OpenDental menu." },
         "od version": { "directory": "nuvia", "file": "OpenDental", "function": "getODVersion", "description": "Get the OpenDental version." },
         "od config": { "directory": "nuvia", "file": "OpenDental", "function": "getODConfig", "description": "Get the OpenDental configuration." },
