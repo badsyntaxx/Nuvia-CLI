@@ -55,40 +55,62 @@ function installNinja {
     }
 }
 function uninstallNinja {
+    $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+    ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    if (-not $isAdmin) {
+        writeText -type "error" -text "Uninstalling Ninja requires an elevated (Run as Administrator) session."
+        return
+    }
+
     removeNinjaRMM
     removeNinjaRemote
     findMissingProductKeyNames
-    writeText -type "success" -text "Ninja Successfully Uninstalled" -lineAfter
+
+    # Report what actually happened instead of always claiming success
+    $leftovers = @()
+    foreach ($name in @('NinjaRMMAgent', 'ncstreamer')) {
+        if (Get-Service -Name $name -ErrorAction SilentlyContinue) { $leftovers += "service $name" }
+    }
+    foreach ($path in @("$env:SystemDrive\NinjaRMMAgent", "$env:ProgramFiles\NinjaOne", "${env:ProgramFiles(x86)}\NinjaRMMAgent")) {
+        if (Test-Path $path) { $leftovers += $path }
+    }
+
+    if ($leftovers.Count -eq 0) {
+        writeText -type "success" -text "Ninja Successfully Uninstalled" -lineAfter
+    } else {
+        writeText -type "error" -text "Ninja was not fully removed. Still present: $($leftovers -join ', ')" -lineAfter
+    }
 }
 function removeNinjaRMM {
     try {
         writeText -type "plain" -text "Starting Ninja RMM removal..."
         $installPath = findNinjaInstallPaths
-    
+
         # Disable uninstall prevention if installation found
         if ($installPath -and (Test-Path "$installPath\NinjaRMMAgent.exe")) {
             writeText -type "plain" -text "Disabling uninstall prevention..."
-            Write-Host "Executing: $installPath\NinjaRMMAgent.exe -disableUninstallPrevention"
-            Start-Process "$installPath\NinjaRMMAgent.exe" -ArgumentList "-disableUninstallPrevention" -Wait -NoNewWindow
-            $exitCode = $LASTEXITCODE
-            Write-Host "Disable uninstall prevention exit code: $exitCode"
+            # Start-Process does not set $LASTEXITCODE; -PassThru is needed for the exit code
+            $proc = Start-Process "$installPath\NinjaRMMAgent.exe" -ArgumentList "-disableUninstallPrevention" -Wait -NoNewWindow -PassThru
+            writeText -type "plain" -text "Disable uninstall prevention exit code: $($proc.ExitCode)"
         }
 
-        writeText -type "plain" -text "Stopping Ninja processes..."
-        $processes = @("NinjaRMMAgent", "NinjaRMMAgentPatcher", "njbar", "NinjaRMMProxyProcess64")
-    
-        foreach ($processName in $processes) {
-            $Process = Get-Process -Name $processName -ErrorAction SilentlyContinue
-            if ($Process) {
-                Stop-Process $Process -Force -ErrorAction Stop
-                writeText -type "success" -text "Successfully stopped process: $processName" -lineAfter
+        stopNinjaProcess
+
+        # Prefer the bundled uninstaller; fall back to the MSI uninstall string.
+        # Either way the cleanup below still runs.
+        if ($installPath -and (Test-Path "$installPath\uninstall.exe")) {
+            writeText -type "plain" -text "Running uninstall.exe..."
+            $proc = Start-Process -FilePath "$installPath\uninstall.exe" -ArgumentList "--mode unattended" -Wait -NoNewWindow -PassThru
+            writeText -type "plain" -text "NinjaOne uninstall exit code: $($proc.ExitCode)"
+        } else {
+            $msiString = getNinjaUninstallString
+            if ($msiString) {
+                NinjaMSIUninstall -UninstallString $msiString
+            } else {
+                writeText -type "notice" -text "No Ninja uninstaller found. Cleaning up leftovers only."
             }
         }
 
-        Start-Process -FilePath "$installPath\uninstall.exe" -ArgumentList "--mode unattended" -Wait -NoNewWindow
-        $exitCode = $LASTEXITCODE
-        Write-Host "NinjaOne Uninstall: $exitCode"
-        
         removeNinjaServices -installLocation $installPath
         removeNinjaDirectories -installLocation $installPath
         removeNinjaRegistryItems
@@ -161,7 +183,6 @@ function removeNinjaDirectories {
     )
     
     foreach ($Dir in $Directories) {
-        write-host $Dir
         if ($Dir.Path -and (Test-Path $Dir.Path)) {
             writeText -type "plain" -text "Removing Ninja $($Dir.Name): $($Dir.Path)"
             try {
@@ -244,22 +265,29 @@ function findNinjaInstallPaths {
     writeText -type "plain" -text "Searching for Ninja installation path..."
     $RegPaths = getNinjaRegistryPaths
     
+    # 1. The agent's own registry key
     try {
         $installLocation = (Get-ItemPropertyValue $RegPaths.Main -Name Location -ErrorAction Stop).Replace('/', '\')
-        
         if (Test-Path "$installLocation\NinjaRMMAgent.exe") {
             writeText -type "plain" -text "Ninja installation path found: $installLocation"
             return $installLocation
-        } else {
-            $ServicePath = ((Get-CimInstance Win32_Service | Where-Object { $_.Name -eq 'NinjaRMMAgent' }).PathName).Trim('"')
-            if (Test-Path $ServicePath) {
-                return $ServicePath | Split-Path
+        }
+    } catch { }
+
+    # 2. The service's executable. PathName is usually quoted and followed by
+    # arguments, so take the quoted part (or everything up to ".exe").
+    try {
+        $pathName = (Get-CimInstance Win32_Service -Filter "Name='NinjaRMMAgent'" -ErrorAction Stop).PathName
+        if ($pathName -match '^\s*"([^"]+)"' -or $pathName -match '^\s*(.+?\.exe)') {
+            $exe = $Matches[1]
+            if (Test-Path $exe) {
+                writeText -type "plain" -text "Ninja installation path found: $(Split-Path $exe)"
+                return (Split-Path $exe)
             }
         }
-    } catch {
-        writeText -type "notice" -text "Unable to locate Ninja installation path. Continuing with cleanup..." -lineAfter
-    }
-    
+    } catch { }
+
+    writeText -type "notice" -text "Unable to locate Ninja installation path. Continuing with cleanup..." -lineAfter
     return $null
 }
 function getNinjaUninstallString {
