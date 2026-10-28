@@ -627,7 +627,7 @@ function disableTaskbarWidgets {
 function removeTaskbarPins {
     try {
         writeText -type "plain" -text "Removing Taskbar Pins"
-        $appsToUnpin = @("Microsoft Edge", "Microsoft Store", "Dell Optimizer", "Dell Command Update", "Copilot")
+        $appsToUnpin = @("Microsoft Edge", "Microsoft Store", "Dell Optimizer", "Dell Command Update", "Copilot", "Microsoft Store", "MSI Center")
 
         # The Shell.Application "Unpin from taskbar" verb only works inside an
         # interactive desktop session. Under SYSTEM it silently enumerates nothing,
