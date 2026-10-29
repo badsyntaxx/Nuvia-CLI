@@ -262,67 +262,62 @@ function optimize {
 }
 function installApps {
     param (
-        [string]$computerType = "",
-        [string]$ninjaLink = ""
+        [string]$computerType = ""
     )
 
     try {
         writeText -type "header" -text "Installing Applications" -lineBefore
 
-        $appsToInstall = @(
-            @{ 
+        # Imaging and scanning machines don't get the office apps
+        $imagingTypes = @(
+            "IOS", "MM", "MM1", "MM2", "SED1", "SED2", "SED3", "CAM",
+            "iCAM", "iCAM1", "iCAM2", "iCAM3", "SCAN", "SCAN1", "SCAN2", "PANO"
+        )
+        $hasType = $computerType -ne ""
+        $isOfficeType = $hasType -and $computerType -notin $imagingTypes
+
+        $appsToInstall = [System.Collections.Generic.List[hashtable]]::new()
+
+        $appsToInstall.Add(@{
                 Name   = "Google Chrome"
                 Url    = "https://dl.google.com/dl/chrome/install/googlechromestandaloneenterprise64.msi"
                 File   = "GoogleChromeStandaloneEnterprise64.msi"
-                Params = "/qn /norestart" 
-            }
+                Params = "/qn /norestart"
+            })
 
-            <# @{ 
+        <# $appsToInstall.Add(@{
                 Name   = "Cliq"
                 Url    = "https://downloads.zohocdn.com/chat-desktop/windows/Cliq-1.8.4-x64.msi"
                 File   = "Cliq-x64.msi"
-                Params = "/qn /norestart" 
-            } #>
+                Params = "/qn /norestart"
+            }) #>
 
-            @{ 
-                Name   = "Dropbox"
-                Url    = "https://client.dropbox.com/desktop/desktop-dropbox/requestdownload?install_type=enterprise_install&platform=win&arch=x86_64"
-                File   = "DropboxEnterprise.msi"
-                Params = "/qn /norestart" 
-            }
-        )
+        if ($isOfficeType) {
+            $appsToInstall.Add(@{
+                    Name   = "Dropbox"
+                    Url    = "https://client.dropbox.com/desktop/desktop-dropbox/requestdownload?install_type=enterprise_install&platform=win&arch=x86_64"
+                    File   = "DropboxEnterprise.msi"
+                    Params = "/qn /norestart"
+                })
 
-        if ($computerType -ne "" -and $computerType -in @("IOS", 
-                "MM", 
-                "MM1", 
-                "MM2", 
-                "SED1", 
-                "SED2", 
-                "SED3", 
-                "CAM",
-                "iCAM",
-                "iCAM1",
-                "iCAM2",
-                "iCAM3",
-                "SCAN",
-                "SCAN1",
-                "SCAN2",
-                "PANO")) {
-            $appsToInstall += @{ 
-                Name   = "Adobe Acrobat"
-                Url    = (getAdobeReaderUrl)
-                File   = "AcroRdrDCx64_MUI.exe"
-                Params = "/sAll /rs /msi EULA_ACCEPT=YES ALLUSERS=1" 
+            # Resolving the Adobe URL is a web call, so skip it when Adobe is already installed
+            if ((appInstalled -appName "Adobe Acrobat" | Select-Object -Last 1) -ne $true) {
+                $appsToInstall.Add(@{
+                        Name   = "Adobe Acrobat"
+                        Url    = (getAdobeReaderUrl)
+                        File   = "AcroRdrDCx64_MUI.exe"
+                        Params = "/sAll /rs /msi EULA_ACCEPT=YES ALLUSERS=1"
+                    })
             }
         }
 
-        if ($computerType -ne "" -and $computerType -in @("FD1", "FD2", "FD3", "OM")) {
-            $appsToInstall += @{ 
-                Name   = "Sonos"
-                Url    = "https://www.sonos.com/redir/controller_software_pc2"
-                File   = "SonosSetup.exe"
-                Params = "/S" 
-            }
+        if ($computerType -in @("FD1", "FD2", "FD3", "OM")) {
+            $appsToInstall.Add(@{
+                    Name   = "Sonos"
+                    Url    = "https://www.sonos.com/redir/controller_software_pc2"
+                    File   = "SonosSetup.exe"
+                    Params = "/S"
+                })
         }
 
         foreach ($app in $appsToInstall) {
@@ -332,7 +327,7 @@ function installApps {
                 continue
             }
 
-            $null = installApp -url $app.Url -appName $app.Name -fileName $app.File -params $app.Params -outputPath "C:\Nuvia\Temp" | Out-Null
+            $null = installApp -url $app.Url -appName $app.Name -fileName $app.File -params $app.Params -outputPath "C:\Nuvia\Temp"
         }
 
         setDefaultBrowser
