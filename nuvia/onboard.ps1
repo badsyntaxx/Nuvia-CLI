@@ -626,10 +626,10 @@ function removeTaskbarPins {
 
         # The Shell.Application "Unpin from taskbar" verb only works inside an
         # interactive desktop session. Under SYSTEM it silently enumerates nothing,
-        # so skip it there and rely on the per-profile LayoutModification.xml
-        # written by pinAppsToTaskbar (PinListPlacement="Replace" clears the rest).
+        # so existing pins are left exactly as they are (clearing the Taskband
+        # key would also remove wanted pins like Chrome and File Explorer).
         if (isSystemContext) {
-            writeText -type "plain" -text "SYSTEM context - skipping shell verb unpin, using layout XML instead."
+            writeText -type "notice" -text "Running as SYSTEM: the taskbar can't be edited, so existing pins were left as is."
         } else {
             $shell = New-Object -Com Shell.Application
             $taskbarItems = $shell.NameSpace('shell:::{4234d49b-0245-4df3-b780-3893943456e1}').Items()
@@ -654,23 +654,9 @@ function removeTaskbarPins {
             }
         }
 
-        # Remove the pinned .lnk files from every profile, not just $env:APPDATA
-        foreach ($prof in (getUserProfiles)) {
-            $taskbarPinPath = "$($prof.Path)\AppData\Roaming\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
-            if (-not (Test-Path $taskbarPinPath)) { continue }
-
-            Get-ChildItem $taskbarPinPath -Filter "*.lnk" -ErrorAction SilentlyContinue |
-            ForEach-Object {
-                $shouldRemove = $false
-                foreach ($appName in $appsToUnpin) {
-                    if ($_.Name -match [regex]::Escape($appName)) { $shouldRemove = $true; break }
-                }
-                if ($shouldRemove) {
-                    Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue
-                    writeText -type "plain" -text "Removed shortcut for $($prof.Name): $($_.Name)"
-                }
-            }
-        }
+        # Do NOT delete the .lnk files in "User Pinned\TaskBar". The pin list
+        # lives in the Taskband registry key, and a pin whose shortcut is gone
+        # is drawn as a blank white page instead of disappearing.
 
         writeText -type "success" -text "Taskbar Pins removal completed"
     } catch {
@@ -1030,6 +1016,15 @@ function editHostname {
             writeText -type "success" -text "Hostname unchanged."
         } else {
             Rename-Computer -NewName $hostname -Force -ErrorAction Stop
+            Remove-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -name "Hostname" 
+            Remove-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -name "NV Hostname" 
+            Set-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Control\Computername\Computername" -name "Computername" -value $hostname
+            Set-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Control\Computername\ActiveComputername" -name "Computername" -value $hostname
+            Set-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -name "Hostname" -value $hostname
+            Set-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -name "NV Hostname" -value  $hostname
+            Set-ItemProperty -path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -name "AltDefaultDomainName" -value $hostname
+            Set-ItemProperty -path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -name "DefaultDomainName" -value $hostname
+            $env:COMPUTERNAME = $hostname
             writeText -type "success" -text "Hostname changed. It takes effect after a restart."
         }
     } catch {
