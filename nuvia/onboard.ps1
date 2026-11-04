@@ -209,6 +209,7 @@ function declutter {
         disableBingSearch
         disableTaskbarWidgets
         removeTaskbarPins
+        removeEdgeShortcuts
     } catch {
         addError -source "$($MyInvocation.MyCommand.Name)" -message $_.Exception.Message
         writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
@@ -659,6 +660,58 @@ function removeTaskbarPins {
         # is drawn as a blank white page instead of disappearing.
 
         writeText -type "success" -text "Taskbar Pins removal completed"
+    } catch {
+        addError -source "$($MyInvocation.MyCommand.Name)" -message $_.Exception.Message
+        writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
+    }
+}
+function removeEdgeShortcuts {
+    try {
+        writeText -type "plain" -text "Removing Microsoft Edge shortcuts"
+
+        # Stop Edge's installer/updater from putting the desktop shortcut back
+        setRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\EdgeUpdate" -Name "CreateDesktopShortcutDefault" -Value 0
+        setRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\EdgeUpdate" -Name "CreateDesktopShortcut{56EB18F8-B008-4CBD-B6D2-8C97FE7E9062}" -Value 0
+
+        # Desktop and Start Menu locations, machine-wide and per profile
+        # (including Default, so new users don't get them). Taskbar pins are
+        # deliberately not touched here: deleting a pinned .lnk leaves a blank icon.
+        $roots = @(
+            @{ Path = "$env:PUBLIC\Desktop"; Recurse = $false },
+            @{ Path = "$env:ProgramData\Microsoft\Windows\Start Menu"; Recurse = $true }
+        )
+        foreach ($prof in (getUserProfiles)) {
+            $roots += @{ Path = "$($prof.Path)\Desktop"; Recurse = $false }
+            foreach ($odDesktop in (Get-ChildItem -Path $prof.Path -Directory -Filter "OneDrive*" -ErrorAction SilentlyContinue)) {
+                $roots += @{ Path = "$($odDesktop.FullName)\Desktop"; Recurse = $false }
+            }
+            $roots += @{ Path = "$($prof.Path)\AppData\Roaming\Microsoft\Windows\Start Menu"; Recurse = $true }
+        }
+
+        $wsh = New-Object -ComObject WScript.Shell
+        $removed = 0
+
+        foreach ($root in $roots) {
+            if (-not (Test-Path -LiteralPath $root.Path)) { continue }
+
+            $links = Get-ChildItem -LiteralPath $root.Path -Filter "*.lnk" -File -Recurse:$root.Recurse -ErrorAction SilentlyContinue
+            foreach ($link in $links) {
+                try {
+                    $shortcut = $wsh.CreateShortcut($link.FullName)
+                    # Edge itself only. Shortcuts with --app= are installed web apps, which are left alone.
+                    $isEdge = $shortcut.TargetPath -match '(?i)\\msedge(_proxy)?\.exe$' -and $shortcut.Arguments -notmatch '--app'
+                    if (-not $isEdge) { continue }
+
+                    Remove-Item -LiteralPath $link.FullName -Force -ErrorAction Stop
+                    writeText -type "plain" -text "Removed Edge shortcut: $($link.FullName)"
+                    $removed++
+                } catch {
+                    writeText -type "notice" -text "Could not remove $($link.FullName): $($_.Exception.Message)"
+                }
+            }
+        }
+
+        writeText -type "success" -text "Removed $removed Edge shortcut(s)."
     } catch {
         addError -source "$($MyInvocation.MyCommand.Name)" -message $_.Exception.Message
         writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
