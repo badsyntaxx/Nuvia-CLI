@@ -233,8 +233,8 @@ function optimize {
         disableSMB1
         setCurrentNetworkPrivate
         disableUpdateRestart
-        #disableRemoteAssistance
-        #disableRemoteDesktop
+        disableRemoteAssistance
+        disableRemoteDesktop
         disableAutoplay
         disableAutorun
         disableHibernation
@@ -286,12 +286,12 @@ function installApps {
                 Params = "/qn /norestart"
             })
 
-        <# $appsToInstall.Add(@{
+        $appsToInstall.Add(@{
                 Name   = "Cliq"
                 Url    = "https://downloads.zohocdn.com/chat-desktop/windows/Cliq-1.8.4-x64.msi"
                 File   = "Cliq-x64.msi"
                 Params = "/qn /norestart"
-            }) #>
+            })
 
         if ($isOfficeType) {
             $appsToInstall.Add(@{
