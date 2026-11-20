@@ -254,7 +254,8 @@ function optimize {
         showDownloadsInExplorer
         disableXboxFeatures
         disableGameModeAndGameBar
-        disableSearchAppInStore 
+        setVisualEffects
+        disableSearchAppInStore
         chromeMemorySaver
     } catch {
         addError -source "$($MyInvocation.MyCommand.Name)" -message $_.Exception.Message
@@ -996,6 +997,66 @@ function disableGameModeAndGameBar {
     # Machine-wide policy - blocks Game DVR regardless of per-user settings
     setRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR" `
         -Name "AllowGameDVR" -Value 0
+}
+function setVisualEffects {
+    # Performance Options > Visual Effects, set to "Custom" with the boxes below.
+    # These are per-user settings, so every profile is written (and Default, so
+    # new users get them). They take effect the next time the user signs in.
+    writeText -type "plain" -text "Setting visual effects..."
+
+    invokeForEachUserHive {
+        param($root, $user)
+
+        # 3 = Custom. With 0 (Let Windows choose) Windows may replace the values below.
+        setRegValue -Path "$root\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -Value 3
+
+        $desktop = "$root\Control Panel\Desktop"
+
+        # Most checkboxes are single bits in UserPreferencesMask. Only these bits
+        # are changed; the rest of the profile's mask is kept. The Windows 10/11
+        # default mask is the starting point for a profile that has none yet.
+        $mask = [byte[]](0x9E, 0x1E, 0x07, 0x80, 0x12, 0x00, 0x00, 0x00)
+        $current = (Get-ItemProperty -LiteralPath $desktop -Name "UserPreferencesMask" -ErrorAction SilentlyContinue).UserPreferencesMask
+        if ($current -and $current.Length -ge $mask.Length) {
+            $mask = [byte[]]$current.Clone()
+        } elseif ($current) {
+            [Array]::Copy($current, $mask, $current.Length)
+        }
+
+        $bits = @(
+            @{ Byte = 0; Bit = 0x02; On = $false }, # Fade or slide menus into view
+            @{ Byte = 0; Bit = 0x04; On = $false }, # Slide open combo boxes
+            @{ Byte = 0; Bit = 0x08; On = $false }, # Smooth-scroll list boxes
+            @{ Byte = 1; Bit = 0x04; On = $false }, # Fade out menu items after clicking
+            @{ Byte = 1; Bit = 0x08; On = $false }, # Fade or slide ToolTips into view
+            @{ Byte = 1; Bit = 0x20; On = $true },  # Show shadows under mouse pointer
+            @{ Byte = 2; Bit = 0x04; On = $true },  # Show shadows under windows
+            @{ Byte = 3; Bit = 0x80; On = $true },  # UI effects master switch; the shadows need it on
+            @{ Byte = 4; Bit = 0x02; On = $false }  # Animate controls and elements inside windows
+        )
+        foreach ($b in $bits) {
+            if ($b.On) {
+                $mask[$b.Byte] = $mask[$b.Byte] -bor $b.Bit
+            } else {
+                $mask[$b.Byte] = $mask[$b.Byte] -band (-bnot $b.Bit)
+            }
+        }
+        setRegValue -Path $desktop -Name "UserPreferencesMask" -Value $mask -Type Binary
+
+        setRegValue -Path "$desktop\WindowMetrics" -Name "MinAnimate" -Value "0" -Type String # Animate windows when minimizing and maximizing
+        setRegValue -Path $desktop -Name "DragFullWindows" -Value "1" -Type String           # Show window contents while dragging
+        setRegValue -Path $desktop -Name "FontSmoothing" -Value "2" -Type String             # Smooth edges of screen fonts
+
+        $advanced = "$root\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+        setRegValue -Path $advanced -Name "TaskbarAnimations" -Value 0   # Animations in the taskbar
+        setRegValue -Path $advanced -Name "IconsOnly" -Value 0           # Show thumbnails instead of icons (0 = thumbnails)
+        setRegValue -Path $advanced -Name "ListviewAlphaSelect" -Value 0 # Show translucent selection rectangle
+        setRegValue -Path $advanced -Name "ListviewShadow" -Value 1      # Use drop shadows for icon labels on the desktop
+
+        $dwm = "$root\Software\Microsoft\Windows\DWM"
+        setRegValue -Path $dwm -Name "EnableAeroPeek" -Value 0            # Enable Peek
+        setRegValue -Path $dwm -Name "AlwaysHibernateThumbnails" -Value 0 # Save taskbar thumbnail previews
+    }
 }
 function disableSearchAppInStore {
     writeText -type "plain" -text "Disabling search for app in store for unknown extensions..."
