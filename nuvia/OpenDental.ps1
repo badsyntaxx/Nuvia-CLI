@@ -32,7 +32,7 @@ function getODVersion {
             writeText -type "plain" -text "OpenDental Version: $odVersion" -lineAfter
         } else {
             writeText -type "plain" -text "Could not find an installation of OD" -lineAfter
-            readCommand
+            return
         }
 
         # Define the paths to check
@@ -47,7 +47,7 @@ function getODVersion {
         foreach ($path in $dtxPaths) {
             if (Test-Path $path) {
                 try {
-                    Get-ItemProperty -Path $path -ErrorAction Stop
+                    $null = Get-ItemProperty -Path $path -ErrorAction Stop
                     $version = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($path).FileVersion
                     writeText -type "plain" -text "DTX Studio Version: $version" -lineAfter
                     $found = $true
@@ -61,14 +61,72 @@ function getODVersion {
         if (-not $found) {
             writeText -type "notice" -text "Could not find the DTX Studio executable in the default paths." -lineAfter
         }
+
+        writeODConfig
     } catch {
         writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
     }
-    
+
 }
 
 function getODConfig {
-    getODVersion
+    writeODConfig
+}
+
+function writeODConfig {
+    # Outputs every setting in FreeDentalConfig.xml. Passwords are hidden
+    # because everything written here also goes to the log file.
+    try {
+        $configPath = @(
+            "${env:ProgramFiles(x86)}\Open Dental\FreeDentalConfig.xml",
+            "$env:ProgramFiles\Open Dental\FreeDentalConfig.xml"
+        ) | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+
+        if (-not $configPath) {
+            writeText -type "notice" -text "Could not find FreeDentalConfig.xml in the Open Dental folder." -lineAfter
+            return
+        }
+
+        $config = New-Object System.Xml.XmlDocument
+        try {
+            $config.Load($configPath)
+        } catch {
+            # Not the [xml] cast: its error message repeats the whole file, passwords included
+            $reason = if ($_.Exception.InnerException) { $_.Exception.InnerException.Message } else { $_.Exception.Message }
+            throw "Could not read ${configPath}: $reason"
+        }
+
+        # Every element that holds a value, named by its path below the root,
+        # for example DatabaseConnection.ComputerName
+        $settings = [ordered]@{}
+        foreach ($node in $config.SelectNodes('//*[not(*)]')) {
+            $name = ($node.SelectNodes('ancestor-or-self::*') | Select-Object -Skip 1 | ForEach-Object { $_.LocalName }) -join '.'
+            $value = $node.InnerText.Trim()
+
+            if ($node.LocalName -match 'Pass|Pwd') {
+                $value = if ($value) { '(hidden)' } else { '(blank)' }
+            } elseif (-not $value) {
+                $value = '(blank)'
+            } else {
+                # A connection string can carry the password inline
+                $value = $value -replace '(?i)\b(pwd|password)\s*=[^;]*', '$1=(hidden)'
+            }
+
+            $key = $name
+            $i = 1
+            while ($settings.Contains($key)) { $i++; $key = "$name ($i)" }
+            $settings[$key] = $value
+        }
+
+        writeText -type "plain" -label "Open Dental config" -text $configPath
+        if ($settings.Count -eq 0) {
+            writeText -type "notice" -text "The config file has no settings." -lineAfter
+        } else {
+            writeText -type "list" -List $settings -lineAfter
+        }
+    } catch {
+        writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
+    }
 }
 
 function install22361 {
