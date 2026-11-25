@@ -81,9 +81,10 @@ function init {
     }
 
     debloat
-    declutter
     optimize
     installApps -computerType $computerType
+    # After installApps, because installers (Adobe in particular) add their own desktop shortcuts
+    declutter
     normalizeEnvironment -location $location -locationType $locationType -computerType $computerType
     writeSummary
 
@@ -209,7 +210,7 @@ function declutter {
         disableBingSearch
         disableTaskbarWidgets
         removeTaskbarPins
-        removeEdgeShortcuts
+        removeUnwantedShortcuts
     } catch {
         addError -source "$($MyInvocation.MyCommand.Name)" -message $_.Exception.Message
         writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
@@ -666,27 +667,28 @@ function removeTaskbarPins {
         writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"
     }
 }
-function removeEdgeShortcuts {
+function removeUnwantedShortcuts {
     try {
-        writeText -type "plain" -text "Removing Microsoft Edge shortcuts"
+        writeText -type "plain" -text "Removing Edge, Acrobat and T-Scan User Manual shortcuts"
 
         # Stop Edge's installer/updater from putting the desktop shortcut back
         setRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\EdgeUpdate" -Name "CreateDesktopShortcutDefault" -Value 0
         setRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\EdgeUpdate" -Name "CreateDesktopShortcut{56EB18F8-B008-4CBD-B6D2-8C97FE7E9062}" -Value 0
 
         # Desktop and Start Menu locations, machine-wide and per profile
-        # (including Default, so new users don't get them). Taskbar pins are
+        # (including Default, so new users don't get them). Edge is removed from
+        # both; Acrobat and the T-Scan manual from desktops only. Taskbar pins are
         # deliberately not touched here: deleting a pinned .lnk leaves a blank icon.
         $roots = @(
-            @{ Path = "$env:PUBLIC\Desktop"; Recurse = $false },
-            @{ Path = "$env:ProgramData\Microsoft\Windows\Start Menu"; Recurse = $true }
+            @{ Path = "$env:PUBLIC\Desktop"; IsDesktop = $true },
+            @{ Path = "$env:ProgramData\Microsoft\Windows\Start Menu"; IsDesktop = $false }
         )
         foreach ($prof in (getUserProfiles)) {
-            $roots += @{ Path = "$($prof.Path)\Desktop"; Recurse = $false }
+            $roots += @{ Path = "$($prof.Path)\Desktop"; IsDesktop = $true }
             foreach ($odDesktop in (Get-ChildItem -Path $prof.Path -Directory -Filter "OneDrive*" -ErrorAction SilentlyContinue)) {
-                $roots += @{ Path = "$($odDesktop.FullName)\Desktop"; Recurse = $false }
+                $roots += @{ Path = "$($odDesktop.FullName)\Desktop"; IsDesktop = $true }
             }
-            $roots += @{ Path = "$($prof.Path)\AppData\Roaming\Microsoft\Windows\Start Menu"; Recurse = $true }
+            $roots += @{ Path = "$($prof.Path)\AppData\Roaming\Microsoft\Windows\Start Menu"; IsDesktop = $false }
         }
 
         $wsh = New-Object -ComObject WScript.Shell
@@ -695,16 +697,33 @@ function removeEdgeShortcuts {
         foreach ($root in $roots) {
             if (-not (Test-Path -LiteralPath $root.Path)) { continue }
 
-            $links = Get-ChildItem -LiteralPath $root.Path -Filter "*.lnk" -File -Recurse:$root.Recurse -ErrorAction SilentlyContinue
+            # Desktops are flat; Start Menu shortcuts sit in subfolders
+            $links = Get-ChildItem -LiteralPath $root.Path -File -Recurse:(-not $root.IsDesktop) -ErrorAction SilentlyContinue |
+            Where-Object { $_.Extension -in '.lnk', '.url' }
+
             foreach ($link in $links) {
                 try {
-                    $shortcut = $wsh.CreateShortcut($link.FullName)
+                    $target = ""
+                    $arguments = ""
+                    if ($link.Extension -eq ".lnk") {
+                        $shortcut = $wsh.CreateShortcut($link.FullName)
+                        $target = $shortcut.TargetPath
+                        $arguments = $shortcut.Arguments
+                    }
+
                     # Edge itself only. Shortcuts with --app= are installed web apps, which are left alone.
-                    $isEdge = $shortcut.TargetPath -match '(?i)\\msedge(_proxy)?\.exe$' -and $shortcut.Arguments -notmatch '--app'
-                    if (-not $isEdge) { continue }
+                    $remove = $target -match '(?i)\\msedge(_proxy)?\.exe$' -and $arguments -notmatch '--app'
+
+                    if ($root.IsDesktop -and -not $remove) {
+                        # Acrobat by target, or by name for installer shortcuts that have no plain target
+                        $isAcrobat = $link.Extension -eq ".lnk" -and
+                            ($target -match '(?i)\\(Acrobat|AcroRd32)\.exe$' -or $link.BaseName -match '^(Adobe )?Acrobat\b')
+                        $remove = $isAcrobat -or $link.BaseName -like "T-Scan*User Manual*"
+                    }
+                    if (-not $remove) { continue }
 
                     Remove-Item -LiteralPath $link.FullName -Force -ErrorAction Stop
-                    writeText -type "plain" -text "Removed Edge shortcut: $($link.FullName)"
+                    writeText -type "plain" -text "Removed shortcut: $($link.FullName)"
                     $removed++
                 } catch {
                     writeText -type "notice" -text "Could not remove $($link.FullName): $($_.Exception.Message)"
@@ -712,7 +731,7 @@ function removeEdgeShortcuts {
             }
         }
 
-        writeText -type "success" -text "Removed $removed Edge shortcut(s)."
+        writeText -type "success" -text "Removed $removed shortcut(s)."
     } catch {
         addError -source "$($MyInvocation.MyCommand.Name)" -message $_.Exception.Message
         writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))"

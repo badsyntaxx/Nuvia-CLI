@@ -144,6 +144,8 @@ function installTscan {
             3010 { writeText -type "plain" -text "T-Scan installed. A reboot is required to finish." -lineAfter }
             default { throw "Installer exited with code $($proc.ExitCode)." }
         }
+
+        removeTscanManualShortcuts
     } catch {
         writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))" -lineAfter
     } finally {
@@ -159,4 +161,37 @@ function installTscan {
     # Called once, on every path. If your main menu already loops, delete this line
     # and just let the function return, which avoids growing the call stack.
     readCommand
+}
+function removeTscanManualShortcuts {
+    # The installer puts a "T-Scan User Manual" shortcut on the desktop. Check the
+    # public desktop and every profile's (OneDrive desktops and Default included).
+    # A failure here only gets a notice: T-Scan itself installed fine.
+    try {
+        $desktops = @()
+        $profileDirs = Get-ChildItem -Path "$env:SystemDrive\Users" -Directory -Force -ErrorAction SilentlyContinue |
+        Where-Object { -not ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) } # skip "Default User"/"All Users" junctions
+        foreach ($profileDir in $profileDirs) {
+            $desktops += "$($profileDir.FullName)\Desktop"
+            foreach ($odDir in (Get-ChildItem -Path $profileDir.FullName -Directory -Filter "OneDrive*" -ErrorAction SilentlyContinue)) {
+                $desktops += "$($odDir.FullName)\Desktop"
+            }
+        }
+
+        foreach ($desktop in $desktops) {
+            if (-not (Test-Path -LiteralPath $desktop)) { continue }
+
+            $links = Get-ChildItem -LiteralPath $desktop -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Extension -in '.lnk', '.url' -and $_.BaseName -like "T-Scan*User Manual*" }
+            foreach ($link in $links) {
+                try {
+                    Remove-Item -LiteralPath $link.FullName -Force -ErrorAction Stop
+                    writeText -type "plain" -text "Removed shortcut: $($link.FullName)"
+                } catch {
+                    writeText -type "notice" -text "Could not remove $($link.FullName): $($_.Exception.Message)"
+                }
+            }
+        }
+    } catch {
+        writeText -type "notice" -text "Could not check the desktops for the T-Scan User Manual shortcut: $($_.Exception.Message)"
+    }
 }
