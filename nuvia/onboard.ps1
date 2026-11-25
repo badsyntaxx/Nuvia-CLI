@@ -669,7 +669,7 @@ function removeTaskbarPins {
 }
 function removeUnwantedShortcuts {
     try {
-        writeText -type "plain" -text "Removing Edge, Acrobat and T-Scan User Manual shortcuts"
+        writeText -type "plain" -text "Removing Edge, Acrobat, T-Scan User Manual and T-Scan Help shortcuts"
 
         # Stop Edge's installer/updater from putting the desktop shortcut back
         setRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\EdgeUpdate" -Name "CreateDesktopShortcutDefault" -Value 0
@@ -677,7 +677,7 @@ function removeUnwantedShortcuts {
 
         # Desktop and Start Menu locations, machine-wide and per profile
         # (including Default, so new users don't get them). Edge is removed from
-        # both; Acrobat and the T-Scan manual from desktops only. Taskbar pins are
+        # both; Acrobat and the T-Scan manual and help from desktops only. Taskbar pins are
         # deliberately not touched here: deleting a pinned .lnk leaves a blank icon.
         $roots = @(
             @{ Path = "$env:PUBLIC\Desktop"; IsDesktop = $true },
@@ -718,7 +718,8 @@ function removeUnwantedShortcuts {
                         # Acrobat by target, or by name for installer shortcuts that have no plain target
                         $isAcrobat = $link.Extension -eq ".lnk" -and
                             ($target -match '(?i)\\(Acrobat|AcroRd32)\.exe$' -or $link.BaseName -match '^(Adobe )?Acrobat\b')
-                        $remove = $isAcrobat -or $link.BaseName -like "T-Scan*User Manual*"
+                        $isTscanDoc = $link.BaseName -like "T-Scan*User Manual*" -or $link.BaseName -like "T-Scan*Help*"
+                        $remove = $isAcrobat -or $isTscanDoc
                     }
                     if (-not $remove) { continue }
 

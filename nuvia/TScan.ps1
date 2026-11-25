@@ -145,7 +145,7 @@ function installTscan {
             default { throw "Installer exited with code $($proc.ExitCode)." }
         }
 
-        removeTscanManualShortcuts
+        removeTscanDocShortcuts
     } catch {
         writeText -type "error" -text "$($_.Exception.Message) ($($MyInvocation.MyCommand.Name)-$($_.InvocationInfo.ScriptLineNumber))" -lineAfter
     } finally {
@@ -162,9 +162,10 @@ function installTscan {
     # and just let the function return, which avoids growing the call stack.
     readCommand
 }
-function removeTscanManualShortcuts {
-    # The installer puts a "T-Scan User Manual" shortcut on the desktop. Check the
-    # public desktop and every profile's (OneDrive desktops and Default included).
+function removeTscanDocShortcuts {
+    # The installer puts "T-Scan User Manual" and "T-Scan 10 Help" shortcuts on the
+    # desktop. Check the public desktop and every profile's (OneDrive desktops and
+    # Default included).
     # A failure here only gets a notice: T-Scan itself installed fine.
     try {
         $desktops = @()
@@ -181,7 +182,10 @@ function removeTscanManualShortcuts {
             if (-not (Test-Path -LiteralPath $desktop)) { continue }
 
             $links = Get-ChildItem -LiteralPath $desktop -File -ErrorAction SilentlyContinue |
-            Where-Object { $_.Extension -in '.lnk', '.url' -and $_.BaseName -like "T-Scan*User Manual*" }
+            Where-Object {
+                $_.Extension -in '.lnk', '.url' -and
+                ($_.BaseName -like "T-Scan*User Manual*" -or $_.BaseName -like "T-Scan*Help*")
+            }
             foreach ($link in $links) {
                 try {
                     Remove-Item -LiteralPath $link.FullName -Force -ErrorAction Stop
@@ -192,6 +196,6 @@ function removeTscanManualShortcuts {
             }
         }
     } catch {
-        writeText -type "notice" -text "Could not check the desktops for the T-Scan User Manual shortcut: $($_.Exception.Message)"
+        writeText -type "notice" -text "Could not check the desktops for the T-Scan manual and help shortcuts: $($_.Exception.Message)"
     }
 }
